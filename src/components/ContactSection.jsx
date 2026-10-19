@@ -28,7 +28,7 @@ function ContactCard({ icon: Icon, label, value, href, onClick, copied }) {
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className="text-left">
+      <button type="button" onClick={onClick} className="block w-full text-left">
         {content}
       </button>
     )

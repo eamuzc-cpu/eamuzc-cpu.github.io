@@ -26,7 +26,7 @@ function LangToggle({ className = '' }) {
             type="button"
             onClick={() => setLang(l)}
             aria-pressed={lang === l}
-            className={`rounded px-1 py-0.5 transition-colors ${
+            className={`flex h-7 min-w-7 items-center justify-center rounded px-1 transition-colors ${
               lang === l ? 'text-cyan-soft text-glow' : 'hover:text-slate-200'
             }`}
           >

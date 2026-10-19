@@ -7,6 +7,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 export const LANGS = ['es', 'en']
 const STORAGE_KEY = 'lang'
 
+// Pestaña y descripción del navegador; el index.html trae la versión en español para quien no ejecuta JS.
+const META = {
+  es: {
+    title: 'Esteban Muñoz Cáceres — Automatización Industrial',
+    description: 'Esteban Alexander Muñoz Cáceres — Ingeniero en Automatización Industrial, Instrumentación y Desarrollo de Software. Casos de estudio, habilidades y contacto.',
+  },
+  en: {
+    title: 'Esteban Muñoz Cáceres — Industrial Automation',
+    description: 'Esteban Alexander Muñoz Cáceres — Industrial Automation, Instrumentation and Software Engineer. Case studies, skills and contact.',
+  },
+}
+
 function detectLang() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -25,6 +37,8 @@ export function LangProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.lang = lang
+    document.title = META[lang].title
+    document.querySelector('meta[name="description"]')?.setAttribute('content', META[lang].description)
   }, [lang])
 
   const setLang = useCallback((next) => {

@@ -21,8 +21,8 @@ export const ui = {
     },
     viewProjects: { es: 'Ver proyectos', en: 'View projects' },
     availability: {
-      es: '// Disponible para empleo full-time y proyectos freelance',
-      en: '// Available for full-time roles and freelance projects',
+      es: '// Disponible para empleo full-time, remoto y proyectos freelance',
+      en: '// Available for full-time, remote roles and freelance projects',
     },
     base: { es: 'Base', en: 'Based in' },
     projects: { es: 'Proyectos', en: 'Projects' },
