@@ -1,0 +1,431 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de un circuito de fuerza — conductores y protecciones</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: 340px minmax(0, 1fr); align-items: start; }
+.col { display: grid; gap: 12px; min-width: 0; }
+.frm { display: grid; grid-template-columns: 1fr 150px; gap: 7px 10px; align-items: center; }
+.frm label { font: 12px var(--mono); color: var(--mut); }
+.frm input, .frm select { width: 100%; }
+.frm .hint { grid-column: 1 / -1; font: 10.5px var(--mono); color: #64748b; margin-top: -3px; }
+.ej { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 8px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; }
+.card b { display: block; font: 600 20px var(--mono); margin-top: 2px; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.big { border-color: rgba(34, 211, 238, .5); } .card.big b { color: var(--cyan); }
+.adv { border: 1px solid rgba(248, 113, 113, .5); background: rgba(248, 113, 113, .07); border-radius: 10px; padding: 8px 12px; font: 12px var(--mono); color: var(--red); }
+.adv.ok { border-color: rgba(52, 211, 153, .5); background: rgba(52, 211, 153, .07); color: var(--green); }
+.adv ul { margin: 4px 0 0 16px; padding: 0; }
+.step { display: grid; grid-template-columns: 22px 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid #0f1a2e; }
+.step:last-child { border-bottom: 0; } .step i { font: 700 14px var(--mono); font-style: normal; } .step i.ok { color: var(--green); } .step i.bad { color: var(--red); }
+.step b { font-size: 13px; } .step .f { font: 11px var(--mono); color: var(--cyan); margin-top: 1px; } .step .d { font: 12px var(--mono); color: var(--txt); margin-top: 2px; }
+#cvTcc { height: 330px; }
+.mini { padding: 3px 8px; font-size: 11px; }
+tr.sel td { background: rgba(34, 211, 238, .12); color: var(--cyan); }
+td.no { color: #475569; } td.bad2 { color: var(--red); }
+@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Calculadora de un circuito · conductores y protecciones</h1>
+  <span class="badge warn">cálculo didáctico</span>
+</div>
+
+<div class="wrap layout">
+  <div class="col">
+    <div class="panel">
+      <h2>Circuito</h2>
+      <div class="ej" id="ej"></div>
+      <div class="frm">
+        <label for="f_tipo">Tipo de carga</label>
+        <select id="f_tipo"><option value="motor3f">Motor trifásico</option><option value="carga3f">Carga trifásica</option><option value="carga1f">Carga monofásica</option></select>
+        <label for="f_P">Potencia [kW]</label><input id="f_P" type="number" step="0.1" min="0.1" value="7.5">
+        <label for="f_cosfi">cos φ</label><input id="f_cosfi" type="number" step="0.01" min="0.1" max="1" value="0.85">
+        <label for="f_eta" id="l_eta">Rendimiento η</label><input id="f_eta" type="number" step="0.01" min="0.1" max="1" value="0.88">
+        <label for="f_arranque" id="l_arr">Corriente de arranque [× Ib]</label><input id="f_arranque" type="number" step="0.5" min="1" value="6">
+        <label for="f_L">Largo del cable [m]</label><input id="f_L" type="number" step="1" min="1" value="30">
+        <label for="f_metodo">Instalación</label>
+        <select id="f_metodo"><option value="B1">B1: cañería en pared</option><option value="C">C: pared o bandeja</option></select>
+        <label for="f_tAmb">Temperatura ambiente [°C]</label>
+        <select id="f_tAmb"><option>30</option><option>35</option><option selected>40</option><option>45</option><option>50</option><option>55</option><option>60</option></select>
+        <label for="f_agrupados">Circuitos agrupados</label><input id="f_agrupados" type="number" step="1" min="1" max="9" value="3">
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Protección y red</h2>
+      <div class="frm">
+        <label for="f_curva">Curva del interruptor</label>
+        <select id="f_curva"><option>B</option><option selected>C</option><option>D</option></select>
+        <label for="f_caidaMax">Caída máx. [%]</label><input id="f_caidaMax" type="number" step="0.5" min="0.5" value="3">
+        <div class="hint">Configurable: los límites cambian según tipo de circuito y norma. Verifícalo en el pliego RIC vigente.</div>
+        <label for="f_IccOrigen">Icc en el origen [kA]</label><input id="f_IccOrigen" type="number" step="0.5" min="1" value="10">
+        <label for="f_Icu">Poder de corte Icu [kA]</label>
+        <select id="f_Icu"><option>6</option><option selected>10</option><option>15</option><option>25</option></select>
+        <label for="f_I2t">I²t pasante [A²s]</label><input id="f_I2t" type="number" step="1000" min="1000" placeholder="típico">
+        <div class="hint">Vacío = valor típico de catálogo para esa In. Usa el del fabricante para tu Icc.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div id="res"></div>
+    <div class="panel"><h2>Curvas tiempo–corriente: interruptor vs. daño del cable</h2><canvas id="cvTcc"></canvas>
+      <div class="note" style="padding:6px 0 0"><span class="cy">▮</span> banda de disparo del interruptor · <span class="bad">━</span> el cable se daña (k²S²/I², válida hasta 5 s) · líneas: <span class="cy">Ib</span>, <span class="warn">Iz</span>, Icc mínima y máxima al final · escala logarítmica</div>
+    </div>
+    <div id="pasos"></div>
+    <div class="panel"><h2>Qué pasa con otras secciones</h2><div id="tab"></div></div>
+    <div class="row"><button id="bMemo">Descargar memoria de cálculo (.txt)</button></div>
+  </div>
+</div>
+<div class="note">Cálculo didáctico con tablas de referencia tipo IEC 60364-5-52 (PVC, cobre) y fórmulas convencionales: no reemplaza el proyecto firmado por un instalador autorizado ni el pliego RIC / NCh Elec. 4/2003 vigente de la SEC, ni los datos del fabricante.</div>
+
+<script>
+// Calculadora didáctica de un circuito de fuerza, paso a paso: corriente de proyecto, protección, sección por
+// capacidad de corriente (con factores de temperatura y agrupamiento), caída de tensión, resistencia térmica del
+// cable al cortocircuito (k²S² ≥ I²t), longitud máxima por disparo magnético (contactos indirectos, esquema TN)
+// y chequeo de la curva del interruptor contra la curva de daño del cable.
+// Tablas de referencia tipo IEC 60364-5-52 (PVC 70 °C, cobre, métodos B1 y C) y fórmulas convencionales de
+// IEC 60364-4-43 / 5-54: VERIFICAR contra el pliego RIC / NCh Elec. 4/2003 vigente de la SEC y los datos del fabricante.
+// El MISMO archivo corre en las pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.CircuitoCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const TABLAS = {
+    secciones: [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120],
+    // A, cobre PVC 70 °C, a 30 °C, por método de instalación y número de conductores cargados
+    ampacidad: {
+      B1: { 2: [15.5, 21, 28, 36, 50, 68, 89, 110, 134, 171, 207, 239], 3: [13.5, 18, 24, 31, 42, 56, 73, 89, 108, 136, 164, 188] },
+      C: { 2: [19.5, 27, 36, 46, 63, 85, 112, 138, 168, 213, 258, 299], 3: [17.5, 24, 32, 41, 57, 76, 96, 119, 144, 184, 223, 259] },
+    },
+    temp: { 30: 1.0, 35: 0.94, 40: 0.87, 45: 0.79, 50: 0.71, 55: 0.61, 60: 0.5 },
+    grupo: { 1: 1, 2: 0.8, 3: 0.7, 4: 0.65, 5: 0.6, 6: 0.57, 7: 0.54, 8: 0.52, 9: 0.5 },
+    mcb: [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125],
+    magnetico: { B: [3, 5], C: [5, 10], D: [10, 20] }, // múltiplos de In: [no dispara, dispara seguro] (IEC 60898-1)
+    rho70: 0.0225, // Ω·mm²/m, cobre a 70 °C (caída de tensión)
+    rho20: 0.018, // cobre a 20 °C (cortocircuito máximo)
+    rhoFalla: 0.027, // 1,5 × ρ20: método convencional del bucle de falla (cortocircuito mínimo)
+    x: 0.00008, // Ω/m
+    k: 115, // PVC/cobre (IEC 60364-4-43)
+  }
+  const METODOS = { B1: 'B1: en cañería sobre pared', C: 'C: directo sobre pared / bandeja' }
+  const redondear = (x, d = 2) => Math.round(x * 10 ** d) / 10 ** d
+  const siguiente = (lista, v) => lista.find((x) => x >= v - 1e-9) ?? null
+
+  // I²t que deja pasar un interruptor limitador típico (supuesto; usar el valor de catálogo para tu Icc)
+  const i2tTipico = (In) => (In <= 16 ? 50000 : In <= 32 ? 60000 : In <= 63 ? 120000 : 300000)
+
+  function corrienteProyecto(c, cfg) {
+    const P = c.P * 1000
+    if (c.tipo === 'motor3f') return P / (Math.sqrt(3) * cfg.Vl * c.cosfi * c.eta)
+    if (c.tipo === 'carga3f') return P / (Math.sqrt(3) * cfg.Vl * c.cosfi)
+    return P / (cfg.Vf * c.cosfi)
+  }
+  function factores(cfg) {
+    const t = Object.keys(TABLAS.temp).map(Number).sort((a, b) => a - b).find((k) => k >= cfg.tAmb) ?? 60
+    return { kt: TABLAS.temp[t], kg: TABLAS.grupo[Math.min(9, Math.max(1, Math.round(cfg.agrupados)))], tTabla: t }
+  }
+  const cargados = (c) => (c.tipo === 'carga1f' ? 2 : 3)
+  const ampacidadBase = (S, metodo, nCarg) => TABLAS.ampacidad[metodo][nCarg][TABLAS.secciones.indexOf(S)]
+
+  function caidaTension(c, S, I, cfg, cosfi = c.cosfi) {
+    const R = TABLAS.rho70 / S, sin = Math.sqrt(Math.max(0, 1 - cosfi ** 2))
+    const f = c.tipo === 'carga1f' ? 2 : Math.sqrt(3)
+    const dv = f * I * c.L * (R * cosfi + TABLAS.x * sin)
+    return (dv / (c.tipo === 'carga1f' ? cfg.Vf : cfg.Vl)) * 100
+  }
+  const mPE = (S) => (S <= 16 ? 1 : 2) // sección del conductor de protección: igual a la fase hasta 16 mm², la mitad sobre eso
+
+  // Cortocircuito máximo al final de la línea (trifásico, método de impedancias) y mínimo (falla fase–PE, método convencional)
+  function iccMaximoFinal(S, L, IccOrigenA, Vl) {
+    const Zs = Vl / (Math.sqrt(3) * IccOrigenA), Rs = 0.3 * Zs, Xs = Math.sqrt(1 - 0.09) * Zs
+    const Rc = (TABLAS.rho20 * L) / S, Xc = TABLAS.x * L
+    return Vl / (Math.sqrt(3) * Math.hypot(Rs + Rc, Xs + Xc))
+  }
+  const iccMinimoFinal = (S, L, U0) => (0.8 * U0) / ((TABLAS.rhoFalla * (1 + mPE(S)) * L) / S)
+  function longitudMaxima(S, In, curva, U0) {
+    const Im = TABLAS.magnetico[curva][1] * In
+    return (0.8 * U0 * S) / (TABLAS.rhoFalla * (1 + mPE(S)) * Im)
+  }
+
+  // Curvas tiempo–corriente (log–log) del interruptor: [corriente en A, tiempo en s]
+  function curvaInterruptor(In, curva) {
+    const [mMin, mMax] = TABLAS.magnetico[curva]
+    const t60 = In <= 32 ? 60 : 120
+    const maxima = [[1.45 * In, 3600], [2.55 * In, t60], [mMax * In, 0.1], [mMax * In * 1.0001, 0.02], [mMax * In * 100, 0.01]]
+    const minima = [[1.13 * In, 3600], [2.55 * In, 1], [mMin * In, 0.1], [mMin * In * 1.0001, 0.005], [mMin * In * 100, 0.002]]
+    return { maxima, minima }
+  }
+  function interpolarLogLog(pts, I) {
+    if (I <= pts[0][0]) return Infinity // por debajo de la corriente de disparo convencional no se garantiza el disparo
+    for (let i = 1; i < pts.length; i++) {
+      if (I <= pts[i][0]) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]
+        if (x1 === x0) return y1
+        const f = (Math.log(I) - Math.log(x0)) / (Math.log(x1) - Math.log(x0))
+        return Math.exp(Math.log(y0) + f * (Math.log(y1) - Math.log(y0)))
+      }
+    }
+    return pts.at(-1)[1]
+  }
+  const tiempoMaximoDisparo = (In, curva, I) => interpolarLogLog(curvaInterruptor(In, curva).maxima, I)
+  const tiempoMinimoDisparo = (In, curva, I) => interpolarLogLog(curvaInterruptor(In, curva).minima, I)
+  const tiempoDano = (S, I) => ((TABLAS.k * S) ** 2) / (I * I) // s: tiempo que aguanta el cable (adiabático)
+
+  // Zona de sobrecarga (entre 1,45·In y el disparo magnético): el interruptor debe disparar antes que el cable se dañe.
+  // La ecuación adiabática solo vale hasta 5 s (IEC 60364-4-43); para tiempos mayores basta In ≤ Iz, que se verifica aparte.
+  // Zona de cortocircuito: se compara la energía pasante I²t con k²S².
+  function coordinacion(S, In, curva, I2t) {
+    const Im = TABLAS.magnetico[curva][1] * In
+    for (let i = 0; i <= 300; i++) {
+      const I = 1.45 * In * (Im / (1.45 * In)) ** (i / 300), t = tiempoMaximoDisparo(In, curva, I)
+      if (t > 5) continue
+      if (t > tiempoDano(S, I)) return { ok: false, motivo: `a ${Math.round(I)} A el interruptor tarda ${redondear(t)} s y el cable resiste ${redondear(tiempoDano(S, I))} s` }
+    }
+    if (I2t > (TABLAS.k * S) ** 2) return { ok: false, motivo: `I²t pasante ${Math.round(I2t)} A²s supera k²S² = ${Math.round((TABLAS.k * S) ** 2)} A²s` }
+    return { ok: true, motivo: 'el interruptor protege al cable en toda la banda' }
+  }
+
+  function calcular(entrada) {
+    const cfg = { Vl: 380, Vf: 220, tAmb: 40, agrupados: 3, caidaMax: 3, IccOrigen: 10, curva: 'C', metodo: 'B1', arranque: 6, Icu: 10, caidaArranqueMax: 10, ...entrada }
+    const c = { tipo: cfg.tipo, P: cfg.P, cosfi: cfg.cosfi, eta: cfg.eta ?? 1, L: cfg.L }
+    const pasos = [], adv = []
+    const motor = c.tipo === 'motor3f', U0 = cfg.Vf, nCarg = cargados(c)
+    const paso = (titulo, formula, detalle, ok = true) => pasos.push({ titulo, formula, detalle, ok })
+    if (!(c.P > 0 && c.cosfi > 0 && c.cosfi <= 1 && c.L > 0 && (!motor || (c.eta > 0 && c.eta <= 1)))) return { error: 'datos inválidos: potencia, cos φ, rendimiento y largo deben ser positivos (cos φ y η ≤ 1)' }
+
+    // 1. Corriente de proyecto
+    const ib = corrienteProyecto(c, cfg)
+    const formulaIb = c.tipo === 'carga1f' ? 'Ib = P / (V · cos φ)' : motor ? 'Ib = P / (√3 · V · cos φ · η)' : 'Ib = P / (√3 · V · cos φ)'
+    paso('Corriente de proyecto', formulaIb, `Ib = ${redondear(ib)} A`)
+
+    // 2. Protección
+    const In = siguiente(TABLAS.mcb, ib)
+    if (!In) return { error: `Ib = ${redondear(ib)} A supera el catálogo de interruptores (125 A)` }
+    paso('Interruptor termomagnético', 'Ib ≤ In (valor normalizado inmediato superior)', `In = ${In} A, curva ${cfg.curva}${motor ? ' (el motor además necesita guardamotor o relé térmico para la sobrecarga)' : ''}`)
+
+    // 3. Capacidad de corriente
+    const { kt, kg, tTabla } = factores(cfg)
+    const minimo = c.tipo === 'carga1f' ? 1.5 : 2.5
+    let i = TABLAS.secciones.findIndex((S, k) => S >= minimo && TABLAS.ampacidad[cfg.metodo][nCarg][k] * kt * kg >= In - 1e-9)
+    if (i < 0) return { error: 'ninguna sección de la tabla soporta esta corriente con los factores de corrección elegidos' }
+    const sAmp = TABLAS.secciones[i]
+    paso('Sección por capacidad de corriente', `Iz = I₀ · kT · kG ≥ In   (kT = ${kt} a ${tTabla} °C, kG = ${kg} con ${cfg.agrupados} circuitos)`, `${sAmp} mm² → Iz = ${redondear(ampacidadBase(sAmp, cfg.metodo, nCarg) * kt * kg, 1)} A (método ${cfg.metodo}, ${nCarg} conductores cargados)`)
+
+    // 4. Caída de tensión
+    let sDv = sAmp, dv = caidaTension(c, sDv, ib, cfg)
+    while (dv > cfg.caidaMax && TABLAS.secciones.indexOf(sDv) < TABLAS.secciones.length - 1) { sDv = TABLAS.secciones[TABLAS.secciones.indexOf(sDv) + 1]; dv = caidaTension(c, sDv, ib, cfg) }
+    const dvAmp = caidaTension(c, sAmp, ib, cfg)
+    paso('Caída de tensión', `ΔU% = ${c.tipo === 'carga1f' ? '2' : '√3'} · Ib · L · (R·cos φ + X·sin φ) / U   (límite ${cfg.caidaMax} %)`, sDv === sAmp ? `${redondear(dv)} % con ${sDv} mm²: cumple` : `${redondear(dvAmp)} % con ${sAmp} mm² excede el límite → ${sDv} mm² da ${redondear(dv)} %`, dv <= cfg.caidaMax)
+    if (dv > cfg.caidaMax) adv.push(`la caída de tensión (${redondear(dv)} %) supera el límite aun con la sección máxima de la tabla`)
+
+    // 5. Resistencia térmica al cortocircuito
+    const I2t = cfg.I2tPasante ?? i2tTipico(In)
+    const sTermMin = Math.sqrt(I2t) / TABLAS.k
+    const sTerm = siguiente(TABLAS.secciones, sTermMin) ?? TABLAS.secciones.at(-1)
+    paso('Resistencia térmica al cortocircuito', `k²S² ≥ I²t pasante   (k = ${TABLAS.k} PVC/Cu; I²t = ${Math.round(I2t)} A²s${cfg.I2tPasante ? '' : ', típico de catálogo'})`, `S ≥ ${redondear(sTermMin)} mm² → ${sTerm} mm²`)
+
+    let S = Math.max(sDv, sTerm)
+    // 6. Contactos indirectos: longitud máxima por disparo magnético
+    let lmax = longitudMaxima(S, In, cfg.curva, U0), sAntes = S
+    while (lmax < c.L && TABLAS.secciones.indexOf(S) < TABLAS.secciones.length - 1) { S = TABLAS.secciones[TABLAS.secciones.indexOf(S) + 1]; lmax = longitudMaxima(S, In, cfg.curva, U0) }
+    const iccMin = iccMinimoFinal(S, c.L, U0), im = TABLAS.magnetico[cfg.curva][1] * In
+    paso('Protección contra contactos indirectos (TN)', `Icc mín. al final ≥ ${TABLAS.magnetico[cfg.curva][1]}·In = ${im} A;  Lmáx = 0,8·U₀·S / (ρ·(1+m)·Im)`, S === sAntes ? `Lmáx = ${redondear(lmax, 1)} m ≥ ${c.L} m: cumple (Icc mín. ${Math.round(iccMin)} A)` : `con ${sAntes} mm² Lmáx sería ${redondear(longitudMaxima(sAntes, In, cfg.curva, U0), 1)} m < ${c.L} m → ${S} mm² (Lmáx ${redondear(lmax, 1)} m). Alternativa: curva B (dispara con menos corriente)`, c.L <= lmax)
+    if (c.L > lmax) adv.push(`el interruptor no dispara con seguridad ante una falla a tierra al final de ${c.L} m (Lmáx ${redondear(lmax, 1)} m)`)
+
+    // 7. Resultado
+    const iz = ampacidadBase(S, cfg.metodo, nCarg) * kt * kg
+    const iccMax = iccMaximoFinal(S, c.L, cfg.IccOrigen * 1000, cfg.Vl)
+    const cuant = coordinacion(S, In, cfg.curva, I2t)
+    paso('Poder de corte', 'Icu ≥ Icc en el punto de instalación', `Icu = ${cfg.Icu} kA ${cfg.Icu >= cfg.IccOrigen ? '≥' : '<'} Icc = ${cfg.IccOrigen} kA`, cfg.Icu >= cfg.IccOrigen)
+    if (cfg.Icu < cfg.IccOrigen) adv.push(`el poder de corte (${cfg.Icu} kA) es menor que la corriente de cortocircuito (${cfg.IccOrigen} kA)`)
+    paso('Coordinación interruptor–cable', 'curva de disparo máxima por debajo de t = k²S²/I²', cuant.motivo, cuant.ok)
+    if (!cuant.ok) adv.push(cuant.motivo)
+
+    // 8. Motor: caída en el arranque
+    let dvArr = null
+    if (motor) {
+      dvArr = caidaTension(c, S, ib * cfg.arranque, cfg, 0.4)
+      paso('Caída de tensión en el arranque directo', `Ia = ${cfg.arranque}·Ib, cos φ = 0,4 (límite ${cfg.caidaArranqueMax} %)`, `${redondear(dvArr, 1)} % con ${S} mm²`, dvArr <= cfg.caidaArranqueMax)
+      if (dvArr > cfg.caidaArranqueMax) adv.push(`caída en el arranque ${redondear(dvArr, 1)} %: considerar arrancador suave o variador`)
+    }
+
+    const resultado = {
+      ib: redondear(ib), In, curva: cfg.curva, S, iz: redondear(iz, 1), dvPct: redondear(caidaTension(c, S, ib, cfg)), dvArranque: dvArr == null ? null : redondear(dvArr, 1),
+      lmax: redondear(lmax, 1), iccMaxFinal: Math.round(iccMax), iccMinFinal: Math.round(iccMin), i2t: Math.round(I2t),
+      porAmpacidad: sAmp, porCaida: sDv, porTermica: sTerm, kt, kg, conductores: c.tipo === 'carga1f' ? '2×' : '3×', coordinado: cuant.ok,
+    }
+    return { cfg, pasos, resultado, advertencias: adv, ok: adv.length === 0 }
+  }
+
+  // Caída de tensión [%] por sección (para el gráfico) y longitud máxima por sección
+  function tablaPorSeccion(entrada) {
+    const cfg = { Vl: 380, Vf: 220, curva: 'C', ...entrada }
+    const c = { tipo: cfg.tipo, P: cfg.P, cosfi: cfg.cosfi, eta: cfg.eta ?? 1, L: cfg.L }
+    const ib = corrienteProyecto(c, cfg), In = siguiente(TABLAS.mcb, ib)
+    return TABLAS.secciones.map((S) => ({ S, dv: redondear(caidaTension(c, S, ib, cfg)), lmax: In ? redondear(longitudMaxima(S, In, cfg.curva, cfg.Vf), 1) : null }))
+  }
+
+  const EJEMPLOS = {
+    motor: { nombre: 'Motor 7,5 kW a 30 m', tipo: 'motor3f', P: 7.5, cosfi: 0.85, eta: 0.88, L: 30, metodo: 'B1', curva: 'C', tAmb: 40, agrupados: 3 },
+    largo: { nombre: 'Motor 11 kW a 120 m (se complica)', tipo: 'motor3f', P: 11, cosfi: 0.86, eta: 0.9, L: 120, metodo: 'C', curva: 'C', tAmb: 35, agrupados: 2 },
+    resistencia: { nombre: 'Resistencia trifásica 15 kW a 60 m', tipo: 'carga3f', P: 15, cosfi: 1, L: 60, metodo: 'C', curva: 'C', tAmb: 30, agrupados: 1 },
+    monofasica: { nombre: 'Carga monofásica 2,3 kW a 45 m', tipo: 'carga1f', P: 2.3, cosfi: 0.95, L: 45, metodo: 'B1', curva: 'C', tAmb: 30, agrupados: 4 },
+  }
+
+  return { TABLAS, METODOS, EJEMPLOS, calcular, tablaPorSeccion, corrienteProyecto, caidaTension, iccMaximoFinal, iccMinimoFinal, longitudMaxima, curvaInterruptor, tiempoMaximoDisparo, tiempoMinimoDisparo, tiempoDano, coordinacion, i2tTipico, factores, mPE }
+})
+
+</script>
+<script>
+'use strict'
+const C = CircuitoCore, $ = (id) => document.getElementById(id)
+const f = (n, d = 1) => (Number.isFinite(n) ? n.toLocaleString('es-CL', { maximumFractionDigits: d, minimumFractionDigits: 0 }) : '—')
+let ultimo = null
+
+function leer() {
+  const v = (id) => $('f_' + id).value
+  return { tipo: v('tipo'), P: +v('P'), cosfi: +v('cosfi'), eta: +v('eta'), L: +v('L'), metodo: v('metodo'), curva: v('curva'), tAmb: +v('tAmb'), agrupados: +v('agrupados'), caidaMax: +v('caidaMax'), IccOrigen: +v('IccOrigen'), Icu: +v('Icu'), I2tPasante: v('I2t') === '' ? undefined : +v('I2t'), arranque: +v('arranque') }
+}
+function cargar(e) {
+  for (const k of ['tipo', 'P', 'cosfi', 'eta', 'L', 'metodo', 'curva', 'tAmb', 'agrupados']) if (e[k] != null) $('f_' + k).value = e[k]
+  $('f_I2t').value = ''; render()
+}
+$('ej').innerHTML = Object.entries(C.EJEMPLOS).map(([k, e]) => `<button class="mini" data-ej="${k}">${e.nombre}</button>`).join('')
+$('ej').querySelectorAll('button').forEach((b) => (b.onclick = () => cargar(C.EJEMPLOS[b.dataset.ej])))
+document.querySelectorAll('.frm input, .frm select').forEach((el) => el.addEventListener('input', render))
+
+function render() {
+  const e = leer(), motor = e.tipo === 'motor3f'
+  $('f_eta').style.display = $('l_eta').style.display = $('f_arranque').style.display = $('l_arr').style.display = motor ? '' : 'none'
+  const r = C.calcular(e); ultimo = r
+  if (r.error) { $('res').innerHTML = `<div class="adv">✖ ${r.error}</div>`; dibujar(null); $('tab').innerHTML = ''; $('pasos').innerHTML = ''; return }
+  const x = r.resultado
+  const maxCrit = Math.max(x.porAmpacidad, x.porCaida, x.porTermica)
+  const manda = x.S > maxCrit ? 'alcance del disparo magnético' : x.S === x.porCaida && x.porCaida > x.porAmpacidad ? 'caída de tensión' : x.S === x.porTermica && x.porTermica > x.porAmpacidad ? 'resistencia térmica' : 'capacidad de corriente'
+  $('res').innerHTML = `
+    <div class="panel"><h2>Resultado</h2>
+      <div class="cards">
+        <div class="card"><span>Corriente Ib</span><b>${f(x.ib)} A</b></div>
+        <div class="card"><span>Interruptor</span><b>${x.In} A</b><small>curva ${x.curva}</small></div>
+        <div class="card big"><span>Cable</span><b>${x.conductores}${f(x.S)} mm²</b><small>manda: ${manda}</small></div>
+        <div class="card"><span>Iz corregida</span><b>${f(x.iz)} A</b><small>kT ${f(x.kt, 2)} · kG ${f(x.kg, 2)}</small></div>
+        <div class="card"><span>Caída de tensión</span><b>${f(x.dvPct, 2)} %</b>${x.dvArranque != null ? `<small>arranque ${f(x.dvArranque)} %</small>` : ''}</div>
+        <div class="card"><span>Alcance magnético</span><b>${f(x.lmax)} m</b><small>largo ${f(e.L)} m</small></div>
+      </div>
+      <div style="margin-top:10px" class="adv ${r.ok ? 'ok' : ''}">${r.ok ? '✔ Cumple todos los criterios verificados.' : `✖ Revisar:<ul>${r.advertencias.map((a) => `<li>${a}</li>`).join('')}</ul>`}</div>
+    </div>`
+  $('pasos').innerHTML = `<div class="panel"><h2>Paso a paso</h2>${r.pasos.map((p) => `<div class="step"><i class="${p.ok ? 'ok' : 'bad'}">${p.ok ? '✔' : '✖'}</i><div><b>${p.titulo}</b><div class="f">${p.formula}</div><div class="d">${p.detalle}</div></div></div>`).join('')}</div>`
+  const tabla = C.tablaPorSeccion(e)
+  $('tab').innerHTML = `<table><tr><th>S [mm²]</th><th>Iz [A]</th><th>Caída [%]</th><th>Alcance [m]</th><th>Veredicto</th></tr>${tabla.map((t) => {
+    const nC = e.tipo === 'carga1f' ? 2 : 3, kF = C.factores(e), iz = C.TABLAS.ampacidad[e.metodo][nC][C.TABLAS.secciones.indexOf(t.S)] * kF.kt * kF.kg
+    const okI = iz >= x.In - 1e-9, okD = t.dv <= e.caidaMax, okL = t.lmax >= e.L
+    return `<tr class="${t.S === x.S ? 'sel' : ''}"><td>${t.S}</td><td class="${okI ? '' : 'bad2'}">${f(iz)}</td><td class="${okD ? '' : 'bad2'}">${f(t.dv, 2)}</td><td class="${okL ? '' : 'bad2'}">${f(t.lmax)}</td><td>${t.S === x.S ? '◀ elegida' : okI && okD && okL ? 'cumple' : '<span class="no">no cumple</span>'}</td></tr>`
+  }).join('')}</table>`
+  dibujar(r)
+}
+
+function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '11px ui-monospace, Consolas, monospace'; return { c, w, h } }
+function dibujar(r) {
+  const { c, w, h } = prep($('cvTcc'))
+  if (!r) return
+  const x = r.resultado, In = x.In, k = C.TABLAS.k, L = 46, R = 10, T = 8, B = 20
+  const lx0 = Math.log10(In * 0.9), lx1 = Math.log10(Math.max(x.iccMaxFinal * 1.4, In * 40)), ly0 = Math.log10(0.003), ly1 = Math.log10(8000)
+  const X = (I) => L + ((Math.log10(I) - lx0) / (lx1 - lx0)) * (w - L - R), Y = (t) => T + (1 - (Math.log10(Math.min(Math.max(t, 0.003), 8000)) - ly0) / (ly1 - ly0)) * (h - T - B)
+  c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.lineWidth = 1; c.textAlign = 'right'
+  for (let e = -2; e <= 3; e++) for (const m of [1, 2, 5]) { const t = m * 10 ** e; if (t < 0.003 || t > 8000) continue; c.beginPath(); c.moveTo(L, Y(t)); c.lineTo(w - R, Y(t)); c.globalAlpha = m === 1 ? 1 : 0.35; c.stroke(); c.globalAlpha = 1; if (m === 1) c.fillText(t >= 1 ? t : t.toString().replace('.', ','), L - 4, Y(t) + 3) }
+  c.textAlign = 'center'
+  for (let e = Math.ceil(lx0); e <= Math.floor(lx1); e++) for (const m of [1, 2, 5]) { const I = m * 10 ** e; if (I < In * 0.9 || I > 10 ** lx1) continue; c.beginPath(); c.moveTo(X(I), T); c.lineTo(X(I), h - B); c.globalAlpha = m === 1 ? 1 : 0.35; c.stroke(); c.globalAlpha = 1; if (m !== 2) c.fillText(I >= 1000 ? I / 1000 + 'k' : I, X(I), h - 6) }
+  // banda del interruptor
+  const N = 160, Is = Array.from({ length: N + 1 }, (_, i) => In * 1.13 * ((10 ** lx1) / (In * 1.13)) ** (i / N))
+  c.fillStyle = 'rgba(34,211,238,.2)'; c.strokeStyle = 'rgba(34,211,238,.8)'; c.lineWidth = 1.2; c.beginPath()
+  Is.forEach((I, i) => { const t = Math.min(C.tiempoMaximoDisparo(In, x.curva, I), 8000); i ? c.lineTo(X(I), Y(t)) : c.moveTo(X(I), Y(t)) })
+  for (let i = Is.length - 1; i >= 0; i--) c.lineTo(X(Is[i]), Y(Math.min(C.tiempoMinimoDisparo(In, x.curva, Is[i]), 8000)))
+  c.closePath(); c.fill(); c.stroke()
+  // daño del cable
+  // sólido solo donde vale la ecuación adiabática (t ≤ 5 s); más allá, punteado
+  for (const adiabatico of [false, true]) {
+    c.strokeStyle = adiabatico ? '#f87171' : 'rgba(248,113,113,.4)'; c.lineWidth = adiabatico ? 2 : 1.2; c.setLineDash(adiabatico ? [] : [3, 4]); c.beginPath(); let ini = true
+    for (const I of Is) { const t = C.tiempoDano(x.S, I); if (t > 8000 || (t <= 5) !== adiabatico) { ini = true; continue } ini ? c.moveTo(X(I), Y(t)) : c.lineTo(X(I), Y(t)); ini = false }
+    c.stroke(); c.setLineDash([])
+  }
+  // energía pasante
+  const Iref = x.iccMaxFinal; c.fillStyle = '#e879f9'; c.beginPath(); c.arc(X(Iref), Y(x.i2t / (Iref * Iref)), 4, 0, 7); c.fill()
+  const mark = (I, col, rot) => { if (I < In * 0.9 || I > 10 ** lx1) return; c.strokeStyle = col; c.setLineDash([4, 3]); c.lineWidth = 1.2; c.beginPath(); c.moveTo(X(I), T); c.lineTo(X(I), h - B); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.textAlign = 'left'; c.fillText(rot, X(I) + 3, T + 11) }
+  mark(x.ib, '#22d3ee', 'Ib'); mark(x.iz, '#f59e0b', 'Iz'); mark(x.iccMinFinal, '#e879f9', 'Icc mín'); mark(x.iccMaxFinal, '#f87171', 'Icc máx')
+}
+$('bMemo').onclick = () => {
+  if (!ultimo || ultimo.error) return
+  const e = ultimo.cfg, x = ultimo.resultado
+  const txt = ['MEMORIA DE CÁLCULO (didáctica)', `Carga: ${e.tipo}, ${e.P} kW, cos φ ${e.cosfi}${e.tipo === 'motor3f' ? ', η ' + e.eta : ''}, ${e.L} m, instalación ${e.metodo}, ${e.tAmb} °C, ${e.agrupados} circuitos`, '',
+    ...ultimo.pasos.map((p, i) => `${i + 1}. ${p.titulo} [${p.ok ? 'OK' : 'REVISAR'}]\n   ${p.formula}\n   ${p.detalle}`), '',
+    `RESULTADO: interruptor ${x.In} A curva ${x.curva}, cable ${x.conductores}${x.S} mm² Cu PVC, Iz ${x.iz} A, caída ${x.dvPct} %.`, ultimo.ok ? 'Cumple los criterios verificados.' : 'Advertencias: ' + ultimo.advertencias.join('; '), '',
+    'Tablas de referencia tipo IEC 60364-5-52. No reemplaza proyecto firmado ni el pliego RIC / NCh Elec. 4/2003 vigente.'].join('\n')
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain' })); a.download = 'memoria-calculo.txt'; a.click(); URL.revokeObjectURL(a.href)
+}
+window.addEventListener('resize', render)
+render()
+window.demoApi = { C, leer, cargar, render }
+</script>
+</body>
+</html>
+
+
+
+

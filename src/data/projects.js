@@ -1135,4 +1135,49 @@ export const projects = [
     },
     tools: { hardware: [], software: ['JavaScript', 'SVG', 'node:test', { es: 'Tablas IEC 60364-5-52 (referencia)', en: 'IEC 60364-5-52 tables (reference)' }] },
   },
+  {
+    slug: 'calculadora-conductores-protecciones',
+    title: {
+      es: 'Calculadora paso a paso de un circuito de fuerza: conductores, protecciones y curvas de disparo',
+      en: 'Step-by-Step Power Circuit Calculator: Conductors, Protections and Trip Curves',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/calculadora-conductores-protecciones.jpg',
+    demo: { src: '/demos/calculadora-conductores-protecciones/index.html' },
+    resultBadge: { es: '400 circuitos aleatorios verificados', en: '400 random circuits verified' },
+    summary: {
+      es: 'Calculadora interactiva de un circuito de fuerza (motor, carga trifásica o monofásica): corriente de proyecto, interruptor, sección por capacidad de corriente, caída de tensión, resistencia térmica y alcance del disparo magnético, con las curvas de disparo contra el daño del cable.',
+      en: 'Interactive calculator for a power circuit (motor, three-phase or single-phase load): design current, breaker, cable size by ampacity, voltage drop, thermal withstand and magnetic trip reach, with trip curves plotted against cable damage.',
+    },
+    stack: [{ es: 'Capacidad de corriente (IEC 60364-5-52)', en: 'Ampacity (IEC 60364-5-52)' }, 'k²S² ≥ I²t', { es: 'Curvas B/C/D', en: 'B/C/D curves' }, 'JavaScript'],
+    challenge: {
+      es: 'Dimensionar un circuito no es elegir un cable por amperes: hay que cumplir a la vez la capacidad de corriente, la caída de tensión, la resistencia térmica al cortocircuito y el disparo seguro ante una falla a tierra al final de la línea. Basta que falle uno para que el circuito sea inseguro o inútil.',
+      en: 'Sizing a circuit is not picking a cable by amps: it has to satisfy ampacity, voltage drop, short-circuit thermal withstand and a reliable trip on an earth fault at the end of the line, all at once. One failed check is enough to make the circuit unsafe or useless.',
+    },
+    impact: {
+      es: 'En planta, un cable largo con el interruptor equivocado puede no disparar ante una falla a tierra, y uno subdimensionado se calienta o provoca caídas de tensión que detienen motores en el arranque.',
+      en: 'On a plant, a long cable with the wrong breaker may not trip on an earth fault, and an undersized one overheats or causes voltage drops that stall motors at start-up.',
+    },
+    solution: {
+      es: 'Se programaron las verificaciones encadenadas: corriente de proyecto, interruptor normalizado, sección por capacidad con factores de temperatura y agrupamiento, caída de tensión (también en el arranque del motor), resistencia térmica k²S² ≥ I²t, longitud máxima por disparo magnético en esquema TN, poder de corte y coordinación entre la curva del interruptor y la curva de daño del cable. Los resultados se contrastaron con cálculos a mano (un C16 con 2,5 mm² alcanza 53,2 m con U₀ de 230 V; un motor de 7,5 kW da 15,2 A, interruptor de 16 A y 6 mm² con 40 °C y 3 circuitos agrupados) y 400 circuitos aleatorios comprueban que, cuando no hay advertencias, se cumplen todos los criterios. La demo explica cada paso con su fórmula, muestra qué criterio manda la sección, grafica la banda de disparo del interruptor contra la curva de daño del cable y permite descargar la memoria de cálculo. Usa tablas de referencia tipo IEC 60364-5-52 y límites configurables: hay que verificarlos con el pliego RIC / NCh Elec. 4/2003 vigente y el catálogo del fabricante.',
+      en: 'The chained checks were programmed: design current, standard breaker, cable size by ampacity with temperature and grouping factors, voltage drop (also at motor start), thermal withstand k²S² ≥ I²t, maximum length for magnetic tripping in a TN system, breaking capacity, and coordination between the breaker curve and the cable damage curve. Results were checked against hand calculations (a C16 with 2.5 mm² reaches 53.2 m at U₀ of 230 V; a 7.5 kW motor gives 15.2 A, a 16 A breaker and 6 mm² at 40 °C with 3 grouped circuits) and 400 random circuits confirm that, whenever there are no warnings, every criterion is met. The demo explains each step with its formula, shows which criterion drives the cable size, plots the breaker trip band against the cable damage curve and lets you download the calculation report. It uses IEC 60364-5-52-style reference tables and configurable limits: they must be verified against the current RIC / NCh Elec. 4/2003 rules and the manufacturer catalogue.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '16' },
+      { label: { es: 'Circuitos aleatorios verificados', en: 'Random circuits verified' }, value: '400' },
+      { label: { es: 'Alcance de un C16 con 2,5 mm²', en: 'Reach of a C16 on 2.5 mm²' }, value: '53,2 m' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Carga', en: 'Load' }, sub: { es: 'P · cosφ · largo', en: 'P · cosφ · length' } },
+        { label: { es: 'Corriente e interruptor', en: 'Current and breaker' }, sub: { es: 'Ib · In · curva', en: 'Ib · In · curve' } },
+        { label: { es: 'Sección', en: 'Cable size' }, sub: { es: 'capacidad · caída · térmica', en: 'ampacity · drop · thermal' } },
+        { label: { es: 'Verificación', en: 'Verification' }, sub: { es: 'magnético · Icc · curvas', en: 'magnetic · Icc · curves' } },
+      ],
+      feedback: { from: 3, to: 2, label: { es: 'sección ↑ si falla', en: 'size ↑ if it fails' } },
+    },
+    tools: { hardware: [], software: ['IEC 60364-5-52', { es: 'Curvas de disparo B/C/D', en: 'B/C/D trip curves' }, 'JavaScript', 'Canvas', 'node:test'] },
+  },
 ]
