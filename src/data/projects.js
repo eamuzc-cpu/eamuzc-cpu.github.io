@@ -1225,4 +1225,49 @@ export const projects = [
     },
     tools: { hardware: [], software: [{ es: 'Control escalar V/f', en: 'Scalar V/f control' }, { es: 'Modelo de motor de inducción', en: 'Induction motor model' }, 'JavaScript', 'Canvas', 'node:test'] },
   },
+  {
+    slug: 'simulador-ladder',
+    title: {
+      es: 'Simulador de lógica Ladder con ciclo de scan y traducción a Texto Estructurado',
+      en: 'Ladder Logic Simulator with Scan Cycle and Structured Text Translation',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/simulador-ladder.jpg',
+    demo: { src: '/demos/simulador-ladder/index.html' },
+    resultBadge: { es: '19 instrucciones, 17 pruebas y 6 programas de ejemplo', en: '19 instructions, 17 tests and 6 example programs' },
+    summary: {
+      es: 'Intérprete de lógica Ladder en el navegador: se escribe la escalera en texto, se ve el flujo de energía peldaño a peldaño, se ejecuta con el ciclo de scan de un PLC, se grafica el diagrama de tiempos y se obtiene el equivalente en Texto Estructurado IEC 61131-3.',
+      en: 'Ladder logic interpreter in the browser: the ladder is typed as text, the power flow is shown rung by rung, it runs with a PLC scan cycle, a timing diagram is plotted and the IEC 61131-3 Structured Text equivalent is generated.',
+    },
+    stack: ['IEC 61131-3', 'Ladder', { es: 'Texto Estructurado', en: 'Structured Text' }, 'SVG', 'JavaScript'],
+    challenge: {
+      es: 'La lógica de un PLC no se lee como un programa normal: se ejecuta en ciclos de scan, un peldaño ve el valor nuevo de los de arriba y el viejo de los de abajo, y los temporizadores y contadores tienen reglas propias. Entender esto en papel es difícil y depurarlo en un PLC real exige hardware.',
+      en: 'PLC logic does not read like a normal program: it runs in scan cycles, a rung sees the new value of the rungs above it and the old value of the rungs below, and timers and counters have their own rules. This is hard to grasp on paper and debugging it on a real PLC needs hardware.',
+    },
+    impact: {
+      es: 'Los errores de lógica en una línea de producción (un sello mal hecho, un temporizador que se reinicia, un contador que cuenta tiempo en vez de flancos) detienen máquinas; verlos en un simulador antes de descargar el programa ahorra paros.',
+      en: 'Logic mistakes on a production line (a badly made seal-in, a timer that resets, a counter that counts time instead of edges) stop machines; seeing them in a simulator before downloading the program saves downtime.',
+    },
+    solution: {
+      es: 'Se programó un compilador y un intérprete de 19 instrucciones (contactos, bobinas con retención, TON, TOF, CTU, RES, ONS, comparaciones, MOV, ADD y SUB) con ramas en paralelo anidadas y errores con número de línea. El scan lee entradas, resuelve los peldaños de arriba hacia abajo y escribe salidas, y la demo dibuja la escalera con el flujo de energía, el acumulado de cada temporizador y el diagrama de tiempos. Las 17 pruebas verifican, entre otras cosas, el sello con paro dominante, que un TON active DN en el scan exacto del preset, el retardo de un scan entre peldaños, que un contador cuente flancos y no tiempo, una luz intermitente con 50 % de ciclo útil, un semáforo de 5 s, 2 s y 3 s con error menor a 30 ms, y una histéresis de nivel que mantiene el tanque entre 28 % y 83 % con una planta simulada. También traduce el programa a Texto Estructurado con sus declaraciones (por ejemplo, motor := (marcha OR motor) AND NOT paro;).',
+      en: 'A compiler and interpreter was written for 19 instructions (contacts, latching coils, TON, TOF, CTU, RES, ONS, comparisons, MOV, ADD and SUB) with nested parallel branches and errors reported with line numbers. The scan reads inputs, solves the rungs top to bottom and writes outputs, and the demo draws the ladder with its power flow, each timer accumulator and the timing diagram. The 17 tests verify, among other things, the seal-in with dominant stop, a TON setting DN on the exact preset scan, the one-scan delay between rungs, a counter counting edges rather than time, a flasher with a 50 % duty cycle, a 5 s, 2 s and 3 s traffic light with error under 30 ms, and a level hysteresis that keeps the tank between 28 % and 83 % with a simulated plant. It also translates the program into Structured Text with its declarations (for example, motor := (marcha OR motor) AND NOT paro;).',
+    },
+    metrics: [
+      { label: { es: 'Instrucciones soportadas', en: 'Supported instructions' }, value: '19' },
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '17' },
+      { label: { es: 'Programas de ejemplo', en: 'Example programs' }, value: '6' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Texto Ladder', en: 'Ladder text' }, sub: { es: 'un peldaño por línea', en: 'one rung per line' } },
+        { label: { es: 'Compilador', en: 'Compiler' }, sub: { es: 'errores con línea', en: 'errors with line' } },
+        { label: { es: 'Ciclo de scan', en: 'Scan cycle' }, sub: { es: 'entradas · peldaños · salidas', en: 'inputs · rungs · outputs' } },
+        { label: { es: 'Vistas', en: 'Views' }, sub: { es: 'escalera · tiempos · ST', en: 'ladder · timing · ST' } },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'editar y repetir', en: 'edit and repeat' } },
+    },
+    tools: { hardware: [], software: ['IEC 61131-3', 'Ladder', { es: 'Texto Estructurado', en: 'Structured Text' }, 'SVG', 'JavaScript', 'node:test'] },
+  },
 ]

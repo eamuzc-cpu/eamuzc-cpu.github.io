@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de lógica Ladder — ciclo de scan, temporizadores y Texto Estructurado</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: 370px minmax(0, 1fr); align-items: start; }
+.col { display: grid; gap: 12px; min-width: 0; }
+.mini { padding: 4px 9px; font-size: 11px; }
+#src { width: 100%; height: 230px; resize: vertical; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12.5px/1.55 var(--mono); tab-size: 2; white-space: pre; overflow: auto; }
+#src.bad { border-color: var(--red); }
+#errs { font: 12px var(--mono); color: var(--red); margin-top: 6px; } #errs div { padding: 2px 0; } #errs .ok { color: var(--green); }
+.esc { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+#ayuda { margin: 12px 16px 0; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); font: 12.5px var(--mono); color: var(--mut); }
+.io { display: grid; grid-template-columns: 1fr auto; gap: 5px 8px; align-items: center; font: 12px var(--mono); }
+.io .sw { display: flex; align-items: center; gap: 6px; color: var(--txt); } .io .num { display: grid; grid-template-columns: 1fr 44px; gap: 6px; align-items: center; grid-column: 1 / -1; }
+.lamp { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #1f2a44; border: 1px solid #334a73; margin-right: 6px; vertical-align: -1px; } .lamp.on { background: var(--green); border-color: var(--green); box-shadow: 0 0 8px var(--green); }
+.salidas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font: 12px var(--mono); color: var(--txt); }
+table.bl td { padding: 3px 6px; } table.bl .t { color: var(--cyan); }
+#svg { width: 100%; overflow: auto; background: #030a1a; border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; }
+#svg text { font-family: ui-monospace, 'JetBrains Mono', Consolas, monospace; }
+#cvT { height: 250px; } pre#st { margin: 0; max-height: 300px; overflow: auto; font: 12px/1.55 var(--mono); color: #cbd5e1; background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.hold { padding: 3px 10px; font-size: 11px; user-select: none; touch-action: none; }
+@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Simulador de lógica Ladder · ciclo de scan</h1>
+  <span class="badge warn">simulación didáctica</span><span class="sp"></span>
+  <span class="chip" id="scanInfo" style="font:12px var(--mono);color:var(--mut)"></span>
+  <label style="display:flex;gap:6px;align-items:center">Scan<select id="selScan"><option>5</option><option selected>10</option><option>50</option><option>100</option></select> ms</label>
+  <button id="bPausa" class="mini">Pausa</button><button id="bPaso" class="mini">Un scan</button>
+  <button class="vel mini on" data-v="1">×1</button><button class="vel mini" data-v="10">×10</button><button class="vel mini" data-v="50">×50</button>
+</div>
+<div id="ayuda"></div>
+
+<div class="wrap layout">
+  <div class="col">
+    <div class="panel">
+      <h2>Programa</h2>
+      <div class="esc" id="esc"></div>
+      <textarea id="src" spellcheck="false" aria-label="Programa en lenguaje Ladder (una línea por peldaño)"></textarea>
+      <div id="errs"></div>
+      <div class="note" style="padding:6px 0 0">Una línea = un peldaño. Contactos: <b>XIC</b> <b>XIO</b>; salidas: <b>OTE</b> <b>OTL</b> <b>OTU</b>; <b>TON</b> <b>TOF</b> <b>CTU</b> <b>RES</b> <b>ONS</b>; comparar: <b>GRT LES EQU NEQ GEQ LEQ</b>; <b>MOV ADD SUB</b>. Paralelo: <b>( A | B )</b>. Bits de bloque: <b>t1.DN</b> <b>t1.TT</b> <b>t1.EN</b>, valor <b>t1.ACC</b>.</div>
+    </div>
+    <div class="panel"><h2>Entradas</h2><div class="io" id="ent"></div></div>
+    <div class="panel"><h2>Salidas y bits internos</h2><div class="salidas" id="sal"></div></div>
+    <div class="panel"><h2>Temporizadores y contadores</h2><div id="blq"></div></div>
+  </div>
+  <div class="col">
+    <div class="panel"><h2>Escalera (verde = hay flujo de energía)</h2><div id="svg"></div></div>
+    <div class="panel"><h2>Diagrama de tiempos</h2><canvas id="cvT"></canvas><div class="note" style="padding:6px 0 0">Últimos segundos del programa: cada fila es un bit (entradas, salidas y bits DN de temporizadores y contadores).</div></div>
+    <div class="panel"><h2>Equivalente en Texto Estructurado (IEC 61131-3)</h2><pre id="st"></pre></div>
+  </div>
+</div>
+<div class="note">Intérprete didáctico con el ciclo de un PLC: leer entradas, resolver los peldaños de arriba hacia abajo y escribir salidas. No es un PLC certificado ni usa un entorno de programación comercial.</div>
+
+<script>
+// Intérprete didáctico de lógica Ladder (IEC 61131-3) con ciclo de scan: compila un texto de escalera (una línea = un
+// peldaño; ramas en paralelo con paréntesis y «|»), lo ejecuta scan a scan (leer entradas → resolver peldaños de
+// arriba hacia abajo → escribir salidas) y lo traduce a Texto Estructurado (ST).
+// Instrucciones: XIC XIO OTE OTL OTU TON TOF CTU RES ONS GRT LES EQU NEQ GEQ LEQ MOV ADD SUB.
+// El MISMO archivo corre en las pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LadderCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const ARGS = { XIC: 1, XIO: 1, OTE: 1, OTL: 1, OTU: 1, TON: 2, TOF: 2, CTU: 2, RES: 1, ONS: 1, GRT: 2, LES: 2, EQU: 2, NEQ: 2, GEQ: 2, LEQ: 2, MOV: 2, ADD: 3, SUB: 3 }
+  const CONDICIONES = new Set(['XIC', 'XIO', 'ONS', 'GRT', 'LES', 'EQU', 'NEQ', 'GEQ', 'LEQ'])
+  const COMPARAR = { GRT: (a, b) => a > b, LES: (a, b) => a < b, EQU: (a, b) => a === b, NEQ: (a, b) => a !== b, GEQ: (a, b) => a >= b, LEQ: (a, b) => a <= b }
+  const SIMBOLO = { GRT: '>', LES: '<', EQU: '=', NEQ: '<>', GEQ: '>=', LEQ: '<=' }
+  const RE_NOMBRE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z]+)?$/
+  const BITS_BLOQUE = ['DN', 'TT', 'EN']
+
+  const aNumero = (t) => (/^-?\d+(\.\d+)?$/.test(t) ? Number(t) : null)
+  function aMs(t) { const m = /^(\d+(?:\.\d+)?)(ms|s)?$/.exec(t); return m ? Math.round(Number(m[1]) * (m[2] === 's' ? 1000 : 1)) : null }
+
+  // ---- Compilación ------------------------------------------------------------------------------------------------
+  function tokens(linea) { return (linea.replace(/\/\/.*$/, '').replace(/,/g, ' ').match(/\(|\)|\||[^\s(),|]+/g) ?? []) }
+
+  function compilar(texto) {
+    const errores = [], rungs = [], bloques = {}, uso = {}
+    const lineas = String(texto).split(/\r?\n/)
+    const marca = (nombre, tipo, rol, linea) => {
+      const u = (uso[nombre] ??= { tipo, leido: false, escrito: false, linea })
+      if (u.tipo !== tipo) errores.push({ linea, msg: `«${nombre}» se usa como ${u.tipo === 'bit' ? 'bit' : 'número'} y como ${tipo === 'bit' ? 'bit' : 'número'}` })
+      if (rol === 'leer') u.leido = true; else u.escrito = true
+    }
+    lineas.forEach((raw, idx) => {
+      const linea = idx + 1, tk = tokens(raw)
+      if (!tk.length) return
+      let i = 0
+      const err = (msg) => { errores.push({ linea, msg }); return null }
+      function serie(profundidad) {
+        const nodos = []
+        while (i < tk.length && tk[i] !== ')' && tk[i] !== '|') {
+          if (tk[i] === '(') {
+            i++; const ramas = [serie(profundidad + 1)]
+            if (ramas[0] === null) return null
+            while (tk[i] === '|') { i++; const r = serie(profundidad + 1); if (r === null) return null; ramas.push(r) }
+            if (tk[i] !== ')') return err('falta cerrar la rama en paralelo con «)»')
+            i++
+            if (ramas.length < 2) return err('una rama en paralelo necesita al menos dos caminos separados por «|»')
+            nodos.push({ tipo: 'par', ramas })
+            continue
+          }
+          const op = tk[i++].toUpperCase()
+          if (!(op in ARGS)) return err(`instrucción desconocida «${op}»`)
+          const args = tk.slice(i, i + ARGS[op])
+          if (args.length < ARGS[op] || args.some((a) => a === '(' || a === ')' || a === '|')) return err(`${op} necesita ${ARGS[op]} argumento(s)`)
+          i += ARGS[op]
+          nodos.push({ tipo: 'i', op, args, linea })
+        }
+        if (!nodos.length) return err('hay una rama o un peldaño vacío')
+        return nodos
+      }
+      const nodos = serie(0)
+      if (nodos === null) return
+      if (i < tk.length) return err(`«${tk[i]}» sobra o está mal ubicado`)
+      // validación semántica: condiciones antes de las salidas, ramas solo con condiciones
+      let hayArriba = false, vistoSalida = false, salidas = 0
+      const recorrer = (lista, enRama) => {
+        for (const n of lista) {
+          if (n.tipo === 'par') { n.ramas.forEach((r) => recorrer(r, true)); if (vistoSalida) err('una rama en paralelo no puede ir después de una salida'); continue }
+          const esCond = CONDICIONES.has(n.op)
+          if (!esCond && enRama) { err(`${n.op} no puede ir dentro de una rama en paralelo: ponlo al final del peldaño`); continue }
+          if (!esCond) { vistoSalida = true; salidas++ } else if (vistoSalida) err(`la condición ${n.op} va antes de las salidas`)
+          for (const a of n.args) if (!RE_NOMBRE.test(a) && aNumero(a) === null && aMs(a) === null) err(`nombre no válido «${a}»`)
+          clasificar(n)
+        }
+      }
+      function clasificar(n) {
+        const [a, b, c] = n.args, op = n.op
+        const bitLeer = (t) => { if (!RE_NOMBRE.test(t)) return err(`«${t}» no es un nombre de bit`); marca(t, 'bit', 'leer', linea) }
+        const bitEscribir = (t) => { if (!RE_NOMBRE.test(t) || t.includes('.')) return err(`«${t}» no es un nombre de bit válido para una salida`); marca(t, 'bit', 'escribir', linea) }
+        const numLeer = (t) => {
+          if (aNumero(t) !== null) return
+          if (!RE_NOMBRE.test(t) || (t.includes('.') && !/\.ACC$/.test(t))) return err(`«${t}» no es un número ni una variable`)
+          marca(t, 'num', 'leer', linea)
+        }
+        const numEscribir = (t) => { if (!RE_NOMBRE.test(t) || t.includes('.')) return err(`«${t}» no es una variable numérica válida`); marca(t, 'num', 'escribir', linea) }
+        if (op === 'XIC' || op === 'XIO') bitLeer(a)
+        else if (op === 'OTE' || op === 'OTL' || op === 'OTU') bitEscribir(a)
+        else if (op === 'ONS') marca(a, 'bit', 'escribir', linea)
+        else if (op === 'TON' || op === 'TOF' || op === 'CTU') {
+          if (!RE_NOMBRE.test(a) || a.includes('.')) return err(`«${a}» no es un nombre válido de ${op}`)
+          const pre = op === 'CTU' ? aNumero(b) : aMs(b)
+          if (pre === null || pre < 0) return err(`${op} necesita un preset válido${op === 'CTU' ? ' (entero)' : ' (ej. 500ms, 2s)'}`)
+          if (bloques[a] && bloques[a].tipo !== op) return err(`«${a}» ya es un ${bloques[a].tipo}`)
+          if (bloques[a]) return err(`«${a}» ya tiene su ${op} en otro peldaño (solo uno por temporizador o contador)`)
+          bloques[a] = { tipo: op, pre, linea }
+        } else if (op === 'RES') { if (!RE_NOMBRE.test(a) || a.includes('.')) return err(`«${a}» no es un temporizador o contador`); n.reset = true }
+        else if (COMPARAR[op]) { numLeer(a); numLeer(b) }
+        else if (op === 'MOV') { numLeer(a); numEscribir(b) }
+        else { numLeer(a); numLeer(b); numEscribir(c) }
+      }
+      recorrer(nodos, false)
+      if (!vistoSalida) err('el peldaño no tiene ninguna salida (OTE, OTL, OTU, TON, CTU...)')
+      else rungs.push({ linea, texto: raw.replace(/\/\/.*$/, '').trim(), nodos })
+      void hayArriba; void salidas
+    })
+    // RES solo sirve para un temporizador o contador que exista
+    const refs = (lista, f) => lista.forEach((n) => (n.tipo === 'par' ? n.ramas.forEach((r) => refs(r, f)) : f(n)))
+    for (const r of rungs) refs(r.nodos, (n) => { if (n.op === 'RES' && !bloques[n.args[0]]) errores.push({ linea: n.linea, msg: `RES: «${n.args[0]}» no es un temporizador ni un contador definido` }) })
+    const tags = {}
+    for (const [nombre, u] of Object.entries(uso)) {
+      const m = /^(.+)\.(\w+)$/.exec(nombre)
+      if (m) {
+        const b = bloques[m[1]]
+        if (!b) { errores.push({ linea: u.linea, msg: `«${nombre}»: «${m[1]}» no es un temporizador ni un contador` }); continue }
+        const validos = b.tipo === 'CTU' ? ['DN', 'ACC'] : [...BITS_BLOQUE, 'ACC']
+        if (!validos.includes(m[2])) errores.push({ linea: u.linea, msg: `«${nombre}»: ${b.tipo} solo tiene ${validos.join(', ')}` })
+        continue
+      }
+      tags[nombre] = { tipo: u.tipo, rol: u.escrito ? 'salida' : 'entrada' }
+    }
+    errores.sort((a, b) => a.linea - b.linea)
+    return { ok: errores.length === 0, errores, rungs, bloques, tags }
+  }
+
+  // ---- Ejecución ----------------------------------------------------------------------------------------------------
+  function crear(programa) {
+    const v = {}, plc = { programa, v, entradas: {}, aux: {}, scan: 0, t: 0, hist: [], planta: null, trazados: [] }
+    for (const [n, tag] of Object.entries(programa.tags)) v[n] = tag.tipo === 'bit' ? false : 0
+    for (const [n, b] of Object.entries(programa.bloques)) { v[`${n}.DN`] = false; v[`${n}.ACC`] = 0; if (b.tipo !== 'CTU') { v[`${n}.TT`] = false; v[`${n}.EN`] = false } }
+    plc.trazados = [...Object.keys(programa.tags).filter((n) => programa.tags[n].tipo === 'bit'), ...Object.keys(programa.bloques).map((n) => `${n}.DN`)]
+    return plc
+  }
+  const valor = (plc, t) => { const n = aNumero(t); return n !== null ? n : plc.v[t] ?? 0 }
+
+  function ejecutar(plc, n, p, dt) {
+    const v = plc.v, [a, b, c] = n.args
+    n.pin = p; n.estado = null
+    switch (n.op) {
+      case 'XIC': n.estado = !!v[a]; return (n.pout = p && !!v[a])
+      case 'XIO': n.estado = !v[a]; return (n.pout = p && !v[a])
+      case 'ONS': { const previo = !!v[a]; v[a] = p; n.estado = p && !previo; return (n.pout = p && !previo) }
+      case 'GRT': case 'LES': case 'EQU': case 'NEQ': case 'GEQ': case 'LEQ': { const ok = COMPARAR[n.op](valor(plc, a), valor(plc, b)); n.estado = ok; return (n.pout = p && ok) }
+      case 'OTE': v[a] = p; break
+      case 'OTL': if (p) v[a] = true; break
+      case 'OTU': if (p) v[a] = false; break
+      case 'TON': {
+        const pre = plc.programa.bloques[a].pre
+        if (p) { v[`${a}.EN`] = true; if (!v[`${a}.DN`]) { v[`${a}.ACC`] = Math.min(pre, v[`${a}.ACC`] + dt); v[`${a}.TT`] = true; if (v[`${a}.ACC`] >= pre) { v[`${a}.DN`] = true; v[`${a}.TT`] = false } } }
+        else { v[`${a}.EN`] = false; v[`${a}.TT`] = false; v[`${a}.DN`] = false; v[`${a}.ACC`] = 0 }
+        break
+      }
+      case 'TOF': {
+        const pre = plc.programa.bloques[a].pre
+        if (p) { v[`${a}.EN`] = true; v[`${a}.DN`] = true; v[`${a}.ACC`] = 0; v[`${a}.TT`] = false }
+        else { v[`${a}.EN`] = false; if (v[`${a}.DN`]) { v[`${a}.ACC`] = Math.min(pre, v[`${a}.ACC`] + dt); v[`${a}.TT`] = true; if (v[`${a}.ACC`] >= pre) { v[`${a}.DN`] = false; v[`${a}.TT`] = false } } }
+        break
+      }
+      case 'CTU': {
+        const prev = plc.aux[a] ?? false
+        if (p && !prev) v[`${a}.ACC`] += 1
+        plc.aux[a] = p; v[`${a}.DN`] = v[`${a}.ACC`] >= plc.programa.bloques[a].pre
+        break
+      }
+      case 'RES': if (p) { v[`${a}.ACC`] = 0; v[`${a}.DN`] = false; if (`${a}.TT` in v) { v[`${a}.TT`] = false; v[`${a}.EN`] = false } plc.aux[a] = false } break
+      case 'MOV': if (p) v[b] = valor(plc, a); break
+      case 'ADD': if (p) v[c] = valor(plc, a) + valor(plc, b); break
+      case 'SUB': if (p) v[c] = valor(plc, a) - valor(plc, b); break
+      default: break
+    }
+    n.pout = p
+    return p
+  }
+  function serie(plc, nodos, p, dt) {
+    for (const n of nodos) {
+      if (n.tipo === 'par') {
+        n.pin = p; let sale = false
+        for (const r of n.ramas) { const q = serie(plc, r, p, dt); sale = sale || q }
+        n.pout = sale; p = sale
+      } else p = ejecutar(plc, n, p, dt)
+    }
+    return p
+  }
+
+  // Un ciclo de scan: 1) leer entradas  2) resolver los peldaños de arriba hacia abajo  3) escribir salidas (+ historial)
+  function scan(plc, dtMs = 10) {
+    for (const [n, tag] of Object.entries(plc.programa.tags)) if (tag.rol === 'entrada') plc.v[n] = tag.tipo === 'bit' ? !!(plc.entradas[n] ?? false) : Number(plc.entradas[n] ?? 0)
+    for (const r of plc.programa.rungs) r.energizado = serie(plc, r.nodos, true, dtMs)
+    if (plc.planta) plc.planta(plc, dtMs)
+    plc.scan += 1; plc.t += dtMs
+    plc.hist.push(plc.trazados.map((n) => (plc.v[n] ? 1 : 0)))
+    if (plc.hist.length > 6000) plc.hist.shift()
+    return plc
+  }
+  const correr = (plc, ms, dtMs = 10) => { const n = Math.round(ms / dtMs); for (let i = 0; i < n; i++) scan(plc, dtMs); return plc }
+  const poner = (plc, tag, valorNuevo) => { plc.entradas[tag] = valorNuevo }
+  const pulsar = (plc, tag, ms = 100, dtMs = 10) => { poner(plc, tag, true); correr(plc, ms, dtMs); poner(plc, tag, false) }
+
+  // ---- Traducción a Texto Estructurado -------------------------------------------------------------------------------
+  const nombreST = (programa, t) => { const m = /^(.+)\.(DN)$/.exec(t); return m && programa.bloques[m[1]] ? `${m[1]}.Q` : t }
+  function aST(programa) {
+    const dec = [], cuerpo = [], bits = [], nums = []
+    for (const [n, t] of Object.entries(programa.tags)) (t.tipo === 'bit' ? bits : nums).push([n, t])
+    if (bits.length) dec.push('  ' + bits.map(([n, t]) => `${n} : BOOL;${t.rol === 'entrada' ? ' (* entrada *)' : ''}`).join('\n  '))
+    if (nums.length) dec.push('  ' + nums.map(([n, t]) => `${n} : INT;${t.rol === 'entrada' ? ' (* entrada *)' : ''}`).join('\n  '))
+    for (const [n, b] of Object.entries(programa.bloques)) dec.push(`  ${n} : ${b.tipo};`)
+    const sinOns = []
+    const exprNodo = (n) => {
+      if (n.tipo === 'par') return '(' + n.ramas.map((r) => r.map(exprNodo).join(' AND ')).join(' OR ') + ')'
+      const [a, b] = n.args
+      if (n.op === 'XIC') return nombreST(programa, a)
+      if (n.op === 'XIO') return `NOT ${nombreST(programa, a)}`
+      if (COMPARAR[n.op]) return `${a} ${SIMBOLO[n.op]} ${b}`
+      return `TRUE (* ${n.op} *)`
+    }
+    // 1.ª pasada: condición de cada peldaño (los ONS se traducen a un R_TRIG) y condiciones de RES por contador
+    const peldanos = programa.rungs.map((r) => {
+      const previas = [], partes = [], salidas = []
+      for (const n of r.nodos) {
+        if (n.tipo === 'i' && !CONDICIONES.has(n.op)) salidas.push(n)
+        else if (n.tipo === 'i' && n.op === 'ONS') { const trig = `${n.args[0]}_trig`; previas.push(`${trig}(CLK := ${partes.length ? partes.join(' AND ') : 'TRUE'});`); partes.length = 0; partes.push(`${trig}.Q`); sinOns.push(trig) }
+        else partes.push(exprNodo(n))
+      }
+      return { r, previas, cond: partes.length ? partes.join(' AND ') : 'TRUE', salidas }
+    })
+    const resets = {}
+    for (const p of peldanos) for (const s of p.salidas) if (s.op === 'RES') (resets[s.args[0]] ??= []).push(p.cond)
+    // 2.ª pasada: las sentencias
+    peldanos.forEach(({ r, previas, cond, salidas }, k) => {
+      cuerpo.push(`(* peldaño ${k + 1}: ${r.texto} *)`, ...previas)
+      for (const s of salidas) {
+        const [a, b, c] = s.args
+        if (s.op === 'OTE') cuerpo.push(`${a} := ${cond};`)
+        else if (s.op === 'OTL') cuerpo.push(`IF ${cond} THEN ${a} := TRUE; END_IF;`)
+        else if (s.op === 'OTU') cuerpo.push(`IF ${cond} THEN ${a} := FALSE; END_IF;`)
+        else if (s.op === 'TON' || s.op === 'TOF') cuerpo.push(`${a}(IN := ${resets[a] ? `(${cond}) AND NOT (${resets[a].join(' OR ')})` : cond}, PT := T#${programa.bloques[a].pre}ms);`)
+        else if (s.op === 'CTU') cuerpo.push(`${a}(CU := ${cond}, R := ${resets[a] ? resets[a].join(' OR ') : 'FALSE'}, PV := ${programa.bloques[a].pre});`)
+        else if (s.op === 'RES') cuerpo.push(`(* RES ${a}: queda dentro de la llamada a ${a} *)`)
+        else if (s.op === 'MOV') cuerpo.push(`IF ${cond} THEN ${b} := ${a}; END_IF;`)
+        else if (s.op === 'ADD') cuerpo.push(`IF ${cond} THEN ${c} := ${a} + ${b}; END_IF;`)
+        else if (s.op === 'SUB') cuerpo.push(`IF ${cond} THEN ${c} := ${a} - ${b}; END_IF;`)
+      }
+    })
+    for (const t of sinOns) dec.push(`  ${t} : R_TRIG;`)
+    return `PROGRAM Principal\nVAR\n${dec.join('\n')}\nEND_VAR\n\n${cuerpo.join('\n')}\nEND_PROGRAM`
+  }
+
+  // ---- Ejemplos -------------------------------------------------------------------------------------------------------
+  const EJEMPLOS = [
+    { id: 'sello', nombre: 'Marcha / paro con sello', texto: '// El contacto del propio motor "sella" la orden de marcha; el paro corta todo.\n( XIC marcha | XIC motor ) XIO paro OTE motor\nXIC motor OTE luz_verde\nXIO motor OTE luz_roja\n',
+      ayuda: 'Pulsa «marcha» y suéltala: el motor se queda encendido por el sello. «paro» manda aunque marcha esté apretada.' },
+    { id: 'parpadeo', nombre: 'Luz intermitente (2 temporizadores)', texto: '// Periodo de 1 s con 50 % de ciclo útil\nXIC habilitar XIO t2.DN TON t1 500ms\nXIC t1.DN TON t2 500ms\nXIC t1.DN XIO t2.DN OTE luz\n',
+      ayuda: 'Activa «habilitar» y mira el diagrama de tiempos: la luz queda 500 ms encendida y 500 ms apagada.' },
+    { id: 'escalonado', nombre: 'Arranque escalonado de 3 motores', texto: '// Cada motor arranca 2 s después del anterior; el paro los detiene a todos.\n( XIC marcha | XIC sistema ) XIO paro OTE sistema\nXIC sistema TON r1 2s\nXIC r1.DN TON r2 2s\nXIC sistema OTE motor1\nXIC r1.DN OTE motor2\nXIC r2.DN OTE motor3\n',
+      ayuda: 'Pulsa «marcha»: motor1 arranca de inmediato, motor2 a los 2 s y motor3 a los 4 s. Con «paro» caen los tres.' },
+    { id: 'contador', nombre: 'Contador de piezas con desviador', texto: '// Cada 5 piezas se activa el desviador; «reset» reinicia la cuenta.\nXIC sensor CTU c1 5\nXIC c1.DN OTE desviador\nXIC reset RES c1\nGEQ c1.ACC 1 OTE hay_piezas\n',
+      ayuda: 'Pulsa y suelta «sensor» cinco veces: solo cuenta los flancos de subida, no mientras se mantiene apretado.' },
+    { id: 'nivel', nombre: 'Control de nivel de un tanque (con planta)', texto: '// La bomba arranca bajo 30 % y se detiene sobre 80 % (histéresis con OTL/OTU).\nLES nivel 30 OTL bomba\nGRT nivel 80 OTU bomba\nGRT nivel 95 OTE alarma_alto\nXIC bomba OTE valvula_llenado\n',
+      ayuda: 'El nivel lo simula la «planta»: sube con la bomba y baja por la demanda. Abre «consumo» para vaciar más rápido.',
+      planta: (plc, dt) => { const v = plc.v, s = dt / 1000, consumo = plc.entradas.consumo_extra ? 6 : 2; plc.entradas.nivel = Math.max(0, Math.min(100, (plc.entradas.nivel ?? 50) + ((v.bomba ? 7 : 0) - consumo) * s)) }, inicial: { nivel: 50 }, manejadas: ['nivel'] },
+    { id: 'semaforo', nombre: 'Semáforo de tres fases', texto: '// Ciclo de 10 s: verde 5 s, amarillo 2 s, rojo 3 s.\nXIC auto XIO ciclo.DN TON ciclo 10s\nXIC auto LES ciclo.ACC 5000 OTE verde\nXIC auto GEQ ciclo.ACC 5000 LES ciclo.ACC 7000 OTE amarillo\nXIC auto GEQ ciclo.ACC 7000 OTE rojo\n',
+      ayuda: 'Activa «auto»: un solo temporizador y comparaciones de su valor acumulado generan las tres fases.' },
+  ]
+
+  return { ARGS, EJEMPLOS, compilar, crear, scan, correr, poner, pulsar, aST, valor, aMs }
+})
+
+</script>
+<script>
+'use strict'
+const L = LadderCore, $ = (id) => document.getElementById(id)
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+let programa = null, plc = null, ej = null, vel = 1, pausa = false, dtMs = 10, ultimo = performance.now(), acc = 0, debounce = null
+const guardadas = {} // valores de entradas conservados al editar el programa
+
+function cargar(texto, ejemplo) {
+  const p = L.compilar(texto)
+  $('errs').innerHTML = p.ok ? '<div class="ok">✔ programa válido' + (p.rungs.length ? ` · ${p.rungs.length} peldaño(s)` : '') + '</div>' : p.errores.map((e) => `<div>línea ${e.linea}: ${esc(e.msg)}</div>`).join('') + (programa ? '<div style="color:var(--amber)">se mantiene el último programa válido</div>' : '')
+  $('src').classList.toggle('bad', !p.ok)
+  if (!p.ok || !p.rungs.length) return false
+  const previa = plc?.entradas ?? {}
+  programa = p; plc = L.crear(p); ej = ejemplo ?? null
+  Object.assign(plc.entradas, ej?.inicial ?? {}); for (const k of Object.keys(p.tags)) if (k in previa && !(ej && (ej.manejadas ?? []).includes(k))) plc.entradas[k] = previa[k]
+  plc.planta = ej?.planta ?? null
+  construirEntradas(); $('st').textContent = L.aST(p); render(); return true
+}
+function construirEntradas() {
+  const manejadas = new Set(ej?.manejadas ?? [])
+  const ent = Object.entries(programa.tags).filter(([, t]) => t.rol === 'entrada')
+  $('ent').innerHTML = ent.length ? ent.map(([n, t]) => t.tipo === 'bit'
+    ? `<label class="sw"><input type="checkbox" data-in="${n}" ${plc.entradas[n] ? 'checked' : ''}> ${n}</label><button class="hold" data-hold="${n}">pulsar</button>`
+    : manejadas.has(n) ? `<div class="num"><span>${n} <small>(la planta lo mueve)</small></span><b id="num_${n}">0</b></div>`
+      : `<div class="num"><label for="in_${n}">${n}</label><b id="num_${n}">${plc.entradas[n] ?? 0}</b><input type="range" id="in_${n}" data-num="${n}" min="0" max="100" value="${plc.entradas[n] ?? 0}" style="grid-column:1/-1"></div>`).join('') : '<span class="note" style="padding:0">Este programa no tiene entradas.</span>'
+  $('ent').querySelectorAll('[data-in]').forEach((c) => (c.onchange = () => { plc.entradas[c.dataset.in] = c.checked }))
+  $('ent').querySelectorAll('[data-hold]').forEach((b) => {
+    const n = b.dataset.hold, chk = $('ent').querySelector(`[data-in="${n}"]`)
+    b.onpointerdown = () => { plc.entradas[n] = true; b.setPointerCapture?.(1) }
+    const soltar = () => { plc.entradas[n] = chk.checked }
+    b.onpointerup = soltar; b.onpointerleave = soltar; b.onpointercancel = soltar
+  })
+  $('ent').querySelectorAll('[data-num]').forEach((r) => (r.oninput = () => { plc.entradas[r.dataset.num] = +r.value; $('num_' + r.dataset.num).textContent = r.value }))
+}
+
+// ---- Escalera en SVG ----------------------------------------------------------------------------------------------
+const RH = 58, BASE = 29
+const col = (p) => (p ? '#34d399' : '#475569')
+function ancho(n) {
+  if (n.tipo === 'par') { n._w = Math.max(...n.ramas.map(medirSerie)) + 32; n._h = n.ramas.reduce((a, r) => a + altoSerie(r), 0); return n._w }
+  n._h = RH; return (n._w = ['XIC', 'XIO', 'OTE', 'OTL', 'OTU'].includes(n.op) ? 90 : ['TON', 'TOF', 'CTU', 'MOV', 'ADD', 'SUB'].includes(n.op) ? 160 : n.op === 'ONS' ? 110 : n.op === 'RES' ? 110 : 140)
+}
+const medirSerie = (s) => s.reduce((a, n) => a + ancho(n), 0)
+const altoSerie = (s) => { s.forEach((n) => ancho(n)); return Math.max(...s.map((n) => n._h)) }
+function txt(x, y, s, o = {}) { return `<text x="${x}" y="${y}" fill="${o.c ?? '#cbd5e1'}" font-size="${o.s ?? 11}" text-anchor="${o.a ?? 'middle'}" ${o.w ? `font-weight="${o.w}"` : ''}>${esc(s)}</text>` }
+const linea = (x1, y1, x2, y2, c, w = 2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`
+function elemento(n, x, y) {
+  const b = y + BASE, w = n._w, v = plc.v, [a, b2, c3] = n.args, m = x + w / 2, S = []
+  const pin = !!n.pin, pout = !!n.pout
+  const cond = ['XIC', 'XIO'].includes(n.op)
+  if (cond) {
+    S.push(linea(x, b, m - 12, b, col(pin)), linea(m + 12, b, x + w, b, col(pout)))
+    const pasa = !!n.estado, cc = pasa ? '#34d399' : '#94a3b8'
+    S.push(linea(m - 12, b - 13, m - 12, b + 13, cc, 3), linea(m + 12, b - 13, m + 12, b + 13, cc, 3))
+    if (n.op === 'XIO') S.push(linea(m - 9, b + 11, m + 9, b - 11, cc, 2))
+    S.push(txt(m, b - 20, a, { c: '#e2e8f0' }), txt(m, b + 28, v[a] ? '1' : '0', { c: v[a] ? '#34d399' : '#64748b', s: 10 }))
+  } else if (['OTE', 'OTL', 'OTU'].includes(n.op)) {
+    S.push(linea(x, b, m - 14, b, col(pin)), linea(m + 14, b, x + w, b, col(pin)))
+    const cc = pin ? '#34d399' : '#94a3b8', letra = n.op === 'OTL' ? 'L' : n.op === 'OTU' ? 'U' : ''
+    S.push(`<path d="M${m - 7} ${b - 14} Q${m - 17} ${b} ${m - 7} ${b + 14}" fill="none" stroke="${cc}" stroke-width="3"/><path d="M${m + 7} ${b - 14} Q${m + 17} ${b} ${m + 7} ${b + 14}" fill="none" stroke="${cc}" stroke-width="3"/>`)
+    if (letra) S.push(txt(m, b + 4, letra, { c: cc, w: 700, s: 12 }))
+    S.push(txt(m, b - 20, a, { c: '#e2e8f0' }), txt(m, b + 28, v[a] ? '1' : '0', { c: v[a] ? '#34d399' : '#64748b', s: 10 }))
+    if (pin && n.op === 'OTE') S.push(`<circle cx="${m}" cy="${b}" r="4" fill="#34d399"/>`)
+  } else {
+    // cajas: temporizadores, contadores, comparaciones, aritmética
+    S.push(linea(x, b, x + 10, b, col(pin)), linea(x + w - 10, b, x + w, b, col(pout)))
+    const bl = programa.bloques[a], pre = bl ? bl.pre : null
+    let l1 = n.op + ' ' + a, l2 = '', l3 = ''
+    if (n.op === 'TON' || n.op === 'TOF') { l2 = `PRE ${pre} ms`; l3 = `ACC ${Math.round(v[a + '.ACC'])} ms · DN ${v[a + '.DN'] ? 1 : 0}` }
+    else if (n.op === 'CTU') { l2 = `PRE ${pre}`; l3 = `ACC ${v[a + '.ACC']} · DN ${v[a + '.DN'] ? 1 : 0}` }
+    else if (n.op === 'RES') { l1 = 'RES ' + a }
+    else if (n.op === 'ONS') { l1 = 'ONS ' + a }
+    else if (['GRT', 'LES', 'EQU', 'NEQ', 'GEQ', 'LEQ'].includes(n.op)) { l1 = `${a} ${({ GRT: '>', LES: '<', EQU: '=', NEQ: '≠', GEQ: '≥', LEQ: '≤' })[n.op]} ${b2}`; l2 = `${a} = ${fmt(L.valor(plc, a))}` }
+    else if (n.op === 'MOV') { l1 = `MOV ${a} → ${b2}`; l2 = `${b2} = ${fmt(v[b2])}` }
+    else { l1 = `${n.op} ${a}, ${b2} → ${c3}`; l2 = `${c3} = ${fmt(v[c3])}` }
+    const activo = n.estado === true || (['TON', 'TOF', 'CTU', 'MOV', 'ADD', 'SUB', 'RES'].includes(n.op) && pin)
+    S.push(`<rect x="${x + 10}" y="${b - 24}" width="${w - 20}" height="48" rx="6" fill="${activo ? 'rgba(52,211,153,.10)' : '#071122'}" stroke="${activo ? '#34d399' : '#334a73'}" stroke-width="2"/>`)
+    S.push(txt(m, b - 8, l1, { c: '#e2e8f0', w: 600 })); if (l2) S.push(txt(m, b + 6, l2, { c: '#94a3b8', s: 10 })); if (l3) S.push(txt(m, b + 19, l3, { c: v[a + '.DN'] ? '#34d399' : '#94a3b8', s: 10 }))
+  }
+  return S.join('')
+}
+const fmt = (x) => (Number.isInteger(x) ? String(x) : Number(x).toFixed(1))
+function serieSVG(s, x, y) {
+  let S = '', cx = x
+  for (const n of s) {
+    if (n.tipo === 'par') {
+      const w = n._w, b0 = y + BASE; let cy = y, ult = b0
+      S += linea(cx, b0, cx + 8, b0, col(n.pin))
+      n.ramas.forEach((r, i) => {
+        const bi = cy + BASE, rw = medirSerie(r), pinR = n.pin, poutR = r.at(-1)?.pout
+        S += linea(cx + 8, bi, cx + 16, bi, col(pinR)) + serieSVG(r, cx + 16, cy) + linea(cx + 16 + rw, bi, cx + w - 8, bi, col(poutR))
+        ult = bi; cy += altoSerie(r)
+      })
+      S += linea(cx + 8, b0, cx + 8, ult, col(n.pin)) + linea(cx + w - 8, b0, cx + w - 8, ult, col(n.pout)) + linea(cx + w - 8, b0, cx + w, b0, col(n.pout))
+      cx += w
+    } else { S += elemento(n, cx, y); cx += n._w }
+  }
+  return S
+}
+function dibujarEscalera() {
+  const rs = programa.rungs, ws = rs.map((r) => medirSerie(r.nodos)), hs = rs.map((r) => altoSerie(r.nodos) + 14)
+  const RAIL_L = 44, RAIL_R = RAIL_L + Math.max(...ws) + 50, W = RAIL_R + 40, H = hs.reduce((a, b) => a + b, 0) + 20
+  let S = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Diagrama de escalera">`
+  S += linea(RAIL_L, 6, RAIL_L, H - 6, '#94a3b8', 3) + linea(RAIL_R, 6, RAIL_R, H - 6, '#94a3b8', 3)
+  let y = 10
+  rs.forEach((r, i) => {
+    const b = y + BASE
+    S += txt(10, b + 4, String(i + 1), { c: '#64748b', a: 'start' })
+    S += linea(RAIL_L, b, RAIL_L + 6, b, col(true)) + serieSVG(r.nodos, RAIL_L + 6, y)
+    const fin = RAIL_L + 6 + ws[i]; S += linea(fin, b, RAIL_R, b, col(r.nodos.at(-1)?.pout))
+    y += hs[i]
+  })
+  $('svg').innerHTML = S + '</svg>'
+}
+
+// ---- Entradas/salidas, bloques y diagrama de tiempos ---------------------------------------------------------------------
+function dibujarTiempos() {
+  const cv = $('cvT'), dpr = window.devicePixelRatio || 1, w = cv.clientWidth, nombres = plc.trazados
+  const fila = 20, h = Math.max(120, nombres.length * fila + 26); cv.style.height = h + 'px'
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr)
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '11px ui-monospace, Consolas, monospace'
+  const ventana = Math.round(12000 / dtMs), H = plc.hist.slice(-ventana), L0 = 110, R0 = 8, X = (i) => L0 + (i / ventana) * (w - L0 - R0) + ((ventana - H.length) / ventana) * (w - L0 - R0)
+  c.fillStyle = '#64748b'; c.strokeStyle = '#13203a'; c.textAlign = 'center'
+  for (let s = 0; s <= 12; s += 2) { const x = L0 + (s / 12) * (w - L0 - R0); c.beginPath(); c.moveTo(x, 4); c.lineTo(x, h - 18); c.stroke(); c.fillText(`-${12 - s} s`, x, h - 5) }
+  nombres.forEach((n, k) => {
+    const y0 = 8 + k * fila, ysub = y0 + fila - 5, yalto = y0 + 3
+    c.fillStyle = '#94a3b8'; c.textAlign = 'right'; c.fillText(n, L0 - 6, y0 + 13)
+    c.strokeStyle = '#34d399'; c.lineWidth = 1.6; c.beginPath()
+    H.forEach((m, i) => { const x = X(i), y = m[k] ? yalto : ysub; if (i === 0) c.moveTo(x, y); else { c.lineTo(x, H[i - 1][k] ? yalto : ysub); c.lineTo(x, y) } })
+    c.lineTo(X(H.length), H.length && H.at(-1)[k] ? yalto : ysub); c.stroke()
+  })
+}
+function renderEstado() {
+  const v = plc.v
+  $('scanInfo').textContent = `scan ${plc.scan} · ${(plc.t / 1000).toFixed(2)} s`
+  $('sal').innerHTML = Object.entries(programa.tags).filter(([, t]) => t.rol === 'salida' && t.tipo === 'bit').map(([n]) => `<div><span class="lamp ${v[n] ? 'on' : ''}"></span>${n}</div>`).join('') || '<span class="note" style="padding:0">sin salidas</span>'
+  const nums = Object.entries(programa.tags).filter(([, t]) => t.tipo === 'num')
+  for (const [n] of nums) { const e = $('num_' + n); if (e) e.textContent = fmt(v[n]) }
+  const bl = Object.entries(programa.bloques)
+  $('blq').innerHTML = bl.length ? `<table class="bl"><tr><th>Nombre</th><th>Tipo</th><th>ACC</th><th>PRE</th><th>DN</th></tr>${bl.map(([n, b]) => `<tr><td class="t">${n}</td><td>${b.tipo}</td><td>${Math.round(v[n + '.ACC'])}${b.tipo === 'CTU' ? '' : ' ms'}</td><td>${b.pre}${b.tipo === 'CTU' ? '' : ' ms'}</td><td>${v[n + '.DN'] ? '<b class="ok">1</b>' : '0'}</td></tr>`).join('')}</table>` : '<span class="note" style="padding:0">sin temporizadores ni contadores</span>'
+}
+function render() { renderEstado(); dibujarEscalera(); dibujarTiempos() }
+
+// ---- Interfaz ----------------------------------------------------------------------------------------------------------------
+$('esc').innerHTML = L.EJEMPLOS.map((e) => `<button class="mini" data-e="${e.id}">${e.nombre}</button>`).join('')
+function elegir(e) { $('src').value = e.texto; $('ayuda').textContent = e.ayuda; cargar(e.texto, e); $('esc').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.e === e.id)) }
+$('esc').querySelectorAll('button').forEach((b) => (b.onclick = () => elegir(L.EJEMPLOS.find((e) => e.id === b.dataset.e))))
+$('src').addEventListener('input', () => { clearTimeout(debounce); debounce = setTimeout(() => { $('ayuda').textContent = 'Programa editado: prueba tus propias entradas.'; $('esc').querySelectorAll('button').forEach((b) => b.classList.remove('on')); cargar($('src').value, null) }, 250) })
+$('bPausa').onclick = () => { pausa = !pausa; $('bPausa').textContent = pausa ? 'Continuar' : 'Pausa'; $('bPausa').classList.toggle('on', pausa) }
+$('bPaso').onclick = () => { pausa = true; $('bPausa').textContent = 'Continuar'; $('bPausa').classList.add('on'); L.scan(plc, dtMs); render() }
+$('selScan').onchange = () => { dtMs = +$('selScan').value }
+document.querySelectorAll('.vel').forEach((b) => (b.onclick = () => { vel = +b.dataset.v; document.querySelectorAll('.vel').forEach((x) => x.classList.toggle('on', x === b)) }))
+function bucle(ahora) {
+  const dt = Math.min(100, ahora - ultimo); ultimo = ahora
+  if (!pausa && plc) { acc += dt * vel; let n = 0; while (acc >= dtMs && n < 3000) { L.scan(plc, dtMs); acc -= dtMs; n++ } if (n) render() }
+  requestAnimationFrame(bucle)
+}
+elegir(L.EJEMPLOS[0]); requestAnimationFrame(bucle)
+window.addEventListener('resize', () => plc && render())
+window.demoApi = { plc: () => plc, programa: () => programa, L, elegir, cargar, avanzar(ms) { L.correr(plc, ms, dtMs); render() },
+  poner(tag, v) { plc.entradas[tag] = v; const c = $('ent').querySelector(`[data-in="${tag}"]`); if (c) c.checked = !!v }, EJ: L.EJEMPLOS }
+</script>
+</body>
+</html>
