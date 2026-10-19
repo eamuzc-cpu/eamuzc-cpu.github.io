@@ -1270,4 +1270,49 @@ export const projects = [
     },
     tools: { hardware: [], software: ['IEC 61131-3', 'Ladder', { es: 'Texto Estructurado', en: 'Structured Text' }, 'SVG', 'JavaScript', 'node:test'] },
   },
+  {
+    slug: 'seguridad-funcional-loto',
+    title: {
+      es: 'Seguridad de máquinas: estimador de nivel de desempeño (ISO 13849) y práctica de bloqueo y etiquetado (LOTO)',
+      en: 'Machine Safety: Performance Level Estimator (ISO 13849) and Lockout/Tagout (LOTO) Practice',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/seguridad-funcional-loto.jpg',
+    demo: { src: '/demos/seguridad-funcional-loto/index.html' },
+    resultBadge: { es: '11 incidentes distintos por pasos omitidos', en: '11 distinct incidents from skipped steps' },
+    summary: {
+      es: 'Dos herramientas de seguridad de máquinas: un estimador del nivel de desempeño (PL) de una función de seguridad con el grafo de riesgo, la categoría, el MTTFd, la cobertura de diagnóstico y las fallas de causa común, y una práctica de bloqueo y etiquetado sobre una máquina virtual con cinco fuentes de energía.',
+      en: 'Two machine safety tools: a performance level (PL) estimator for a safety function using the risk graph, category, MTTFd, diagnostic coverage and common cause failures, and a lockout/tagout practice on a virtual machine with five energy sources.',
+    },
+    stack: ['ISO 13849-1', { es: 'Grafo de riesgo', en: 'Risk graph' }, 'LOTO', 'JavaScript'],
+    challenge: {
+      es: 'La seguridad funcional y el bloqueo de energías se aprenden con listas de pasos, pero los errores graves vienen de omitir uno: energía almacenada que nadie liberó, un candado sin aislar, una verificación que no se hizo. Además, elegir la arquitectura de una función de seguridad exige combinar varias magnitudes que no se intuyen.',
+      en: 'Functional safety and energy lockout are learned from step lists, but serious accidents come from skipping one: stored energy nobody released, a lock on something not isolated, a verification that was never done. Choosing the architecture of a safety function also means combining several quantities that are not intuitive.',
+    },
+    impact: {
+      es: 'En una línea de envasado conviven electricidad, aire comprimido, partes que caen por gravedad y superficies calientes: una intervención con un paso omitido puede terminar en un arranque inesperado o una quemadura. Practicar la secuencia con consecuencias visibles es más efectivo que memorizarla.',
+      en: 'A packaging line combines electricity, compressed air, parts that fall by gravity and hot surfaces: an intervention with a skipped step can end in an unexpected start-up or a burn. Practicing the sequence with visible consequences works better than memorizing it.',
+    },
+    solution: {
+      es: 'El estimador calcula el nivel requerido (PLr) con el grafo S, F y P, el PFHd con fórmulas simplificadas de uno y dos canales (tiempo de misión de 20 años), lo ubica en una escala logarítmica con las bandas a a e, lo limita de forma conservadora según la categoría y propone cambios de un parámetro que sí alcanzan el nivel requerido. No reproduce la tabla K.1 de la norma y lo declara en pantalla: el valor normativo sale de la norma o de SISTEMA. La práctica LOTO modela una estación de sellado con seccionador, variador con bus de continua, aire con purga, cuchilla vertical, barra caliente y dos trabajadores con su candado personal: el bus baja de 50 V en cerca de 50 s, el aire en 5 s y la barra tarda unos 10 minutos en enfriar. Cada paso omitido tiene su consecuencia (11 incidentes distintos, desde energizar con personal dentro hasta que un compañero cierre el seccionador sin candado), el procedimiento marca los pasos hechos fuera de orden y exige que cada uno retire solo su candado. Las 25 pruebas cubren el grafo de riesgo, las bandas, los casos de las categorías B a 4, las arquitecturas inválidas, las sugerencias, el procedimiento completo y cada tipo de incidente.',
+      en: 'The estimator computes the required level (PLr) with the S, F and P graph and the PFHd with simplified one- and two-channel formulas (20-year mission time), places it on a logarithmic scale with the a to e bands, caps it conservatively by category and suggests single-parameter changes that do reach the required level. It does not reproduce the standard\'s Table K.1 and says so on screen: the normative value comes from the standard or from SISTEMA. The LOTO practice models a sealing station with a disconnect switch, a drive with a DC bus, air with a bleed valve, a vertical blade, a hot bar and two workers with their personal padlocks: the bus drops below 50 V in about 50 s, the air in 5 s and the bar takes about 10 minutes to cool. Every skipped step has its consequence (11 distinct incidents, from energizing with people inside to a coworker closing the switch with no lock), the procedure flags steps done out of order and requires each person to remove only their own lock. The 25 tests cover the risk graph, the bands, the category B to 4 cases, invalid architectures, the suggestions, the complete procedure and every incident type.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '25' },
+      { label: { es: 'Fuentes de energía simuladas', en: 'Simulated energy sources' }, value: '5' },
+      { label: { es: 'Pasos del procedimiento LOTO', en: 'LOTO procedure steps' }, value: '9' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Riesgo', en: 'Risk' }, sub: 'S · F · P' },
+        { label: { es: 'Arquitectura', en: 'Architecture' }, sub: { es: 'categoría · MTTFd · DC', en: 'category · MTTFd · DC' } },
+        { label: { es: 'PL alcanzado', en: 'Achieved PL' }, sub: { es: 'vs. PLr', en: 'vs. PLr' } },
+        { label: { es: 'Práctica LOTO', en: 'LOTO practice' }, sub: { es: 'aislar · bloquear · verificar', en: 'isolate · lock · verify' } },
+      ],
+      feedback: { from: 2, to: 1, label: { es: 'mejorar arquitectura', en: 'improve architecture' } },
+    },
+    tools: { hardware: [], software: ['ISO 13849-1', 'LOTO', { es: 'Modelo de energías', en: 'Energy model' }, 'JavaScript', 'SVG', 'node:test'] },
+  },
 ]

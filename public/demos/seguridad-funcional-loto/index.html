@@ -1,0 +1,507 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguridad de máquinas — nivel de desempeño (ISO 13849) y bloqueo y etiquetado (LOTO)</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.tabs { display: flex; gap: 6px; }
+.tabs button { padding: 8px 14px; } .tabs button.on { background: rgba(34, 211, 238, .12); }
+.layout { grid-template-columns: 380px minmax(0, 1fr); align-items: start; } .col { display: grid; gap: 12px; min-width: 0; }
+.frm { display: grid; grid-template-columns: 1fr 120px; gap: 6px 10px; align-items: center; margin-bottom: 6px; } .frm label { font: 12px var(--mono); color: var(--mut); } .frm input, .frm select { width: 100%; }
+.opt { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0 8px; } .opt label { display: flex; gap: 6px; align-items: flex-start; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px var(--mono); color: var(--txt); cursor: pointer; } .opt label:has(input:checked) { border-color: var(--cyan); background: rgba(34, 211, 238, .08); }
+.opt small { display: block; color: var(--mut); font-size: 10.5px; }
+.sub { font: 600 10.5px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: #64748b; margin: 10px 0 5px; }
+.chip2 { font: 11px var(--mono); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); } .chip2.alta { color: var(--green); border-color: rgba(52, 211, 153, .5); } .chip2.media { color: var(--amber); border-color: rgba(245, 158, 11, .5); } .chip2.baja, .chip2.insuficiente, .chip2.ninguna { color: var(--red); border-color: rgba(248, 113, 113, .5); }
+.pl { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 8px 0; } .pl div { text-align: center; border: 1px solid var(--line); border-radius: 8px; padding: 8px 0; font: 700 18px var(--mono); color: #475569; position: relative; }
+.pl div small { display: block; font: 10px var(--mono); font-weight: 400; color: var(--mut); } .pl div.req { border-color: var(--amber); color: var(--amber); } .pl div.ach { background: rgba(52, 211, 153, .15); border-color: var(--green); color: var(--green); } .pl div.ach.req { background: rgba(52, 211, 153, .15); }
+.verd { border-radius: 10px; padding: 10px 14px; font: 13px var(--mono); border: 1px solid; margin-bottom: 8px; } .verd.ok { border-color: var(--green); color: var(--green); background: rgba(52, 211, 153, .07); } .verd.no { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .07); } .verd.av { border-color: var(--amber); color: var(--amber); background: rgba(245, 158, 11, .07); }
+.lista { margin: 4px 0 0 16px; padding: 0; font: 12px var(--mono); color: var(--txt); } .lista li { margin: 4px 0; }
+#cvPfh { height: 120px; } #arq { width: 100%; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; } .card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; } .card b { font: 600 17px var(--mono); }
+.acc { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; } .acc button { font-size: 11.5px; padding: 6px 10px; } button.warnb { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.paso { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid #0f1a2e; font: 12px var(--mono); } .paso i { font-style: normal; font-weight: 700; } .paso.hecho i { color: var(--green); } .paso.fuera i { color: var(--amber); } .paso.pendiente i { color: #475569; } .paso small { display: block; color: var(--amber); }
+#log { max-height: 220px; overflow: auto; font: 11.5px var(--mono); } #log div { padding: 3px 0; border-bottom: 1px solid #0f1a2e; color: var(--mut); } #log .inc { color: var(--red); } #log .av { color: var(--amber); }
+#svgM { width: 100%; height: auto; background: #030a1a; border: 1px solid var(--line); border-radius: 8px; } #svgM text { font-family: ui-monospace, Consolas, monospace; }
+#vistaLoto.layout { grid-template-columns: 640px minmax(0, 1fr); }
+@media (max-width: 1100px) { .layout, #vistaLoto.layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Seguridad de máquinas</h1><span class="badge warn">herramienta didáctica</span><span class="sp"></span>
+  <div class="tabs"><button id="tabPL" class="on">Nivel de desempeño (ISO 13849)</button><button id="tabLoto">Bloqueo y etiquetado (LOTO)</button></div>
+</div>
+
+<!-- ============== A) NIVEL DE DESEMPEÑO ============== -->
+<div id="vistaPL" class="wrap layout">
+  <div class="col">
+    <div class="panel"><h2>Ejemplos ilustrativos</h2><div class="acc" id="ejPL"></div></div>
+    <div class="panel">
+      <h2>1 · Riesgo → PL requerido (PLr)</h2>
+      <div class="sub">Gravedad de la lesión (S)</div>
+      <div class="opt"><label><input type="radio" name="S" value="S1"><span>S1 <small>leve, reversible</small></span></label><label><input type="radio" name="S" value="S2" checked><span>S2 <small>grave, irreversible o muerte</small></span></label></div>
+      <div class="sub">Frecuencia y tiempo de exposición (F)</div>
+      <div class="opt"><label><input type="radio" name="F" value="F1"><span>F1 <small>rara o corta</small></span></label><label><input type="radio" name="F" value="F2" checked><span>F2 <small>frecuente o larga</small></span></label></div>
+      <div class="sub">Posibilidad de evitar el peligro (P)</div>
+      <div class="opt"><label><input type="radio" name="P" value="P1"><span>P1 <small>posible en ciertas condiciones</small></span></label><label><input type="radio" name="P" value="P2" checked><span>P2 <small>apenas posible</small></span></label></div>
+    </div>
+    <div class="panel">
+      <h2>2 · Arquitectura de la función de seguridad</h2>
+      <div class="frm"><label for="cat">Categoría</label><select id="cat"><option>B</option><option>1</option><option>2</option><option selected>3</option><option>4</option></select></div>
+      <div class="frm"><label for="mttfd">MTTFd por canal [años]</label><input id="mttfd" type="number" min="1" max="1000" step="1" value="100"></div>
+      <div style="margin:-2px 0 6px;text-align:right"><span id="bMt" class="chip2"></span></div>
+      <div class="frm"><label for="dc">DCavg [%]</label><input id="dc" type="number" min="0" max="100" step="1" value="90"></div>
+      <div style="margin:-2px 0 6px;text-align:right"><span id="bDc" class="chip2"></span></div>
+      <div class="frm"><label for="ccf">Fallas de causa común [puntos]</label><input id="ccf" type="number" min="0" max="100" step="5" value="65"></div>
+      <div class="note" style="padding:0">Las categorías 2, 3 y 4 exigen al menos 65 puntos. MTTFd: 3–10 años baja, 10–30 media, 30–100 alta (por canal, tope 100).</div>
+      <div id="arq" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="panel"><h2>Resultado</h2><div id="verd"></div>
+      <div class="pl" id="plBar"></div>
+      <div class="cards"><div class="card"><span>PFHd estimado</span><b id="rPfh">—</b></div><div class="card"><span>PL por fórmula</span><b id="rPlF">—</b></div><div class="card"><span>Tope de la arquitectura</span><b id="rTope">—</b></div><div class="card"><span>PL alcanzado</span><b id="rPl">—</b></div></div>
+    </div>
+    <div class="panel"><h2>Dónde cae el PFHd (escala logarítmica)</h2><canvas id="cvPfh"></canvas></div>
+    <div class="panel"><h2>Notas y sugerencias</h2><div id="notas"></div></div>
+    <div class="note" style="padding:0 4px">Estimación didáctica con fórmulas simplificadas de dos canales (tiempo de misión de 20 años, β = 2 %). No reproduce la Tabla K.1 de ISO 13849-1 y el resultado de la arquitectura se limita de forma conservadora: el valor normativo sale de la norma o de la herramienta SISTEMA. No certifica ninguna función de seguridad.</div>
+  </div>
+</div>
+
+<!-- ============== B) LOTO ============== -->
+<div id="vistaLoto" class="wrap layout" style="display:none">
+  <div class="col">
+    <div class="panel"><h2>Máquina: estación de sellado (energías peligrosas)</h2><div id="mq"></div>
+      <div class="cards" style="margin-top:10px" id="med"></div></div>
+    <div class="panel"><h2>Registro</h2><div id="log"></div></div>
+  </div>
+  <div class="col">
+    <div class="panel"><h2>Procedimiento LOTO <span id="prog" class="chip2" style="margin-left:8px"></span></h2><div id="pasos"></div><div style="margin-top:8px" class="acc"><button id="bPista" class="mini">Pista</button><button id="bReiniciar" class="mini">Reiniciar práctica</button></div><div id="pista" class="note" style="padding:6px 0 0"></div></div>
+    <div class="panel"><h2>Acciones</h2>
+      <div class="sub">Preparación y parada</div><div class="acc"><button data-a="identificar">Identificar fuentes de energía</button><button data-a="notificar">Notificar al personal</button><button data-a="parar">Parar la máquina (paro normal)</button></div>
+      <div class="sub">Aislar</div><div class="acc"><button data-a="abrirQ1">Abrir seccionador Q1</button><button data-a="cerrarV1">Cerrar aire V1</button></div>
+      <div class="sub">Bloquear y etiquetar <select id="selW" style="margin-left:8px"></select></div><div class="acc"><button data-a="candado" data-p="q1">Candado + etiqueta en Q1</button><button data-a="candado" data-p="v1">Candado + etiqueta en V1</button></div>
+      <div class="sub">Energía almacenada</div><div class="acc"><button data-a="purga">Abrir purga de aire</button><button data-a="pasador">Colocar pasador de la cuchilla</button><button data-a="epp">Ponerse guantes térmicos</button><button data-t="10">Esperar 10 s</button><button data-t="60">Esperar 1 min</button><button data-t="600">Esperar 10 min</button></div>
+      <div class="sub">Verificar</div><div class="acc"><button data-a="medir">Medir tensión (multímetro)</button><button data-a="probar">Probar arranque</button></div>
+      <div class="sub">Trabajar</div><div class="acc"><button data-a="entrar">Abrir guarda e intervenir</button><button data-a="terminarTrabajo">Terminar trabajo y cerrar guarda</button></div>
+      <div class="sub">Restablecer</div><div class="acc"><button data-a="quitarPasador">Quitar pasador</button><button data-a="cerrarPurga">Cerrar purga</button><button data-a="quitarCandado" data-p="q1">Quitar mi candado de Q1</button><button data-a="quitarCandado" data-p="v1">Quitar mi candado de V1</button><button data-a="cerrarQ1">Cerrar Q1</button><button data-a="abrirV1">Abrir aire V1</button><button data-a="notificarFin">Notificar fin del trabajo</button></div>
+      <div class="sub">Prueba de fuego</div><div class="acc"><button class="warnb" data-a="compañero">Un compañero intenta cerrar Q1</button></div>
+    </div>
+  </div>
+</div>
+<div class="note">Práctica didáctica de un procedimiento de bloqueo y etiquetado en una máquina virtual. No reemplaza el procedimiento escrito de tu empresa ni la capacitación; las normas y la hoja LOTO de tu planta mandan.</div>
+
+<script>
+﻿// Seguridad de máquinas, dos herramientas didácticas:
+//  A) Estimador de nivel de desempeño (PL) tipo ISO 13849-1: PLr por grafo de riesgo (S, F, P), PFHd por fórmulas
+//     simplificadas de canales (categoría, MTTFd, DCavg, CCF) y comparación PL ≥ PLr con sugerencias de mejora.
+//     NO reproduce la Tabla K.1 (Markov) de la norma: es una estimación conservadora; el valor normativo sale de la norma o de SISTEMA.
+//  B) Procedimiento de bloqueo y etiquetado (LOTO) sobre una máquina virtual con energía eléctrica, neumática,
+//     gravitacional, térmica y del bus de continua; cada paso omitido tiene su consecuencia.
+// El MISMO archivo corre en las pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.SeguridadCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  // ===================== A) Nivel de desempeño =====================================================================
+  const PLS = ['a', 'b', 'c', 'd', 'e']
+  const PLR = { S1F1P1: 'a', S1F1P2: 'b', S1F2P1: 'b', S1F2P2: 'c', S2F1P1: 'c', S2F1P2: 'd', S2F2P1: 'd', S2F2P2: 'e' }
+  const plRequerido = (S, F, P) => PLR[`${S}${F}${P}`] ?? null
+  const HORAS_ANIO = 8760, T_MISION_H = 20 * HORAS_ANIO
+  const LIMITES_PL = { a: [1e-5, 1e-4], b: [3e-6, 1e-5], c: [1e-6, 3e-6], d: [1e-7, 1e-6], e: [1e-8, 1e-7] } // PFHd en 1/h
+  const nivelPL = (pfhd) => (pfhd >= 1e-4 ? null : pfhd >= 1e-5 ? 'a' : pfhd >= 3e-6 ? 'b' : pfhd >= 1e-6 ? 'c' : pfhd >= 1e-7 ? 'd' : pfhd >= 1e-8 ? 'e' : 'e')
+  const CATEGORIAS = ['B', '1', '2', '3', '4']
+  function bandaMTTFd(y) { return y < 3 ? 'insuficiente' : y < 10 ? 'baja' : y < 30 ? 'media' : 'alta' }
+  function bandaDC(dc) { return dc < 60 ? 'ninguna' : dc < 90 ? 'baja' : dc < 99 ? 'media' : 'alta' }
+  // Tope de PL por arquitectura (conservador): categoría y cobertura de diagnóstico
+  function topePL(cat, banda) {
+    if (cat === 'B') return 'b'
+    if (cat === '1') return 'c'
+    if (cat === '2') return banda === 'media' || banda === 'alta' ? 'd' : 'c'
+    if (cat === '3') return banda === 'media' || banda === 'alta' ? 'e' : 'd'
+    return 'e'
+  }
+  const BETA = 0.02 // factor de fallas de causa común con CCF ≥ 65 puntos
+  function pfhd({ cat, mttfd, dc }) {
+    const y = Math.min(Math.max(mttfd, 0.0001), 100), lam = 1 / (y * HORAS_ANIO), DC = (cat === 'B' || cat === '1' ? 0 : dc) / 100
+    if (cat === 'B' || cat === '1') return lam
+    if (cat === '2') return (1 - DC) * lam
+    return 2 * (1 - BETA) * lam * lam * ((1 - DC) * (T_MISION_H / 2)) + BETA * lam // categorías 3 y 4: dos canales con diagnóstico
+  }
+  function evaluarPL(e) {
+    const { cat, mttfd, dc, ccf, S, F, P } = e
+    const plr = plRequerido(S, F, P), avisos = [], invalida = []
+    const banda = cat === 'B' || cat === '1' ? 'ninguna' : bandaDC(dc), bm = bandaMTTFd(mttfd)
+    if (bm === 'insuficiente') invalida.push('MTTFd menor a 3 años por canal: no se puede asignar un PL')
+    if (['2', '3', '4'].includes(cat) && ccf < 65) invalida.push('las categorías 2, 3 y 4 exigen medidas contra fallas de causa común con al menos 65 puntos')
+    if (cat === '3' && banda === 'ninguna') invalida.push('la categoría 3 exige DCavg de al menos 60 %')
+    if (cat === '4' && banda !== 'alta') invalida.push('la categoría 4 exige DCavg de al menos 99 %')
+    if (cat === '2' && banda === 'ninguna') invalida.push('la categoría 2 exige pruebas periódicas con DCavg de al menos 60 %')
+    if (cat === '1' && bm !== 'alta') avisos.push('la categoría 1 solo alcanza PL c con MTTFd alta (30 a 100 años) y componentes de eficacia probada')
+    const mttfdEf = Math.min(mttfd, 100)
+    if (mttfd > 100) avisos.push('el MTTFd por canal se limita a 100 años en el cálculo')
+    const p = pfhd({ cat, mttfd: mttfdEf, dc })
+    const plFormula = invalida.length ? null : nivelPL(p)
+    const tope = topePL(cat, banda)
+    const pl = invalida.length || !plFormula ? null : PLS[Math.min(PLS.indexOf(plFormula), PLS.indexOf(tope))]
+    const cumple = !!pl && !!plr && PLS.indexOf(pl) >= PLS.indexOf(plr)
+    return { plr, pfhd: p, plFormula, tope, pl, cumple, invalida, avisos, bandas: { mttfd: bm, dc: banda } }
+  }
+  // Prueba cambios de un solo parámetro y devuelve los que alcanzan el PLr requerido
+  function sugerencias(e) {
+    const base = evaluarPL(e)
+    if (base.cumple) return []
+    const intentos = []
+    const prueba = (texto, cambio) => { const r = evaluarPL({ ...e, ...cambio }); if (r.cumple) intentos.push({ texto, cambio, pl: r.pl, pfhd: r.pfhd }) }
+    for (const dc of [60, 90, 99]) if (dc > e.dc) prueba(`subir la cobertura de diagnóstico a ${dc} %`, { dc })
+    if (e.mttfd < 100) prueba('usar componentes con MTTFd de 100 años por canal', { mttfd: 100 })
+    if (e.ccf < 65) prueba('aplicar medidas contra fallas de causa común hasta 65 puntos', { ccf: 65 })
+    const idx = CATEGORIAS.indexOf(e.cat)
+    for (let k = idx + 1; k < CATEGORIAS.length; k++) {
+      prueba(`pasar a categoría ${CATEGORIAS[k]} (dos canales con diagnóstico)`, { cat: CATEGORIAS[k], ccf: Math.max(e.ccf, 65), dc: CATEGORIAS[k] === '4' ? Math.max(e.dc, 99) : Math.max(e.dc, 60) })
+    }
+    if (!intentos.length) {
+      for (const dc of [90, 99]) for (const cat of ['3', '4']) {
+        const c = { cat, dc: cat === '4' ? 99 : dc, mttfd: 100, ccf: 65 }
+        const r = evaluarPL({ ...e, ...c }); if (r.cumple) { intentos.push({ texto: `combinar categoría ${cat}, DCavg ${c.dc} %, MTTFd de 100 años y CCF 65`, cambio: c, pl: r.pl, pfhd: r.pfhd }); break }
+      }
+    }
+    return intentos
+  }
+
+  // ===================== B) Bloqueo y etiquetado (LOTO) ==============================================================
+  const PASOS = [
+    { id: 'identificar', txt: 'Identificar todas las fuentes de energía (hoja LOTO de la máquina)' },
+    { id: 'notificar', txt: 'Notificar al personal afectado' },
+    { id: 'parar', txt: 'Parar la máquina con el procedimiento normal' },
+    { id: 'aislar', txt: 'Aislar: abrir el seccionador Q1 y cerrar el aire V1' },
+    { id: 'bloquear', txt: 'Bloquear y etiquetar cada punto de aislamiento, con candado personal de cada trabajador' },
+    { id: 'liberar', txt: 'Liberar la energía almacenada: purgar el aire, trabar la cuchilla, descargar el bus y enfriar' },
+    { id: 'verificar', txt: 'Verificar energía cero: medir tensión y probar el arranque' },
+    { id: 'intervenir', txt: 'Intervenir con la máquina en estado de energía cero' },
+    { id: 'restablecer', txt: 'Restablecer: terminar, retirar candados y energizar' },
+  ]
+  const TRABAJADORES = ['Esteban', 'Marcela']
+  const V_SEGURA = 50, P_SEGURA = 0.2, T_SEGURA = 60
+
+  function crearLoto() {
+    return {
+      t: 0, funcionando: true, q1: 'cerrado', v1: 'abierta', purga: false, pasador: false, cuchilla: 'arriba', guarda: 'cerrada', epp: false,
+      presion: 6, bus: 540, temp: 180, candados: { q1: [], v1: [] }, etiquetas: { q1: false, v1: false },
+      ident: false, notif: false, notifFin: false, verifTension: false, probarOk: false, intervencion: false, trabajoHecho: false,
+      incidentes: [], avisos: [], log: [], hechos: [], orden: [],
+    }
+  }
+  const nota = (s, tipo, msg) => {
+    if (tipo === 'incidente') s.incidentes.push({ t: s.t, msg }); else if (tipo === 'aviso') s.avisos.push({ t: s.t, msg })
+    s.log.push({ t: s.t, msg: (tipo === 'incidente' ? '⚠ INCIDENTE: ' : tipo === 'aviso' ? '△ ' : '') + msg })
+    return { ok: tipo === 'ok', tipo, msg }
+  }
+  const aislado = (s) => s.q1 === 'abierto' && s.v1 === 'cerrada'
+  const bloqueado = (s, trabajadores = TRABAJADORES) => trabajadores.every((w) => s.candados.q1.includes(w) && s.candados.v1.includes(w)) && s.etiquetas.q1 && s.etiquetas.v1
+  const energiaLiberada = (s) => s.presion < P_SEGURA && (s.pasador || s.cuchilla === 'abajo') && s.bus < V_SEGURA && (s.temp < T_SEGURA || s.epp)
+
+  // Estado de cada paso del procedimiento (según el estado real de la máquina)
+  function condiciones(s) {
+    return {
+      identificar: s.ident, notificar: s.notif, parar: !s.funcionando,
+      aislar: aislado(s), bloquear: aislado(s) && bloqueado(s), liberar: aislado(s) && energiaLiberada(s),
+      verificar: s.verifTension && s.probarOk, intervenir: s.trabajoHecho,
+      restablecer: s.trabajoHecho && !s.intervencion && !s.pasador && !s.purga && !s.candados.q1.length && !s.candados.v1.length && s.q1 === 'cerrado' && s.v1 === 'abierta' && s.notifFin,
+    }
+  }
+  function actualizarPasos(s) {
+    const c = condiciones(s)
+    for (const p of PASOS) {
+      if (c[p.id] && !s.hechos.includes(p.id)) {
+        s.hechos.push(p.id)
+        const faltan = PASOS.slice(0, PASOS.findIndex((q) => q.id === p.id)).filter((q) => !(c[q.id] || (s.trabajoHecho && s.hechos.includes(q.id))))
+        s.orden.push({ id: p.id, t: s.t, fueraDeOrden: faltan.map((q) => q.id) })
+      }
+    }
+  }
+  function estadoPasos(s) {
+    const c = condiciones(s)
+    return PASOS.map((p) => {
+      const reg = s.orden.find((o) => o.id === p.id)
+      // un paso cumplido sigue valiendo después del trabajo (al restablecer la energía las condiciones físicas vuelven a cambiar)
+      const vigente = !!c[p.id] || (s.trabajoHecho && s.hechos.includes(p.id))
+      return { ...p, hecho: vigente, estado: vigente ? (reg && reg.fueraDeOrden.length ? 'fuera de orden' : 'hecho') : s.hechos.includes(p.id) ? 'deshecho' : 'pendiente', fueraDeOrden: reg ? reg.fueraDeOrden : [] }
+    })
+  }
+
+  function avanzarLoto(s, seg) {
+    for (let i = 0; i < seg; i++) {
+      s.t += 1
+      s.bus = s.q1 === 'cerrado' ? 540 : s.bus * Math.exp(-1 / 20)
+      if (s.q1 === 'cerrado') s.temp = Math.min(180, s.temp + 2) // la resistencia mantiene 180 °C mientras hay energía
+      else s.temp = 25 + (s.temp - 25) * Math.exp(-1 / 400)
+      if (s.v1 === 'abierta') s.presion = Math.min(6, s.presion + 2)
+      else if (s.purga) s.presion = Math.max(0, s.presion - 1.2)
+      if (s.presion < P_SEGURA && !s.pasador && s.cuchilla === 'arriba') {
+        s.cuchilla = 'abajo'
+        if (s.intervencion) nota(s, 'incidente', 'la cuchilla cayó por su peso con personal dentro de la zona: faltó el pasador mecánico')
+        else nota(s, 'ok', 'sin aire, la cuchilla bajó por su peso (no había nadie dentro de la zona)')
+      }
+    }
+    actualizarPasos(s)
+    return s
+  }
+
+  function riesgosPresentes(s) {
+    const r = []
+    if (s.q1 === 'cerrado') r.push('hay tensión de red: contacto con partes energizadas o arranque inesperado')
+    if (s.presion > P_SEGURA) r.push('queda aire a presión en el cilindro: movimiento inesperado')
+    if (!(s.pasador || s.cuchilla === 'abajo')) r.push('la cuchilla está arriba sin pasador: puede caer por gravedad')
+    if (s.bus > V_SEGURA) r.push(`el bus de continua sigue en ${Math.round(s.bus)} V: descarga eléctrica`)
+    if (s.temp > T_SEGURA && !s.epp) r.push(`la barra selladora está a ${Math.round(s.temp)} °C sin protección térmica: quemadura`)
+    return r
+  }
+
+  function accion(s, tipo, arg) {
+    let r
+    switch (tipo) {
+      case 'identificar': s.ident = true; r = nota(s, 'ok', 'fuentes identificadas: eléctrica (Q1 y bus DC), neumática (V1), gravitacional (cuchilla) y térmica (barra selladora)'); break
+      case 'notificar': s.notif = true; r = nota(s, 'ok', 'personal afectado notificado de la intervención'); break
+      case 'parar': s.funcionando = false; r = nota(s, 'ok', 'máquina detenida con el paro normal'); break
+      case 'abrirQ1':
+        if (s.funcionando) { r = nota(s, 'aviso', 'abriste el seccionador con la máquina en marcha: primero se detiene con el paro normal'); s.funcionando = false } else r = nota(s, 'ok', 'seccionador Q1 abierto')
+        s.q1 = 'abierto'; break
+      case 'cerrarQ1':
+        if (s.candados.q1.length) { r = nota(s, 'aviso', `Q1 no se puede cerrar: está bloqueado con candado de ${s.candados.q1.join(' y ')}`); break }
+        s.q1 = 'cerrado'
+        r = s.intervencion ? nota(s, 'incidente', 'se energizó la máquina con personal dentro de la zona de trabajo') : nota(s, 'ok', 'seccionador Q1 cerrado: la máquina tiene energía')
+        break
+      case 'cerrarV1': s.v1 = 'cerrada'; r = nota(s, 'ok', 'aire V1 cerrado'); break
+      case 'abrirV1':
+        if (s.candados.v1.length) { r = nota(s, 'aviso', `V1 no se puede abrir: está bloqueada con candado de ${s.candados.v1.join(' y ')}`); break }
+        s.v1 = 'abierta'; r = s.intervencion ? nota(s, 'incidente', 'entró aire a la máquina con personal dentro de la zona de trabajo') : nota(s, 'ok', 'aire V1 abierto'); break
+      case 'candado': {
+        const { punto, trabajador } = arg
+        if (s.candados[punto].includes(trabajador)) { r = nota(s, 'aviso', `${trabajador} ya tiene su candado en ${punto.toUpperCase()}`); break }
+        s.candados[punto].push(trabajador); s.etiquetas[punto] = true
+        r = (punto === 'q1' ? s.q1 !== 'abierto' : s.v1 !== 'cerrada') ? nota(s, 'aviso', `candado de ${trabajador} en ${punto.toUpperCase()} SIN aislar: no aísla nada, solo da falsa seguridad`) : nota(s, 'ok', `candado y etiqueta de ${trabajador} en ${punto.toUpperCase()}`)
+        break
+      }
+      case 'purga': s.purga = true; r = s.v1 === 'abierta' ? nota(s, 'aviso', 'purga abierta con V1 abierta: el aire sigue entrando') : nota(s, 'ok', 'purga abierta: el cilindro se despresuriza'); break
+      case 'pasador': s.pasador = true; r = nota(s, 'ok', 'pasador mecánico puesto: la cuchilla queda trabada'); break
+      case 'epp': s.epp = true; r = nota(s, 'ok', 'guantes y manga resistentes al calor puestos'); break
+      case 'medir': {
+        const lectura = s.q1 === 'cerrado' ? 380 : Math.round(s.bus)
+        s.verifTension = lectura < V_SEGURA && s.q1 === 'abierto'
+        r = lectura < V_SEGURA ? nota(s, 'ok', `multímetro: ${lectura} V en los bornes: sin tensión`) : nota(s, 'aviso', `multímetro: ${lectura} V en los bornes: todavía hay tensión`); break
+      }
+      case 'probar':
+        if (s.q1 === 'cerrado') { s.funcionando = true; r = s.intervencion ? nota(s, 'incidente', 'la máquina arrancó con personal dentro: la energía no estaba aislada') : nota(s, 'aviso', 'la prueba de arranque falló: la máquina arrancó, la energía no está aislada'); break }
+        s.probarOk = aislado(s) && bloqueado(s); r = nota(s, 'ok', 'pulsas marcha y la máquina no arranca: la energía está aislada'); break
+      case 'entrar': {
+        const riesgos = riesgosPresentes(s)
+        s.guarda = 'abierta'; s.intervencion = true
+        if (riesgos.length) { r = null; for (const m of riesgos) r = nota(s, 'incidente', m) } else r = nota(s, 'ok', 'intervención con energía cero: puedes trabajar')
+        if (!bloqueado(s)) nota(s, 'aviso', 'entraste sin el candado personal de cada trabajador en cada punto de aislamiento')
+        if (!(s.verifTension && s.probarOk)) nota(s, 'aviso', 'entraste sin verificar energía cero (medir tensión y probar arranque)')
+        break
+      }
+      case 'terminarTrabajo':
+        if (!s.intervencion) { r = nota(s, 'aviso', 'no hay una intervención en curso'); break }
+        s.intervencion = false; s.guarda = 'cerrada'; s.trabajoHecho = true; r = nota(s, 'ok', 'trabajo terminado: herramientas fuera y guarda cerrada'); break
+      case 'quitarPasador': s.pasador = false; r = nota(s, 'ok', 'pasador retirado'); break
+      case 'cerrarPurga': s.purga = false; r = nota(s, 'ok', 'purga cerrada'); break
+      case 'quitarCandado': {
+        const { punto, trabajador } = arg
+        if (!s.candados[punto].includes(trabajador)) { r = nota(s, 'aviso', `${trabajador} no tiene candado en ${punto.toUpperCase()}: cada uno retira solo el suyo`); break }
+        s.candados[punto] = s.candados[punto].filter((w) => w !== trabajador)
+        if (!s.candados[punto].length) s.etiquetas[punto] = false
+        r = s.intervencion ? nota(s, 'incidente', `${trabajador} retiró su candado con la intervención en curso`) : nota(s, 'ok', `candado de ${trabajador} retirado de ${punto.toUpperCase()}`); break
+      }
+      case 'notificarFin': s.notifFin = true; r = nota(s, 'ok', 'personal notificado: la máquina vuelve a servicio'); break
+      case 'compañero': { // un compañero que no sabe del trabajo intenta energizar
+        if (s.candados.q1.length) { r = nota(s, 'ok', 'el candado impidió que un compañero energizara la máquina'); break }
+        const aislada = s.q1 === 'abierto'
+        r = accion(s, 'cerrarQ1')
+        if (aislada && r.tipo === 'ok') r = nota(s, 'incidente', 'un compañero energizó la máquina sin saber del trabajo: sin candado nada lo impedía')
+        break
+      }
+      default: r = { ok: false, tipo: 'aviso', msg: 'acción desconocida' }
+    }
+    actualizarPasos(s)
+    return r
+  }
+  function resumenLoto(s) {
+    const pasos = estadoPasos(s), hechos = pasos.filter((p) => p.hecho).length
+    const fuera = pasos.filter((p) => p.estado === 'fuera de orden').length
+    return { pasos, hechos, total: pasos.length, incidentes: s.incidentes.length, avisos: s.avisos.length, fueraDeOrden: fuera, completo: hechos === pasos.length && !s.incidentes.length }
+  }
+
+  return { PLR, PLS, CATEGORIAS, LIMITES_PL, plRequerido, nivelPL, bandaMTTFd, bandaDC, topePL, pfhd, evaluarPL, sugerencias, PASOS, TRABAJADORES, V_SEGURA, P_SEGURA, T_SEGURA, crearLoto, accion, avanzarLoto, estadoPasos, resumenLoto, riesgosPresentes, aislado, bloqueado, energiaLiberada }
+})
+
+
+</script>
+<script>
+'use strict'
+const S = SeguridadCore, $ = (id) => document.getElementById(id)
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const f = (n, d = 0) => Number(n).toLocaleString('es-CL', { maximumFractionDigits: d, minimumFractionDigits: d })
+
+// =========================== A) NIVEL DE DESEMPEÑO ===========================
+const EJ_PL = [
+  { nombre: 'Paro de emergencia con relé de seguridad', v: { S: 'S2', F: 'F1', P: 'P2', cat: '3', mttfd: 100, dc: 90, ccf: 65 } },
+  { nombre: 'Puerta con un solo interruptor', v: { S: 'S2', F: 'F2', P: 'P2', cat: '1', mttfd: 100, dc: 0, ccf: 0 } },
+  { nombre: 'Barrera de luz de dos canales', v: { S: 'S2', F: 'F2', P: 'P2', cat: '4', mttfd: 100, dc: 99, ccf: 70 } },
+  { nombre: 'Protección con prueba cíclica', v: { S: 'S1', F: 'F2', P: 'P1', cat: '2', mttfd: 30, dc: 60, ccf: 65 } },
+]
+const leerPL = () => ({ S: document.querySelector('input[name=S]:checked').value, F: document.querySelector('input[name=F]:checked').value, P: document.querySelector('input[name=P]:checked').value, cat: $('cat').value, mttfd: +$('mttfd').value || 0, dc: +$('dc').value || 0, ccf: +$('ccf').value || 0 })
+function ponerPL(v) { for (const k of ['S', 'F', 'P']) document.querySelector(`input[name=${k}][value=${v[k]}]`).checked = true; for (const k of ['cat', 'mttfd', 'dc', 'ccf']) $(k).value = v[k]; renderPL() }
+$('ejPL').innerHTML = EJ_PL.map((e, i) => `<button class="mini" data-i="${i}">${e.nombre}</button>`).join('')
+$('ejPL').querySelectorAll('button').forEach((b) => (b.onclick = () => ponerPL(EJ_PL[+b.dataset.i].v)))
+document.querySelectorAll('#vistaPL input, #vistaPL select').forEach((e) => e.addEventListener('input', renderPL))
+function arquitecturaSVG(cat) {
+  const caja = (x, y, t, c = '#334a73') => `<rect x="${x}" y="${y}" width="62" height="30" rx="5" fill="#071122" stroke="${c}" stroke-width="1.6"/><text x="${x + 31}" y="${y + 19}" text-anchor="middle" fill="#cbd5e1" font-size="11">${t}</text>`
+  const fl = (x1, y1, x2, y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#64748b" stroke-width="1.6"/>`
+  let g = ''
+  if (cat === 'B' || cat === '1') g = caja(10, 30, 'Entrada') + fl(72, 45, 100, 45) + caja(100, 30, 'Lógica') + fl(162, 45, 190, 45) + caja(190, 30, 'Salida')
+  else if (cat === '2') g = caja(10, 12, 'Entrada') + fl(72, 27, 100, 27) + caja(100, 12, 'Lógica') + fl(162, 27, 190, 27) + caja(190, 12, 'Salida') + caja(100, 62, 'Prueba', '#f59e0b') + fl(131, 42, 131, 62) + fl(162, 77, 221, 77) + fl(221, 77, 221, 42)
+  else g = caja(10, 8, 'Entrada 1') + fl(72, 23, 100, 23) + caja(100, 8, 'Lógica 1') + fl(162, 23, 190, 23) + caja(190, 8, 'Salida 1') + caja(10, 62, 'Entrada 2') + fl(72, 77, 100, 77) + caja(100, 62, 'Lógica 2') + fl(162, 77, 190, 77) + caja(190, 62, 'Salida 2') + `<line x1="131" y1="38" x2="131" y2="62" stroke="#f59e0b" stroke-width="1.6" stroke-dasharray="4 3"/><text x="140" y="54" fill="#f59e0b" font-size="10">${cat === '4' ? 'monitoreo cruzado' : 'monitoreo'}</text>`
+  return `<svg viewBox="0 0 270 105" width="100%" role="img" aria-label="Arquitectura de categoría ${cat}">${g}<text x="262" y="100" text-anchor="end" fill="#64748b" font-size="10">Categoría ${cat}</text></svg>`
+}
+function dibujarPFH(r) {
+  const cv = $('cvPfh'), dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '11px ui-monospace, Consolas, monospace'
+  const L = 12, R = 12, lo = -8, hi = -4, X = (p) => L + ((Math.log10(Math.min(Math.max(p, 1e-8), 1e-4)) - lo) / (hi - lo)) * (w - L - R)
+  const bandas = [['e', 1e-8, 1e-7, '#34d399'], ['d', 1e-7, 1e-6, '#86efac'], ['c', 1e-6, 3e-6, '#facc15'], ['b', 3e-6, 1e-5, '#fb923c'], ['a', 1e-5, 1e-4, '#f87171']]
+  for (const [pl, a, b, col] of bandas) { c.fillStyle = col + '33'; c.strokeStyle = col; c.lineWidth = 1; c.fillRect(X(a), 30, X(b) - X(a), 40); c.strokeRect(X(a), 30, X(b) - X(a), 40); c.fillStyle = col; c.textAlign = 'center'; c.fillText('PL ' + pl, (X(a) + X(b)) / 2, 54) }
+  c.fillStyle = '#64748b'; c.textAlign = 'center'; for (let e = -8; e <= -4; e++) c.fillText('1e' + e, X(10 ** e), 92)
+  if (r.pfhd) { const x = X(r.pfhd); c.fillStyle = '#fff'; c.beginPath(); c.moveTo(x, 28); c.lineTo(x - 6, 14); c.lineTo(x + 6, 14); c.fill(); c.fillStyle = '#e2e8f0'; c.textAlign = x > w - 90 ? 'right' : 'left'; c.fillText(r.pfhd.toExponential(2).replace('e-', '·10⁻').replace('+', '') + ' 1/h', x + (x > w - 90 ? -8 : 8), 12) }
+}
+function renderPL() {
+  const e = leerPL(), r = S.evaluarPL(e), PLS = S.PLS
+  $('arq').innerHTML = arquitecturaSVG(e.cat)
+  $('bMt').textContent = 'MTTFd ' + S.bandaMTTFd(e.mttfd); $('bMt').className = 'chip2 ' + S.bandaMTTFd(e.mttfd)
+  const ban = ['B', '1'].includes(e.cat) ? 'ninguna' : S.bandaDC(e.dc); $('bDc').textContent = 'DCavg ' + ban + (['B', '1'].includes(e.cat) ? ' (no aplica)' : ''); $('bDc').className = 'chip2 ' + ban
+  $('plBar').innerHTML = PLS.map((p) => `<div class="${p === r.plr ? 'req' : ''} ${r.pl === p ? 'ach' : ''}">${p.toUpperCase()}<small>${p === r.plr ? 'requerido' : ''}${p === r.pl ? (p === r.plr ? ' · alcanzado' : 'alcanzado') : ''}</small></div>`).join('')
+  const ok = r.cumple
+  $('verd').innerHTML = r.invalida.length ? `<div class="verd no">✖ La arquitectura no es válida para la categoría ${e.cat}: ${esc(r.invalida[0])}.</div>` : ok ? `<div class="verd ok">✔ Cumple: PL ${r.pl.toUpperCase()} alcanzado ≥ PLr ${r.plr.toUpperCase()}.</div>` : `<div class="verd no">✖ No cumple: PL ${r.pl ? r.pl.toUpperCase() : '—'} alcanzado &lt; PLr ${r.plr.toUpperCase()}.</div>`
+  $('rPfh').textContent = r.pfhd.toExponential(2).replace('e-', '·10⁻').replace('+', ''); $('rPlF').textContent = r.plFormula ? r.plFormula.toUpperCase() : '—'; $('rTope').textContent = r.tope.toUpperCase(); $('rPl').textContent = r.pl ? r.pl.toUpperCase() : '—'
+  const sug = ok ? [] : S.sugerencias(e)
+  $('notas').innerHTML = (r.invalida.length > 1 ? `<ul class="lista">${r.invalida.slice(1).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '') + (r.avisos.length ? `<ul class="lista">${r.avisos.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '')
+    + (sug.length ? `<div class="sub">Para llegar a PL ${r.plr.toUpperCase()}</div><ul class="lista">${sug.map((x, i) => `<li>${esc(x.texto)} → PL ${x.pl.toUpperCase()} <button class="mini" data-s="${i}">aplicar</button></li>`).join('')}</ul>` : '')
+    || '<span class="note" style="padding:0">Sin observaciones.</span>'
+  $('notas').querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => ponerPL({ ...e, ...sug[+b.dataset.s].cambio })))
+  dibujarPFH(r)
+}
+
+// =========================== B) LOTO ===========================
+let m = S.crearLoto(), ultAccion = null
+$('selW').innerHTML = S.TRABAJADORES.map((w) => `<option>${w}</option>`).join('')
+function dibujarMaquina() {
+  const c = (b) => (b ? '#34d399' : '#475569'), q = m.q1 === 'cerrado', v = m.v1 === 'abierta'
+  const cand = (punto, x, y) => m.candados[punto].map((w, i) => `<g transform="translate(${x + i * 22},${y})"><rect width="18" height="14" rx="3" fill="#f59e0b"/><path d="M4 0 v-5 a5 5 0 0 1 10 0 v5" fill="none" stroke="#f59e0b" stroke-width="2"/><text x="9" y="11" text-anchor="middle" font-size="9" fill="#02060f" font-weight="700">${w[0]}</text></g>`).join('')
+  const bus = Math.min(1, m.bus / 540), tcol = m.temp > 150 ? '#f87171' : m.temp > S.T_SEGURA ? '#fb923c' : '#38bdf8'
+  const blade = m.cuchilla === 'arriba' ? 120 : 196
+  return `<svg id="svgM" viewBox="0 0 560 320" role="img" aria-label="Máquina virtual con sus fuentes de energía">
+  <text x="12" y="20" fill="#94a3b8" font-size="11">ELÉCTRICA</text>
+  <line x1="14" y1="60" x2="70" y2="60" stroke="${c(true)}" stroke-width="3"/>
+  <rect x="70" y="40" width="64" height="44" rx="6" fill="#071122" stroke="#334a73" stroke-width="2"/><text x="102" y="36" text-anchor="middle" fill="#e2e8f0" font-size="11">Q1</text>
+  <line x1="84" y1="62" x2="${q ? 120 : 112}" y2="${q ? 62 : 46}" stroke="${q ? '#34d399' : '#f87171'}" stroke-width="4" stroke-linecap="round"/>
+  <text x="102" y="100" text-anchor="middle" fill="${q ? '#34d399' : '#f87171'}" font-size="10">${q ? 'CERRADO' : 'ABIERTO'}</text>${cand('q1', 74, 116)}
+  <line x1="134" y1="62" x2="${q ? 200 : 170}" y2="62" stroke="${c(q)}" stroke-width="3"/>
+  <rect x="200" y="40" width="96" height="44" rx="6" fill="#071122" stroke="#334a73" stroke-width="2"/><text x="248" y="36" text-anchor="middle" fill="#e2e8f0" font-size="11">Variador · bus DC</text>
+  <rect x="210" y="58" width="76" height="12" rx="3" fill="#0a1426" stroke="#334a73"/><rect x="210" y="58" width="${76 * bus}" height="12" rx="3" fill="${m.bus > S.V_SEGURA ? '#f87171' : '#34d399'}"/>
+  <text x="248" y="100" text-anchor="middle" fill="${m.bus > S.V_SEGURA ? '#f87171' : '#34d399'}" font-size="10">${f(m.bus)} V</text>
+  <text x="12" y="150" fill="#94a3b8" font-size="11">NEUMÁTICA</text>
+  <line x1="14" y1="184" x2="70" y2="184" stroke="${c(true)}" stroke-width="3"/>
+  <path d="M70 170 l22 14 l-22 14 z M114 170 l-22 14 l22 14 z" fill="none" stroke="${v ? '#34d399' : '#f87171'}" stroke-width="2.5"/><text x="92" y="162" text-anchor="middle" fill="#e2e8f0" font-size="11">V1</text>
+  <text x="92" y="216" text-anchor="middle" fill="${v ? '#34d399' : '#f87171'}" font-size="10">${v ? 'ABIERTA' : 'CERRADA'}</text>${cand('v1', 62, 236)}
+  <line x1="114" y1="184" x2="170" y2="184" stroke="${c(v || m.presion > S.P_SEGURA)}" stroke-width="3"/>
+  <circle cx="190" cy="184" r="20" fill="#071122" stroke="#334a73" stroke-width="2"/><text x="190" y="188" text-anchor="middle" fill="${m.presion > S.P_SEGURA ? '#f87171' : '#34d399'}" font-size="11">${f(m.presion, 1)}</text><text x="190" y="156" text-anchor="middle" fill="#94a3b8" font-size="9">bar</text>
+  <line x1="210" y1="184" x2="${m.purga ? 252 : 232}" y2="${m.purga ? 200 : 184}" stroke="#64748b" stroke-width="3"/><text x="240" y="224" text-anchor="middle" fill="${m.purga ? '#34d399' : '#64748b'}" font-size="10">purga ${m.purga ? 'abierta' : 'cerrada'}</text>
+  <text x="330" y="20" fill="#94a3b8" font-size="11">ZONA DE LA CUCHILLA</text>
+  <rect x="330" y="30" width="200" height="260" rx="8" fill="none" stroke="${m.guarda === 'abierta' ? '#f59e0b' : '#334a73'}" stroke-width="2" stroke-dasharray="${m.guarda === 'abierta' ? '6 4' : '0'}"/>
+  <text x="430" y="48" text-anchor="middle" fill="${m.guarda === 'abierta' ? '#f59e0b' : '#64748b'}" font-size="10">guarda ${m.guarda}${m.intervencion ? ' · PERSONAL DENTRO' : ''}</text>
+  <rect x="418" y="60" width="24" height="40" fill="#334a73"/><rect x="424" y="100" width="12" height="${blade - 100}" fill="#64748b"/><polygon points="414,${blade} 446,${blade} 430,${blade + 18}" fill="#e2e8f0"/>
+  ${m.pasador ? `<rect x="400" y="${blade + 4}" width="60" height="6" fill="#f59e0b"/><text x="430" y="${blade + 26}" text-anchor="middle" fill="#f59e0b" font-size="10">pasador</text>` : ''}
+  <rect x="360" y="256" width="140" height="20" rx="4" fill="${tcol}" opacity="${0.35 + Math.min(1, (m.temp - 25) / 155) * 0.65}"/><text x="430" y="270" text-anchor="middle" fill="#02060f" font-size="11" font-weight="700">barra selladora ${f(m.temp)} °C</text>
+  <text x="430" y="304" text-anchor="middle" fill="${m.funcionando ? '#34d399' : '#94a3b8'}" font-size="11">máquina ${m.funcionando ? 'EN MARCHA' : 'detenida'}</text>
+  </svg>`
+}
+function renderLoto() {
+  $('mq').innerHTML = dibujarMaquina()
+  $('med').innerHTML = `<div class="card"><span>Tiempo</span><b>${f(m.t)} s</b></div><div class="card"><span>Bus DC</span><b>${f(m.bus)} V</b></div><div class="card"><span>Presión</span><b>${f(m.presion, 1)} bar</b></div><div class="card"><span>Temperatura</span><b>${f(m.temp)} °C</b></div>`
+  const r = S.resumenLoto(m)
+  $('pasos').innerHTML = r.pasos.map((p, i) => `<div class="paso ${p.estado === 'hecho' ? 'hecho' : p.estado === 'fuera de orden' ? 'fuera' : 'pendiente'}"><i>${p.estado === 'hecho' ? '✔' : p.estado === 'fuera de orden' ? '⚠' : p.estado === 'deshecho' ? '↩' : '○'}</i><div>${i + 1}. ${esc(p.txt)}${p.estado === 'fuera de orden' ? `<small>hecho fuera de orden: antes faltaba ${p.fueraDeOrden.map((id) => S.PASOS.findIndex((q) => q.id === id) + 1).join(', ')}</small>` : ''}${p.estado === 'deshecho' ? '<small>se deshizo: vuelve a cumplirlo</small>' : ''}</div></div>`).join('')
+  $('prog').textContent = `${r.hechos}/${r.total} · ${r.incidentes} incidente(s) · ${r.avisos} aviso(s)`; $('prog').className = 'chip2 ' + (r.completo ? 'alta' : r.incidentes ? 'baja' : 'media')
+  $('log').innerHTML = m.log.slice(-30).reverse().map((l) => `<div class="${/INCIDENTE/.test(l.msg) ? 'inc' : /^△/.test(l.msg) ? 'av' : ''}">${f(l.t)} s · ${esc(l.msg)}</div>`).join('') || '<div>Practica en orden: identifica las energías antes de tocar nada.</div>'
+}
+function hacer(a, p) {
+  const w = $('selW').value
+  if (a === 'candado' || a === 'quitarCandado') ultAccion = S.accion(m, a, { punto: p, trabajador: w }); else ultAccion = S.accion(m, a)
+  renderLoto()
+}
+document.querySelectorAll('#vistaLoto [data-a]').forEach((b) => (b.onclick = () => hacer(b.dataset.a, b.dataset.p)))
+document.querySelectorAll('#vistaLoto [data-t]').forEach((b) => (b.onclick = () => { S.avanzarLoto(m, +b.dataset.t); renderLoto() }))
+$('bReiniciar').onclick = () => { m = S.crearLoto(); $('pista').textContent = ''; renderLoto() }
+$('bPista').onclick = () => { const p = S.resumenLoto(m).pasos.find((q) => !q.hecho); $('pista').textContent = p ? 'Siguiente paso: ' + p.txt : 'Procedimiento completo.' }
+
+// ---- pestañas ----
+function ver(v) { $('vistaPL').style.display = v === 'pl' ? '' : 'none'; $('vistaLoto').style.display = v === 'loto' ? '' : 'none'; $('tabPL').classList.toggle('on', v === 'pl'); $('tabLoto').classList.toggle('on', v === 'loto'); if (v === 'pl') renderPL(); else renderLoto() }
+$('tabPL').onclick = () => ver('pl'); $('tabLoto').onclick = () => ver('loto')
+ver('pl'); window.addEventListener('resize', () => renderPL())
+window.demoApi = { S, ver, ponerPL, renderPL, m: () => m, hacer, esperar(s) { S.avanzarLoto(m, s); renderLoto() }, leerPL, EJ_PL }
+</script>
+</body>
+</html>
+
