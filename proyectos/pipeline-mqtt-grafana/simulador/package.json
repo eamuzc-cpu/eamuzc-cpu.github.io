@@ -1,0 +1,9 @@
+{
+  "name": "simulador-planta",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Publica por MQTT datos simulados de un medidor de energía y de un pasteurizador",
+  "main": "publicador.js",
+  "scripts": { "start": "node publicador.js" },
+  "dependencies": { "mqtt": "^5.10.1" }
+}

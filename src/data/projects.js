@@ -1450,4 +1450,49 @@ export const projects = [
     },
     tools: { hardware: ['ESP32', 'PZEM-004T v3'], software: ['Arduino', 'PubSubClient', 'MQTT', 'JavaScript', 'Canvas', 'node:test'] },
   },
+  {
+    slug: 'pipeline-mqtt-grafana',
+    title: {
+      es: 'Pipeline de telemetría con Docker Compose: MQTT, Telegraf, InfluxDB y Grafana',
+      en: 'Telemetry Pipeline with Docker Compose: MQTT, Telegraf, InfluxDB and Grafana',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'embedded',
+    year: 2026,
+    image: '/projects/pipeline-mqtt-grafana.jpg',
+    demo: { src: '/demos/pipeline-mqtt-grafana/index.html' },
+    resultBadge: { es: 'Probado en Docker: latencia MQTT → InfluxDB de 0,23 s', en: 'Tested in Docker: MQTT → InfluxDB latency of 0.23 s' },
+    summary: {
+      es: 'Pila de cinco contenedores con Docker Compose que recibe mensajes MQTT de una planta, los guarda en InfluxDB y los muestra en un tablero de Grafana provisionado, con un simulador de datos y un script que verifica todo de punta a punta. Se levanta con un solo comando.',
+      en: 'A five-container Docker Compose stack that receives MQTT messages from a plant, stores them in InfluxDB and shows them on a provisioned Grafana dashboard, with a data simulator and a script that verifies everything end to end. It comes up with a single command.',
+    },
+    stack: ['Docker', 'Docker Compose', 'MQTT', 'Mosquitto', 'Telegraf', 'InfluxDB', 'Grafana', 'Flux'],
+    challenge: {
+      es: 'Una planta genera datos en muchos equipos, pero sin una cadena que los reciba, los guarde y los muestre quedan en las pantallas de cada máquina. Armar esa cadena a mano es lento, difícil de repetir y fácil de dejar insegura.',
+      en: 'A plant generates data on many machines, but without a chain that receives, stores and displays it, the data stays on each machine\'s screen. Building that chain by hand is slow, hard to repeat and easy to leave insecure.',
+    },
+    impact: {
+      es: 'Con una pila reproducible, cualquier sensor o PLC que hable MQTT se convierte en una serie de tiempo consultable y graficable en minutos, y el mismo montaje sirve para probar un firmware nuevo sin tocar la planta.',
+      en: 'With a reproducible stack, any sensor or PLC that speaks MQTT becomes a queryable, plottable time series within minutes, and the same setup can test new firmware without touching the plant.',
+    },
+    solution: {
+      es: 'Mosquitto recibe los mensajes, Telegraf se suscribe a planta/energia y planta/proceso, interpreta el JSON con json_v2 y escribe en InfluxDB 2 usando la hora del propio mensaje; Grafana trae la fuente de datos Flux y el tablero provisionados desde archivos, así que quedan idénticos en cualquier equipo. El arranque es ordenado con healthchecks y service_healthy, los puertos quedan atados a 127.0.0.1 y las claves salen de un .env (con valores de prueba por defecto). Un simulador en Node publica un medidor de energía con el mismo mensaje que el firmware del ESP32 y un pasteurizador con fallas de vapor periódicas. El script verificar.ps1 comprueba que los servicios estén sanos, que lleguen mensajes, que InfluxDB reciba puntos y que Grafana tenga su fuente de datos y su tablero. En la prueba real en Docker, los cinco servicios quedaron sanos, InfluxDB acumuló 56 puntos de cada medición en 2 minutos y un mensaje publicado fue consultable en InfluxDB en 0,23 s (mediana de 5 intentos, máximo 2,3 s); un mensaje con JSON inválido se descartó y quedó en el log. Es una pila de pruebas: el broker permite anónimos y sin TLS, y el README detalla lo que falta para exponerla (usuarios, TLS, ACL y claves propias).',
+      en: 'Mosquitto receives the messages, Telegraf subscribes to planta/energia and planta/proceso, parses the JSON with json_v2 and writes to InfluxDB 2 using the message\'s own timestamp; Grafana gets its Flux data source and dashboard provisioned from files, so they are identical on any machine. Startup is ordered with healthchecks and service_healthy, ports are bound to 127.0.0.1 and credentials come from an .env file (with test defaults). A Node simulator publishes an energy meter with the same message as the ESP32 firmware and a pasteurizer with periodic steam failures. The verificar.ps1 script checks that services are healthy, that messages arrive, that InfluxDB receives points and that Grafana has its data source and dashboard. In the real Docker test, all five services came up healthy, InfluxDB accumulated 56 points of each measurement in 2 minutes and a published message was queryable in InfluxDB in 0.23 s (median of 5 attempts, maximum 2.3 s); a message with invalid JSON was dropped and logged. It is a test stack: the broker allows anonymous access without TLS, and the README details what is missing before exposing it (users, TLS, ACLs and own credentials).',
+    },
+    metrics: [
+      { label: { es: 'Servicios sanos en la prueba', en: 'Healthy services in the test' }, value: '5 / 5' },
+      { label: { es: 'Latencia MQTT → InfluxDB (mediana)', en: 'MQTT → InfluxDB latency (median)' }, value: '0,23 s' },
+      { label: { es: 'Puntos por medición en 2 min', en: 'Points per measurement in 2 min' }, value: '56' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Simulador / ESP32', en: 'Simulator / ESP32' }, sub: 'JSON · MQTT' },
+        { label: 'Mosquitto', sub: 'planta/#' },
+        { label: 'Telegraf', sub: 'json_v2' },
+        { label: 'InfluxDB → Grafana', sub: { es: 'Flux · tablero provisionado', en: 'Flux · provisioned dashboard' } },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'ajustar y repetir', en: 'tune and repeat' } },
+    },
+    tools: { hardware: [], software: ['Docker', 'Docker Compose', 'MQTT', 'Telegraf', 'InfluxDB 2', 'Grafana', 'Node.js', 'PowerShell'] },
+  },
 ]

@@ -1,0 +1,98 @@
+# Pipeline de telemetría industrial: MQTT -> Telegraf -> InfluxDB -> Grafana, con un simulador de planta.
+#   docker compose up -d --build        (primera vez: descarga ~1 GB de imágenes)
+#   Grafana:  http://localhost:3000     (visor anónimo; administrador admin / la clave de .env)
+#   InfluxDB: http://localhost:8086     Broker MQTT: localhost:1883
+# Todos los puertos quedan atados a 127.0.0.1: nada se expone a la red. Los valores por defecto sirven para probar
+# en tu equipo; para cualquier otro uso copia .env.example como .env y cambia las claves.
+name: pipeline-mqtt-grafana
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    restart: unless-stopped
+    ports: ["127.0.0.1:1883:1883"]
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-datos:/mosquitto/data
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/broker/uptime' -C 1 -W 3 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  influxdb:
+    image: influxdb:2.7
+    restart: unless-stopped
+    ports: ["127.0.0.1:8086:8086"]
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUX_USUARIO:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_CLAVE:-clave-de-prueba-123}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-planta}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-planta}
+      DOCKER_INFLUXDB_INIT_RETENTION: ${INFLUX_RETENCION:-30d}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-token-de-prueba-cambiar}
+    volumes:
+      - influx-datos:/var/lib/influxdb2
+      - influx-config:/etc/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  telegraf:
+    image: telegraf:1.32
+    restart: unless-stopped
+    environment:
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-token-de-prueba-cambiar}
+      INFLUX_ORG: ${INFLUX_ORG:-planta}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-planta}
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      mosquitto: { condition: service_healthy }
+      influxdb: { condition: service_healthy }
+
+  grafana:
+    image: grafana/grafana-oss:11.2.0
+    restart: unless-stopped
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USUARIO:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_CLAVE:-clave-de-prueba-123}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"          # visor sin login para el demo; desactívalo fuera de tu equipo
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/planta.json
+      GF_USERS_DEFAULT_THEME: dark
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-token-de-prueba-cambiar}
+      INFLUX_ORG: ${INFLUX_ORG:-planta}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-planta}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-datos:/var/lib/grafana
+    depends_on:
+      influxdb: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q '\"database\": \"ok\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  simulador:
+    build: ./simulador
+    restart: unless-stopped
+    environment:
+      MQTT_URL: mqtt://mosquitto:1883
+      ACELERACION: ${ACELERACION:-30}            # 30 = el tiempo de la planta corre 30 veces más rápido que el real
+    depends_on:
+      mosquitto: { condition: service_healthy }
+
+volumes:
+  mosquitto-datos:
+  influx-datos:
+  influx-config:
+  grafana-datos:
