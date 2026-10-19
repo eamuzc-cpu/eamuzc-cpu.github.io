@@ -13,3 +13,7 @@ PLAN-CYBERPUNK.md
 GUIA-EDICION.md
 instrucciones.txt
 prompt-claude-code-portfolio-azul.md
+
+# secretos: nunca se suben
+.env
+.env.*
