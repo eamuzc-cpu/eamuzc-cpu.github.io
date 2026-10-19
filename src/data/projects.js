@@ -1315,4 +1315,49 @@ export const projects = [
     },
     tools: { hardware: [], software: ['ISO 13849-1', 'LOTO', { es: 'Modelo de energías', en: 'Energy model' }, 'JavaScript', 'SVG', 'node:test'] },
   },
+  {
+    slug: 'gemelo-digital-envasado',
+    title: {
+      es: 'Gemelo digital de una línea de envasado: buffers, microparos y cuello de botella',
+      en: 'Digital Twin of a Packaging Line: Buffers, Micro-Stops and Bottleneck',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/gemelo-digital-envasado.jpg',
+    demo: { src: '/demos/gemelo-digital-envasado/index.html' },
+    resultBadge: { es: 'Solo acelerar el cuello de botella sube el flujo (+7,4 u/min)', en: 'Only speeding up the bottleneck raises throughput (+7.4 u/min)' },
+    summary: {
+      es: 'Simulación de eventos discretos de una línea de cinco máquinas en serie (llenadora, tapadora, etiquetadora, encajonadora y paletizador) con buffers, averías, microparos y estados de espera, que calcula el flujo, el cuello de botella y el efecto de los buffers y de acelerar cada máquina.',
+      en: 'Discrete-event simulation of a five-machine serial line (filler, capper, labeler, case packer and palletizer) with buffers, breakdowns, micro-stops and waiting states, which computes throughput, the bottleneck and the effect of buffers and of speeding up each machine.',
+    },
+    stack: [{ es: 'Simulación de eventos discretos', en: 'Discrete-event simulation' }, 'MTBF / MTTR', 'OEE', { es: 'Cuello de botella', en: 'Bottleneck' }, 'JavaScript'],
+    challenge: {
+      es: 'En una línea de envasado la velocidad nominal de cada máquina dice poco: el flujo real depende de las averías, de los microparos y de cuánto aíslan los buffers a una máquina de las demás. Sin un modelo, se invierte en acelerar la máquina equivocada.',
+      en: 'On a packaging line each machine\'s nominal speed says little: real throughput depends on breakdowns, micro-stops and how much the buffers isolate each machine from the others. Without a model, money goes into speeding up the wrong machine.',
+    },
+    impact: {
+      es: 'Identificar el verdadero cuello de botella y el tamaño de buffer que vale la pena evita inversiones que no mueven la producción y orienta el mantenimiento hacia las paradas que de verdad cuestan unidades.',
+      en: 'Finding the real bottleneck and the buffer size worth having avoids investments that do not move production and points maintenance at the stops that actually cost units.',
+    },
+    solution: {
+      es: 'Se simularon cinco máquinas en pasos de 1 s con averías exponenciales (MTBF y MTTR), microparos aleatorios y buffers de acumulación; cada máquina registra cuánto tiempo produce, espera producto (hambre), está bloqueada, averiada o en microparo. El modelo calcula el flujo, la eficiencia de la línea y dos cuellos de botella: el teórico (velocidad por disponibilidad) y el observado (la máquina que más tiempo trabaja sin esperar). Las pruebas verifican la conservación de unidades entre máquinas, que los buffers nunca se salgan de sus límites, que la disponibilidad medida coincida con MTBF / (MTBF + MTTR), que 12 microparos por hora de 5 s promedien 1,7 % del tiempo y que el flujo nunca supere la capacidad efectiva del cuello. Con una etiquetadora lenta, las máquinas anteriores se bloquean y las posteriores esperan; acelerar cualquier otra máquina un 10 % deja el flujo igual y acelerar la etiquetadora lo sube 7,4 u/min. Con el escenario base, pasar de buffers mínimos a 800 unidades sube el flujo de 91,8 a 106,2 u/min, con rendimientos decrecientes (la demo calcula este barrido promediando tres semillas de 8 h).',
+      en: 'Five machines were simulated in 1 s steps with exponential breakdowns (MTBF and MTTR), random micro-stops and accumulation buffers; each machine records how long it produces, waits for product (starved), is blocked, broken down or in a micro-stop. The model computes throughput, line efficiency and two bottlenecks: the theoretical one (speed times availability) and the observed one (the machine that works longest without waiting). The tests verify conservation of units between machines, that buffers never leave their limits, that measured availability matches MTBF / (MTBF + MTTR), that 12 micro-stops per hour of 5 s average 1.7 % of the time and that throughput never exceeds the bottleneck\'s effective capacity. With a slow labeler, upstream machines block and downstream ones starve; speeding up any other machine by 10 % leaves throughput unchanged while speeding up the labeler raises it by 7.4 u/min. In the base scenario, going from minimum buffers to 800 units raises throughput from 91.8 to 106.2 u/min with diminishing returns (the demo computes this sweep averaging three 8-hour seeds).',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '15' },
+      { label: { es: 'Flujo con buffers mínimos vs. de 800 u', en: 'Throughput with minimum vs. 800 u buffers' }, value: '91,8 vs 106,2 u/min' },
+      { label: { es: 'Ganancia de acelerar el cuello +10 %', en: 'Gain from speeding up the bottleneck +10 %' }, value: '+7,4 u/min' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Parámetros', en: 'Parameters' }, sub: 'v · MTBF · MTTR' },
+        { label: { es: 'Máquinas y buffers', en: 'Machines and buffers' }, sub: { es: 'paso de 1 s', en: '1 s step' } },
+        { label: { es: 'Estados', en: 'States' }, sub: { es: 'produce · hambre · bloqueo', en: 'run · starved · blocked' } },
+        { label: { es: 'Análisis', en: 'Analysis' }, sub: { es: 'cuello · buffers · mejoras', en: 'bottleneck · buffers · upgrades' } },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'qué pasaría si', en: 'what if' } },
+    },
+    tools: { hardware: [], software: [{ es: 'Eventos discretos', en: 'Discrete events' }, 'Monte Carlo', 'JavaScript', 'Canvas', 'SVG', 'node:test'] },
+  },
 ]
