@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Red de sensores MQTT — broker, nodos y tablero</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: 300px minmax(0, 1fr) 360px; align-items: start; }
+.col { display: grid; gap: 12px; min-width: 0; }
+.f { display: grid; gap: 3px; margin-bottom: 8px; } .f .l { display: flex; justify-content: space-between; }
+.nodo { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #0f1a2e; font: 12px var(--mono); }
+.nodo i { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); flex: none; }
+.nodo.off i { background: var(--red); box-shadow: 0 0 6px var(--red); } .nodo .n { flex: 1; } .nodo button { padding: 3px 8px; font-size: 11px; }
+#cvTopo { height: 330px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.st { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; }
+.st b { display: block; font: 600 18px var(--mono); } .st span { font: 10px var(--mono); color: var(--mut); text-transform: uppercase; }
+#pk { height: 300px; overflow: auto; font: 11px var(--mono); }
+#pk div { display: grid; grid-template-columns: 54px 14px 88px 1fr; gap: 6px; padding: 2px 0; border-bottom: 1px solid #0f1a2e; white-space: nowrap; overflow: hidden; }
+#pk .rx { color: var(--cyan); } #pk .tx { color: var(--amber); } #pk .t { color: #64748b; } #pk .hx { color: #475569; overflow: hidden; text-overflow: ellipsis; }
+.tag td.v { color: var(--cyan); text-align: right; } .tag td.age { color: #64748b; }
+.tag tr.viejo td { color: #475569; }
+.est { display: flex; gap: 6px; flex-wrap: wrap; }
+.est span { font: 11px var(--mono); padding: 2px 8px; border-radius: 999px; border: 1px solid; }
+.est .on { color: var(--green); border-color: rgba(52, 211, 153, .5); } .est .off { color: var(--red); border-color: rgba(248, 113, 113, .6); }
+@media (max-width: 1250px) { .layout { grid-template-columns: 280px minmax(0, 1fr); } .layout > .col:last-child { grid-column: 1 / -1; } }
+@media (max-width: 800px) { .layout { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Red de sensores MQTT · broker, nodos tipo ESP32 y tablero</h1>
+  <span class="badge warn">simulación didáctica</span>
+  <span class="badge">broker MQTT 3.1.1 escrito para el proyecto</span>
+  <span class="sp"></span><span class="badge" id="bT">t = 0 s</span>
+</div>
+<div class="wrap layout">
+  <div class="col">
+    <div class="panel">
+      <h2>Red y calidad de servicio</h2>
+      <div class="f"><div class="l"><label>QoS de la telemetría</label><b id="vQos" class="cy"></b></div>
+        <div class="row"><button class="qos" data-q="0">QoS 0</button><button class="qos" data-q="1">QoS 1</button></div></div>
+      <div class="f"><div class="l"><label>Pérdida simulada en el enlace</label><b id="vLoss" class="cy"></b></div><input id="loss" type="range" min="0" max="40" step="5" value="0"></div>
+      <div class="f"><div class="l"><label>Keepalive de los nodos</label></div>
+        <select id="ka"><option value="5">5 s</option><option value="10" selected>10 s (testamento a los 15 s)</option><option value="30">30 s</option></select></div>
+      <div class="row"><button id="bPausa">Pausa</button><button class="vel on" data-v="1">×1</button><button class="vel" data-v="5">×5</button><button class="vel" data-v="20">×20</button><button id="bReset">Reiniciar</button></div>
+    </div>
+    <div class="panel">
+      <h2>Nodos (cortar el enlace = apagarse sin DISCONNECT)</h2>
+      <div id="nodos"></div>
+      <div class="note" style="padding:6px 0 0">Al cortar un nodo, el broker espera 1,5 × keepalive y publica su testamento (LWT) <b>retenido</b>.</div>
+    </div>
+    <div class="panel">
+      <h2>Mensajes retenidos</h2>
+      <div class="row"><label>Consigna de temperatura</label><input id="cons" type="number" value="72" style="width:70px"><button id="bCons">Publicar retenida</button></div>
+      <div class="row" style="margin-top:8px"><button id="bPanel2">Conectar un panel nuevo</button><span class="note" style="padding:0" id="p2"></span></div>
+      <div class="note" style="padding:6px 0 0">Un suscriptor que llega tarde recibe al instante el último valor retenido.</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="stats" id="stats"></div>
+    <div class="panel"><h2>Topología en vivo (cada punto es un paquete MQTT)</h2><canvas id="cvTopo"></canvas></div>
+    <div class="panel"><h2>Inspector de paquetes (lo que ve el broker)</h2><div id="pk"></div></div>
+  </div>
+
+  <div class="col">
+    <div class="panel"><h2>Tablero: variables recibidas por <span class="cy">planta/#</span></h2><table class="tag" id="tags"></table></div>
+    <div class="panel"><h2>Estado de los nodos (temas retenidos)</h2><div class="est" id="est"></div></div>
+    <div class="panel"><h2>Alarmas (QoS 1)</h2><div id="alm" class="note" style="padding:0">sin alarmas</div></div>
+    <div class="panel">
+      <h2>Comparación QoS 0 vs QoS 1 (10 min, misma pérdida)</h2>
+      <div class="row" style="margin-bottom:8px"><button class="primary" id="bCmp">Ejecutar comparación</button></div>
+      <table id="cmp"></table>
+    </div>
+  </div>
+</div>
+<div class="note">Red simulada con reloj propio: los nodos y el panel hablan con el broker usando paquetes MQTT 3.1.1 reales (los bytes del inspector son los que viajarían por TCP). La pérdida del enlace es una simulación didáctica; las cifras son de esta simulación.</div>
+
+<script>
+// MQTT 3.1.1 desde cero: codificación de paquetes, broker (QoS 0/1, retenidos, LWT, keepalive, comodines)
+// y cliente, más una red simulada con nodos tipo ESP32. Sin dependencias y con reloj inyectado, así que
+// el MISMO archivo corre en las pruebas (node --test), en el broker TCP real y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.MqttCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const T = { CONNECT: 1, CONNACK: 2, PUBLISH: 3, PUBACK: 4, SUBSCRIBE: 8, SUBACK: 9, UNSUBSCRIBE: 10, UNSUBACK: 11, PINGREQ: 12, PINGRESP: 13, DISCONNECT: 14 }
+  const NOMBRE_TIPO = Object.fromEntries(Object.entries(T).map(([k, v]) => [v, k]))
+  const utf8 = new TextEncoder(), deutf8 = new TextDecoder()
+
+  // ---- Codificación ---------------------------------------------------------------------------------
+  function varint(n) {
+    const out = []
+    do { let b = n % 128; n = Math.floor(n / 128); if (n > 0) b |= 128; out.push(b) } while (n > 0)
+    return out
+  }
+  const u16 = (n) => [(n >> 8) & 255, n & 255]
+  const cadena = (s) => { const b = utf8.encode(s); return [...u16(b.length), ...b] }
+  const bytesDe = (x) => (typeof x === 'string' ? utf8.encode(x) : x instanceof Uint8Array ? x : new Uint8Array(x ?? []))
+  function paquete(tipo, flags, cuerpo) { return Uint8Array.from([(tipo << 4) | flags, ...varint(cuerpo.length), ...cuerpo]) }
+
+  const cod = {
+    connect({ id, keepalive = 60, will = null, clean = true, usuario = null, clave = null }) {
+      let f = clean ? 2 : 0
+      const cuerpo = [...cadena('MQTT'), 4, 0, ...u16(keepalive), ...cadena(id)]
+      if (will) { f |= 4 | ((will.qos ?? 0) << 3) | (will.retain ? 32 : 0); const p = bytesDe(will.payload); cuerpo.push(...cadena(will.topic), ...u16(p.length), ...p) }
+      if (usuario != null) { f |= 128; cuerpo.push(...cadena(usuario)) }
+      if (clave != null) { f |= 64; cuerpo.push(...cadena(clave)) }
+      cuerpo[7] = f // byte de banderas de conexión (tras 'MQTT' con su largo y el nivel de protocolo)
+      return paquete(T.CONNECT, 0, cuerpo)
+    },
+    connack(rc = 0, sesion = 0) { return paquete(T.CONNACK, 0, [sesion, rc]) },
+    publish({ topic, payload = '', qos = 0, retain = false, dup = false, id = 0 }) {
+      const p = bytesDe(payload)
+      return paquete(T.PUBLISH, (dup ? 8 : 0) | (qos << 1) | (retain ? 1 : 0), [...cadena(topic), ...(qos > 0 ? u16(id) : []), ...p])
+    },
+    puback(id) { return paquete(T.PUBACK, 0, u16(id)) },
+    subscribe(id, filtros) { return paquete(T.SUBSCRIBE, 2, [...u16(id), ...filtros.flatMap((f) => [...cadena(f.filtro), f.qos ?? 0])]) },
+    suback(id, codigos) { return paquete(T.SUBACK, 0, [...u16(id), ...codigos]) },
+    unsubscribe(id, filtros) { return paquete(T.UNSUBSCRIBE, 2, [...u16(id), ...filtros.flatMap((f) => cadena(f))]) },
+    unsuback(id) { return paquete(T.UNSUBACK, 0, u16(id)) },
+    pingreq() { return paquete(T.PINGREQ, 0, []) },
+    pingresp() { return paquete(T.PINGRESP, 0, []) },
+    disconnect() { return paquete(T.DISCONNECT, 0, []) },
+  }
+
+  // ---- Decodificación (flujo TCP: un paquete puede llegar partido o varios juntos) ------------------------
+  class Analizador {
+    constructor() { this.buf = new Uint8Array(0) }
+    push(datos) {
+      const nuevo = new Uint8Array(this.buf.length + datos.length)
+      nuevo.set(this.buf); nuevo.set(datos, this.buf.length); this.buf = nuevo
+      const salida = []
+      for (;;) {
+        if (this.buf.length < 2) break
+        let mult = 1, largo = 0, i = 1, completo = false
+        for (; i < Math.min(5, this.buf.length); i++) { largo += (this.buf[i] & 127) * mult; mult *= 128; if (!(this.buf[i] & 128)) { completo = true; i++; break } }
+        if (!completo) { if (this.buf.length >= 5) throw new Error('largo restante inválido'); break }
+        if (this.buf.length < i + largo) break
+        salida.push(decodificar(this.buf[0], this.buf.subarray(i, i + largo)))
+        this.buf = this.buf.slice(i + largo)
+      }
+      return salida
+    }
+  }
+  function leerCadena(b, p) { const n = (b[p] << 8) | b[p + 1]; return [deutf8.decode(b.subarray(p + 2, p + 2 + n)), p + 2 + n] }
+  function decodificar(cab, b) {
+    const tipo = cab >> 4, flags = cab & 15
+    const base = { tipo, nombre: NOMBRE_TIPO[tipo] ?? `TIPO ${tipo}`, bytes: 0 }
+    let p = 0
+    switch (tipo) {
+      case T.CONNECT: {
+        let nombre; [nombre, p] = leerCadena(b, p)
+        const nivel = b[p++], f = b[p++], keepalive = (b[p] << 8) | b[p + 1]; p += 2
+        let id; [id, p] = leerCadena(b, p)
+        const r = { ...base, protocolo: nombre, nivel, keepalive, id, clean: !!(f & 2), will: null, usuario: null }
+        if (f & 4) { let topic; [topic, p] = leerCadena(b, p); const n = (b[p] << 8) | b[p + 1]; p += 2; r.will = { topic, payload: b.slice(p, p + n), qos: (f >> 3) & 3, retain: !!(f & 32) }; p += n }
+        if (f & 128) [r.usuario, p] = leerCadena(b, p)
+        return r
+      }
+      case T.CONNACK: return { ...base, sesion: b[0], rc: b[1] }
+      case T.PUBLISH: {
+        let topic; [topic, p] = leerCadena(b, p)
+        const qos = (flags >> 1) & 3
+        let id = 0; if (qos > 0) { id = (b[p] << 8) | b[p + 1]; p += 2 }
+        return { ...base, topic, qos, retain: !!(flags & 1), dup: !!(flags & 8), id, payload: b.slice(p) }
+      }
+      case T.PUBACK: case T.UNSUBACK: return { ...base, id: (b[0] << 8) | b[1] }
+      case T.SUBSCRIBE: {
+        const id = (b[0] << 8) | b[1]; p = 2; const filtros = []
+        while (p < b.length) { let f; [f, p] = leerCadena(b, p); filtros.push({ filtro: f, qos: b[p++] }) }
+        return { ...base, id, filtros }
+      }
+      case T.SUBACK: return { ...base, id: (b[0] << 8) | b[1], codigos: [...b.subarray(2)] }
+      case T.UNSUBSCRIBE: {
+        const id = (b[0] << 8) | b[1]; p = 2; const filtros = []
+        while (p < b.length) { let f; [f, p] = leerCadena(b, p); filtros.push(f) }
+        return { ...base, id, filtros }
+      }
+      default: return base
+    }
+  }
+  const hex = (u8) => [...u8].map((x) => x.toString(16).padStart(2, '0')).join(' ')
+
+  // ---- Temas y comodines ---------------------------------------------------------------------------------
+  function filtroValido(f) {
+    if (!f) return false
+    const n = f.split('/')
+    return n.every((x, i) => (x === '#' ? i === n.length - 1 : x === '+' || !/[#+]/.test(x)))
+  }
+  const temaValido = (t) => !!t && !/[#+]/.test(t)
+  function coincide(filtro, tema) {
+    const f = filtro.split('/'), t = tema.split('/')
+    if (tema.startsWith('$') && (f[0] === '#' || f[0] === '+')) return false // los temas $SYS no entran por comodín raíz
+    for (let i = 0; i < f.length; i++) {
+      if (f[i] === '#') return true
+      if (i >= t.length) return false
+      if (f[i] !== '+' && f[i] !== t[i]) return false
+    }
+    return f.length === t.length
+  }
+
+  // ---- Broker --------------------------------------------------------------------------------------------
+  class Broker {
+    constructor({ reloj = () => 0 } = {}) {
+      this.reloj = reloj
+      this.sesiones = new Map() // id -> Sesion conectada
+      this.retenidos = new Map() // tema -> {payload, qos}
+      this.stats = { entrantes: 0, salientes: 0, publicaciones: 0, entregas: 0, retransmisiones: 0, willsPublicados: 0, bytesIn: 0, bytesOut: 0 }
+      this.alEvento = null // (evento) => void, para el inspector de la interfaz
+    }
+    conectar(transporte) { return new Sesion(this, transporte) }
+    emitir(e) { if (this.alEvento) this.alEvento({ t: this.reloj(), ...e }) }
+    enrutar(msg, origen) {
+      this.stats.publicaciones++
+      if (msg.retain) { if (msg.payload.length === 0) this.retenidos.delete(msg.topic); else this.retenidos.set(msg.topic, { payload: msg.payload, qos: msg.qos }) }
+      for (const s of this.sesiones.values()) {
+        let mejor = -1
+        for (const [filtro, qos] of s.subs) if (coincide(filtro, msg.topic)) mejor = Math.max(mejor, qos)
+        if (mejor >= 0) s.entregar(msg.topic, msg.payload, Math.min(msg.qos, mejor), false)
+      }
+    }
+    tick(ahora) {
+      for (const s of [...this.sesiones.values()]) {
+        if (s.keepalive > 0 && ahora - s.ultimaActividad > s.keepalive * 1.5) { this.emitir({ evento: 'keepalive', id: s.id }); s.cerrarAnormal('keepalive') }
+        else s.reintentos(ahora)
+      }
+    }
+  }
+
+  class Sesion {
+    constructor(broker, transporte) {
+      this.b = broker; this.tr = transporte; this.an = new Analizador()
+      this.id = null; this.conectada = false; this.keepalive = 0; this.ultimaActividad = broker.reloj()
+      this.subs = new Map(); this.will = null; this.pendientes = new Map(); this.sigId = 1
+    }
+    enviar(bytes, info) {
+      this.b.stats.salientes++; this.b.stats.bytesOut += bytes.length
+      this.b.emitir({ evento: 'tx', id: this.id, bytes, ...info })
+      this.tr.enviar(bytes)
+    }
+    recibir(datos) {
+      this.b.stats.bytesIn += datos.length
+      let pqs
+      try { pqs = this.an.push(datos) } catch { return this.cerrarAnormal('paquete inválido') }
+      for (const p of pqs) { this.ultimaActividad = this.b.reloj(); this.b.stats.entrantes++; this.b.emitir({ evento: 'rx', id: this.id, paquete: p, bytes: datos }); if (!this.manejar(p)) return }
+    }
+    manejar(p) {
+      if (!this.conectada && p.tipo !== T.CONNECT) { this.cerrarAnormal('primer paquete no es CONNECT'); return false }
+      switch (p.tipo) {
+        case T.CONNECT: {
+          if (this.conectada) { this.cerrarAnormal('segundo CONNECT'); return false }
+          if (p.protocolo !== 'MQTT' || p.nivel !== 4) { this.enviar(cod.connack(1), { nombre: 'CONNACK' }); this.tr.cerrar(); return false }
+          if (!p.id) { this.enviar(cod.connack(2), { nombre: 'CONNACK' }); this.tr.cerrar(); return false }
+          const previa = this.b.sesiones.get(p.id)
+          if (previa) previa.cerrarAnormal('toma de sesión por el mismo ClientId')
+          this.id = p.id; this.keepalive = p.keepalive; this.will = p.will; this.conectada = true
+          this.b.sesiones.set(this.id, this)
+          this.enviar(cod.connack(0, 0), { nombre: 'CONNACK' })
+          return true
+        }
+        case T.PUBLISH: {
+          if (!temaValido(p.topic)) { this.cerrarAnormal('tema inválido'); return false }
+          if (p.qos === 3) { this.cerrarAnormal('QoS 3 inválido'); return false }
+          if (p.qos === 2) { this.cerrarAnormal('QoS 2 no soportado'); return false }
+          if (p.qos === 1) this.enviar(cod.puback(p.id), { nombre: 'PUBACK' })
+          this.b.enrutar(p, this)
+          return true
+        }
+        case T.PUBACK: this.pendientes.delete(p.id); return true
+        case T.SUBSCRIBE: {
+          const codigos = p.filtros.map((f) => (filtroValido(f.filtro) ? Math.min(f.qos, 1) : 0x80))
+          p.filtros.forEach((f, i) => { if (codigos[i] !== 0x80) this.subs.set(f.filtro, codigos[i]) })
+          this.enviar(cod.suback(p.id, codigos), { nombre: 'SUBACK' })
+          p.filtros.forEach((f, i) => { if (codigos[i] !== 0x80) for (const [tema, r] of this.b.retenidos) if (coincide(f.filtro, tema)) this.entregar(tema, r.payload, Math.min(r.qos, codigos[i]), true) })
+          return true
+        }
+        case T.UNSUBSCRIBE: p.filtros.forEach((f) => this.subs.delete(f)); this.enviar(cod.unsuback(p.id), { nombre: 'UNSUBACK' }); return true
+        case T.PINGREQ: this.enviar(cod.pingresp(), { nombre: 'PINGRESP' }); return true
+        case T.DISCONNECT: this.will = null; this.cerrar('DISCONNECT limpio'); return false
+        default: return true
+      }
+    }
+    entregar(topic, payload, qos, retain) {
+      this.b.stats.entregas++
+      if (qos === 0) return this.enviar(cod.publish({ topic, payload, qos: 0, retain }), { nombre: 'PUBLISH', topic })
+      const id = this.sigId++; if (this.sigId > 65535) this.sigId = 1
+      this.pendientes.set(id, { topic, payload, retain, t: this.b.reloj(), intentos: 1 })
+      this.enviar(cod.publish({ topic, payload, qos: 1, retain, id }), { nombre: 'PUBLISH', topic })
+    }
+    reintentos(ahora) {
+      for (const [id, m] of this.pendientes) {
+        if (ahora - m.t < 3) continue
+        if (m.intentos >= 4) { this.pendientes.delete(id); continue }
+        m.t = ahora; m.intentos++; this.b.stats.retransmisiones++
+        this.enviar(cod.publish({ topic: m.topic, payload: m.payload, qos: 1, retain: m.retain, dup: true, id }), { nombre: 'PUBLISH (DUP)', topic: m.topic })
+      }
+    }
+    cerrar(motivo) { this.baja(motivo); this.tr.cerrar() }
+    cerrarAnormal(motivo) {
+      const w = this.will; this.will = null
+      this.baja(motivo); this.tr.cerrar()
+      if (w) { this.b.stats.willsPublicados++; this.b.emitir({ evento: 'will', id: this.id, topic: w.topic }); this.b.enrutar({ topic: w.topic, payload: w.payload, qos: w.qos, retain: w.retain }, null) }
+    }
+    baja(motivo) { if (this.conectada && this.b.sesiones.get(this.id) === this) this.b.sesiones.delete(this.id); this.conectada = false; this.b.emitir({ evento: 'baja', id: this.id, motivo }) }
+    // el transporte avisa que el socket se cayó sin DISCONNECT
+    transporteCerrado() { if (this.conectada) this.cerrarAnormal('conexión perdida') }
+  }
+
+  // ---- Cliente -------------------------------------------------------------------------------------------
+  class Cliente {
+    constructor({ id, keepalive = 30, will = null, reloj = () => 0, enviar }) {
+      Object.assign(this, { id, keepalive, will, reloj, _enviar: enviar })
+      this.an = new Analizador(); this.conectado = false; this.sigId = 1; this.pendientes = new Map(); this.manejadores = []
+      this.ultimoEnvio = reloj(); this.stats = { publicados: 0, recibidos: 0, duplicados: 0, reintentos: 0, descartados: 0 }
+      this.vistos = new Set()
+    }
+    tx(bytes) { this.ultimoEnvio = this.reloj(); this._enviar(bytes) }
+    conectar() { this.tx(cod.connect({ id: this.id, keepalive: this.keepalive, will: this.will })) }
+    alMensaje(fn) { this.manejadores.push(fn) }
+    publicar(topic, payload, { qos = 0, retain = false } = {}) {
+      this.stats.publicados++
+      if (qos === 0) return this.tx(cod.publish({ topic, payload, qos, retain }))
+      const id = this.sigId++; if (this.sigId > 65535) this.sigId = 1
+      this.pendientes.set(id, { topic, payload, retain, t: this.reloj(), intentos: 1 })
+      this.tx(cod.publish({ topic, payload, qos: 1, retain, id }))
+    }
+    suscribir(filtro, qos = 0) { this.tx(cod.subscribe(this.sigId++, [{ filtro, qos }])) }
+    desconectar() { this.tx(cod.disconnect()); this.conectado = false }
+    recibir(datos) {
+      for (const p of this.an.push(datos)) {
+        if (p.tipo === T.CONNACK) this.conectado = p.rc === 0
+        else if (p.tipo === T.PUBACK) this.pendientes.delete(p.id)
+        else if (p.tipo === T.PUBLISH) {
+          if (p.qos === 1) this.tx(cod.puback(p.id))
+          this.stats.recibidos++
+          if (p.dup) this.stats.duplicados++
+          for (const fn of this.manejadores) fn(p)
+        }
+      }
+    }
+    tick(ahora) {
+      if (!this.conectado) return
+      if (this.keepalive > 0 && ahora - this.ultimoEnvio >= this.keepalive) this.tx(cod.pingreq())
+      for (const [id, m] of this.pendientes) {
+        if (ahora - m.t < 2) continue
+        if (m.intentos >= 4) { this.pendientes.delete(id); this.stats.descartados++; continue }
+        m.t = ahora; m.intentos++; this.stats.reintentos++
+        this.tx(cod.publish({ topic: m.topic, payload: m.payload, qos: 1, retain: m.retain, dup: true, id }))
+      }
+    }
+  }
+
+  // ---- Red simulada: enlace con latencia y pérdida, y nodos tipo ESP32 --------------------------------------
+  function prng(seed) {
+    let a = seed >>> 0
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = a
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+  const gauss = (r) => Math.sqrt(-2 * Math.log(Math.max(r(), 1e-12))) * Math.cos(2 * Math.PI * r())
+
+  class Red {
+    constructor({ semilla = 1, perdida = 0, latencia = 0.03 } = {}) {
+      this.t = 0; this.rnd = prng(semilla); this.perdida = perdida; this.latencia = latencia
+      this.broker = new Broker({ reloj: () => this.t })
+      this.cola = []; this.nodos = new Map(); this.enlacesCaidos = new Set()
+      this.lat = []; this.perdidos = 0
+    }
+    // Conecta un cliente al broker por un par de enlaces simulados (subida y bajada)
+    agregar(id, { keepalive = 15, will = null, perdidaPropia = null } = {}) {
+      const red = this
+      let sesion = null
+      const cliente = new Cliente({ id, keepalive, will, reloj: () => red.t, enviar: (b) => red.encolar(id, () => sesion.recibir(b), perdidaPropia) })
+      sesion = this.broker.conectar({ enviar: (b) => this.encolar(id, () => cliente.recibir(b), perdidaPropia), cerrar: () => { cliente.conectado = false } })
+      const nodo = { id, cliente, sesion, vivo: true }
+      this.nodos.set(id, nodo)
+      cliente.conectar()
+      return nodo
+    }
+    encolar(id, fn, perdidaPropia) {
+      if (this.enlacesCaidos.has(id)) return
+      const p = perdidaPropia ?? this.perdida
+      if (p > 0 && this.rnd() < p) { this.perdidos++; return }
+      this.cola.push({ cuando: this.t + this.latencia, fn })
+    }
+    cortarEnlace(id) { this.enlacesCaidos.add(id) } // el nodo "se apaga" sin DISCONNECT
+    tick(dt = 0.1) {
+      this.t = Math.round((this.t + dt) * 1e6) / 1e6
+      this.cola.sort((a, b) => a.cuando - b.cuando)
+      while (this.cola.length && this.cola[0].cuando <= this.t) this.cola.shift().fn()
+      this.broker.tick(this.t)
+      for (const n of this.nodos.values()) if (!this.enlacesCaidos.has(n.id)) n.cliente.tick(this.t)
+    }
+    correr(seg, dt = 0.1, cadaTick = null) { for (let i = 0; i < Math.round(seg / dt); i++) { this.tick(dt); if (cadaTick) cadaTick(this.t) } }
+  }
+
+  const JSONA = (o) => JSON.stringify(o)
+  const NODOS = [
+    { id: 'esp32-horno', tema: 'planta/linea1/temp/horno', cada: 2, base: 72, ruido: 0.4, unidad: '°C' },
+    { id: 'esp32-salida', tema: 'planta/linea1/temp/salida', cada: 2, base: 41, ruido: 0.3, unidad: '°C' },
+    { id: 'esp32-humedad', tema: 'planta/linea1/humedad/ambiente', cada: 5, base: 48, ruido: 1.2, unidad: '%' },
+    { id: 'esp32-vibracion', tema: 'planta/linea1/vibracion/motor1', cada: 1, base: 2.1, ruido: 0.25, unidad: 'mm/s', alarma: 4.5 },
+    { id: 'esp32-nivel', tema: 'planta/linea1/nivel/tanque1', cada: 3, base: 63, ruido: 0.8, unidad: '%' },
+  ]
+
+  // Escenario completo: 5 nodos publican telemetría, un panel se suscribe a planta/#.
+  function crearPlanta({ semilla = 1, perdida = 0, qosTelemetria = 0, keepalive = 10 } = {}) {
+    const red = new Red({ semilla, perdida })
+    const panel = red.agregar('panel-scada', { keepalive, perdidaPropia: 0 })
+    const recibidos = new Map() // topic -> {valor, t, n}
+    const log = { telemetriaRecibida: 0, duplicados: 0, estados: new Map(), alarmas: [], consigna: null, lat: [], vistos: new Set() }
+    panel.cliente.alMensaje((m) => {
+      const txt = deutf8.decode(m.payload)
+      if (m.topic.includes('/estado/')) { log.estados.set(m.topic.split('/').pop(), txt); return }
+      if (m.topic.includes('/alarmas/')) { log.alarmas.push({ t: red.t, topic: m.topic, txt }); return }
+      if (m.topic.includes('/consigna/')) { log.consigna = txt; return }
+      const o = JSON.parse(txt), prev = recibidos.get(m.topic), clave = `${m.topic}|${o.t}`
+      if (log.vistos.has(clave)) { log.duplicados++; return } // QoS 1 es "al menos una vez": un reintento puede llegar repetido
+      log.vistos.add(clave); log.telemetriaRecibida++
+      log.lat.push(red.t - o.t)
+      recibidos.set(m.topic, { valor: o.v, t: red.t, n: (prev?.n ?? 0) + 1 })
+    })
+    const nodos = NODOS.map((def) => {
+      const estado = `planta/linea1/estado/${def.id}`
+      const n = red.agregar(def.id, { keepalive, will: { topic: estado, payload: 'offline', qos: 1, retain: true } })
+      return { def, n, estado, siguiente: 1, publicados: 0 }
+    })
+    let panelSub = false
+    const config = { qos: qosTelemetria } // se puede cambiar en caliente
+    return {
+      red, panel, nodos, recibidos, log, config,
+      // vuelve a conectar un nodo apagado: mismo ClientId, sesión nueva (el broker anula la anterior si seguía viva)
+      reconectar(id) {
+        const x = nodos.find((n) => n.def.id === id)
+        red.enlacesCaidos.delete(id)
+        x.n = red.agregar(id, { keepalive, will: { topic: x.estado, payload: 'offline', qos: 1, retain: true } })
+        x.anunciado = false
+      },
+      publicadosTotal: () => nodos.reduce((a, x) => a + x.publicados, 0),
+      avanzar(seg, dt = 0.1) {
+        for (let i = 0; i < Math.round(seg / dt); i++) {
+          red.tick(dt)
+          if (!panelSub && panel.cliente.conectado) { panel.cliente.suscribir('planta/#', 1); panelSub = true }
+          for (const x of nodos) {
+            const c = x.n.cliente
+            if (!c.conectado || red.enlacesCaidos.has(x.def.id)) continue
+            if (!x.anunciado) { c.publicar(x.estado, 'online', { qos: 1, retain: true }); x.anunciado = true }
+            if (red.t >= x.siguiente) {
+              x.siguiente += x.def.cada
+              const falla = x.def.alarma && red.rnd() < 0.01
+              const v = +(x.def.base + gauss(red.rnd) * x.def.ruido + (falla ? 3.5 : 0)).toFixed(2)
+              c.publicar(x.def.tema, JSONA({ v, u: x.def.unidad, t: +red.t.toFixed(3) }), { qos: config.qos }); x.publicados++
+              if (x.def.alarma && v > x.def.alarma) c.publicar('planta/linea1/alarmas/vibracion', JSONA({ v, limite: x.def.alarma }), { qos: 1 })
+            }
+          }
+        }
+      },
+    }
+  }
+
+  return { T, NOMBRE_TIPO, cod, Analizador, decodificar, hex, filtroValido, temaValido, coincide, Broker, Sesion, Cliente, Red, NODOS, crearPlanta, prng, deutf8, utf8 }
+})
+
+</script>
+<script>
+'use strict'
+const M = MqttCore, $ = (id) => document.getElementById(id)
+const OPC = { semilla: 21, perdida: 0, qosTelemetria: 0, keepalive: 10 }
+let p, vel = 1, pausa = false, ultimo = performance.now(), acc = 0, pkLog = [], flashes = [], panel2 = null, operador = null, sinDedup = 0
+
+function nueva() {
+  p = M.crearPlanta(OPC); pkLog = []; flashes = []; panel2 = null; operador = null
+  p.red.broker.alEvento = (e) => {
+    if (e.evento === 'rx' || e.evento === 'tx') {
+      const pq = e.evento === 'rx' ? e.paquete : M.decodificar(e.bytes[0], e.bytes.subarray(1 + (e.bytes[1] & 128 ? (e.bytes[2] & 128 ? 3 : 2) : 1)))
+      const nombre = e.evento === 'rx' ? pq.nombre : (e.nombre ?? pq.nombre)
+      pkLog.unshift({ t: e.t, dir: e.evento, id: e.id ?? '—', nombre, topic: pq.topic ?? e.topic ?? '', qos: pq.qos, hx: e.bytes ? M.hex(e.bytes.subarray(0, 20)) : '' })
+      if (pkLog.length > 60) pkLog.pop()
+      flashes.push({ id: e.id, dir: e.evento, t0: performance.now(), nombre })
+      if (flashes.length > 150) flashes.shift()
+    } else if (e.evento === 'will') pkLog.unshift({ t: e.t, dir: 'tx', id: e.id, nombre: 'LWT', topic: e.topic, hx: 'testamento publicado por el broker' })
+  }
+  escribir(); render()
+}
+function escribir() {
+  document.querySelectorAll('.qos').forEach((b) => b.classList.toggle('on', +b.dataset.q === p.config.qos))
+  $('vQos').textContent = 'QoS ' + p.config.qos; $('vLoss').textContent = Math.round(p.red.perdida * 100) + ' %'
+}
+document.querySelectorAll('.qos').forEach((b) => (b.onclick = () => { p.config.qos = +b.dataset.q; OPC.qosTelemetria = p.config.qos; escribir() }))
+$('loss').oninput = (e) => { p.red.perdida = e.target.value / 100; OPC.perdida = p.red.perdida; escribir() }
+$('ka').onchange = (e) => { OPC.keepalive = +e.target.value; nueva() }
+$('bReset').onclick = nueva
+$('bPausa').onclick = () => { pausa = !pausa; $('bPausa').textContent = pausa ? 'Continuar' : 'Pausa'; $('bPausa').classList.toggle('on', pausa) }
+document.querySelectorAll('.vel').forEach((b) => (b.onclick = () => { vel = +b.dataset.v; document.querySelectorAll('.vel').forEach((x) => x.classList.toggle('on', x === b)) }))
+$('bCons').onclick = () => {
+  if (!operador) operador = { n: p.red.agregar('operador', { perdidaPropia: 0 }), pend: null }
+  operador.pend = String($('cons').value) // se publica en cuanto el cliente esté conectado (ver servicios)
+}
+// Acciones que esperan a que un cliente simulado termine de conectarse (usa el reloj simulado, no el real)
+function servicios() {
+  if (panel2 && !panel2.sub && panel2.n.cliente.conectado) { panel2.n.cliente.suscribir('planta/#', 1); panel2.sub = true }
+  if (operador && operador.pend != null && operador.n.cliente.conectado) { operador.n.cliente.publicar('planta/linea1/consigna/temp', operador.pend, { qos: 1, retain: true }); operador.pend = null }
+}
+$('bPanel2').onclick = () => {
+  if (panel2) return
+  panel2 = { n: p.red.agregar('panel-2', { perdidaPropia: 0 }), recibidos: 0, retenidos: 0, sub: false }
+  panel2.n.cliente.alMensaje((m) => { panel2.recibidos++; if (m.retain) panel2.retenidos++ })
+}
+$('bCmp').onclick = () => {
+  const r = [0, 1].map((q) => { const s = M.crearPlanta({ semilla: 4, perdida: p.red.perdida, qosTelemetria: q, keepalive: OPC.keepalive }); s.avanzar(600); return { q, pub: s.publicadosTotal(), rec: s.log.telemetriaRecibida, dup: s.log.duplicados, rei: s.nodos.reduce((a, n) => a + n.n.cliente.stats.reintentos, 0) } })
+  const f = (x) => `${(x.rec / x.pub * 100).toFixed(1)} %`
+  $('cmp').innerHTML = `<tr><th></th><th>QoS 0</th><th>QoS 1</th></tr><tr><td>Publicados</td><td>${r[0].pub}</td><td>${r[1].pub}</td></tr><tr><td>Entregados (únicos)</td><td>${r[0].rec} (${f(r[0])})</td><td>${r[1].rec} (${f(r[1])})</td></tr><tr><td>Reintentos del nodo</td><td>${r[0].rei}</td><td>${r[1].rei}</td></tr><tr><td>Repetidos al panel</td><td>${r[0].dup}</td><td>${r[1].dup}</td></tr>`
+}
+
+function render() {
+  const b = p.red.broker.stats, pub = p.publicadosTotal(), rec = p.log.telemetriaRecibida
+  $('bT').textContent = `t = ${p.red.t.toFixed(0)} s`
+  $('stats').innerHTML = [['Publicados (telemetría)', pub], ['Entregados al panel', `${rec}${pub ? ` · ${(Math.min(rec / pub, 1) * 100).toFixed(0)} %` : ''}`], ['Reintentos QoS 1', p.nodos.reduce((a, n) => a + n.n.cliente.stats.reintentos, 0)], ['Repetidos al panel', p.log.duplicados],
+    ['Paquetes en el broker', b.entrantes + b.salientes], ['Bytes (in / out)', `${(b.bytesIn / 1024).toFixed(0)} / ${(b.bytesOut / 1024).toFixed(0)} KB`], ['Testamentos (LWT)', b.willsPublicados], ['Temas retenidos', p.red.broker.retenidos.size]]
+    .map(([k, v]) => `<div class="st"><span>${k}</span><b>${v}</b></div>`).join('')
+  $('nodos').innerHTML = p.nodos.map((x) => {
+    const off = p.red.enlacesCaidos.has(x.def.id)
+    return `<div class="nodo ${off ? 'off' : ''}"><i></i><span class="n">${x.def.id}</span><span style="color:#64748b">${x.def.cada} s</span><button data-n="${x.def.id}" data-a="${off ? 'on' : 'off'}">${off ? 'Reconectar' : 'Apagar'}</button></div>`
+  }).join('')
+  $('nodos').querySelectorAll('button').forEach((bt) => (bt.onclick = () => { bt.dataset.a === 'off' ? p.red.cortarEnlace(bt.dataset.n) : p.reconectar(bt.dataset.n); render() }))
+  const filas = [...p.recibidos.entries()].sort()
+  $('tags').innerHTML = '<tr><th>Tema</th><th style="text-align:right">Valor</th><th>Edad</th><th>n</th></tr>' + filas.map(([t, r]) => {
+    const def = M.NODOS.find((n) => n.tema === t), edad = p.red.t - r.t
+    return `<tr class="${edad > 12 ? 'viejo' : ''}"><td>${t.replace('planta/linea1/', '')}</td><td class="v">${r.valor.toFixed(1)} ${def?.unidad ?? ''}</td><td class="age">${edad.toFixed(0)} s</td><td>${r.n}</td></tr>`
+  }).join('')
+  $('est').innerHTML = [...p.log.estados.entries()].map(([id, s]) => `<span class="${s === 'online' ? 'on' : 'off'}">${id}: ${s}</span>`).join('') || '<span class="note" style="padding:0">esperando…</span>'
+  $('alm').innerHTML = p.log.alarmas.length ? p.log.alarmas.slice(-4).reverse().map((a) => `<div class="bad">${a.t.toFixed(0)} s · ${a.topic.split('/').pop()} ${a.txt}</div>`).join('') : 'sin alarmas'
+  $('pk').innerHTML = pkLog.slice(0, 40).map((q) => `<div><span class="t">${q.t.toFixed(1)}</span><span class="${q.dir}">${q.dir === 'rx' ? '→' : '←'}</span><span>${q.nombre}</span><span class="hx">${q.id} ${q.topic ? '· ' + q.topic : ''}${q.qos != null && q.nombre?.startsWith('PUBLISH') ? ' · QoS ' + q.qos : ''} ${q.hx ? '· ' + q.hx : ''}</span></div>`).join('')
+  if (panel2) $('p2').textContent = `panel-2 recibió ${panel2.retenidos} retenidos al conectarse (${panel2.recibidos} mensajes)`
+  dibujar()
+}
+
+// ---- Topología ------------------------------------------------------------------------------------------
+function dibujar() {
+  const cv = $('cvTopo'), dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h)
+  c.font = '11px ui-monospace, Consolas, monospace'
+  const B = { x: w / 2, y: h / 2 }, pos = {}
+  p.nodos.forEach((x, i) => (pos[x.def.id] = { x: 70, y: 40 + i * ((h - 80) / 4) }))
+  pos['panel-scada'] = { x: w - 70, y: h / 2 - 50 }; pos['panel-2'] = { x: w - 70, y: h / 2 + 30 }; pos.operador = { x: w - 70, y: h / 2 + 100 }
+  const activos = new Set(['panel-scada']); p.nodos.forEach((x) => activos.add(x.def.id)); if (panel2) activos.add('panel-2'); if (operador) activos.add('operador')
+  for (const id of activos) {
+    const q = pos[id], caido = p.red.enlacesCaidos.has(id)
+    c.strokeStyle = caido ? 'rgba(248,113,113,.5)' : '#1e2d4a'; c.setLineDash(caido ? [4, 4] : []); c.lineWidth = 1.5; c.beginPath(); c.moveTo(q.x, q.y); c.lineTo(B.x, B.y); c.stroke(); c.setLineDash([])
+  }
+  const ahora = performance.now()
+  flashes = flashes.filter((f) => ahora - f.t0 < 450)
+  for (const f of flashes) {
+    const q = pos[f.id]; if (!q) continue
+    const k = (ahora - f.t0) / 450, desde = f.dir === 'rx' ? q : B, hasta = f.dir === 'rx' ? B : q
+    c.fillStyle = f.dir === 'rx' ? '#22d3ee' : '#f59e0b'; c.beginPath(); c.arc(desde.x + (hasta.x - desde.x) * k, desde.y + (hasta.y - desde.y) * k, 3, 0, 7); c.fill()
+  }
+  for (const id of activos) {
+    const q = pos[id], caido = p.red.enlacesCaidos.has(id), esPanel = id.startsWith('panel') || id === 'operador'
+    c.fillStyle = '#0b1424'; c.strokeStyle = caido ? '#f87171' : esPanel ? '#e879f9' : '#34d399'; c.lineWidth = 2
+    c.beginPath(); c.roundRect(q.x - 56, q.y - 14, 112, 28, 6); c.fill(); c.stroke()
+    c.fillStyle = caido ? '#f87171' : '#e2e8f0'; c.textAlign = 'center'; c.fillText(id, q.x, q.y + 4)
+  }
+  c.fillStyle = '#0b1424'; c.strokeStyle = '#22d3ee'; c.lineWidth = 2.5; c.beginPath(); c.roundRect(B.x - 54, B.y - 40, 108, 80, 10); c.fill(); c.stroke()
+  c.fillStyle = '#22d3ee'; c.font = '600 13px ui-monospace, Consolas, monospace'; c.fillText('BROKER', B.x, B.y - 8)
+  c.fillStyle = '#94a3b8'; c.font = '11px ui-monospace, Consolas, monospace'; c.fillText(`${p.red.broker.sesiones.size} sesiones`, B.x, B.y + 10); c.fillText(`${p.red.broker.retenidos.size} retenidos`, B.x, B.y + 26)
+}
+
+function bucle(ahora) {
+  const dt = Math.min(0.1, (ahora - ultimo) / 1000); ultimo = ahora
+  if (!pausa) {
+    acc += dt * vel
+    let n = 0
+    while (acc >= 0.1) { p.avanzar(0.1); acc -= 0.1; n++; servicios() }
+    if (n) render(); else dibujar()
+  } else dibujar()
+  requestAnimationFrame(bucle)
+}
+nueva(); requestAnimationFrame(bucle)
+window.addEventListener('resize', dibujar)
+// Avance determinista para pruebas automáticas (no depende de requestAnimationFrame).
+window.demoApi = { get p() { return p }, avanzar(seg) { for (let i = 0; i < Math.round(seg / 0.1); i++) { p.avanzar(0.1); servicios() } render() } }
+</script>
+</body>
+</html>

@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Línea de envasado con lógica GRAFCET — simulador</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: 270px minmax(0, 1fr) 330px; align-items: start; }
+.col { display: grid; gap: 12px; min-width: 0; }
+.btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.btns button { padding: 10px 6px; font-size: 13px; }
+.sw { display: grid; gap: 6px; }
+.sw label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.cnt { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cnt .c { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; }
+.cnt .c b { display: block; font: 600 20px var(--mono); }
+.cnt .c span { font: 10px var(--mono); color: var(--mut); text-transform: uppercase; }
+#cv { height: 330px; }
+#log { height: 170px; overflow: auto; font: 12px var(--mono); }
+#log div { padding: 2px 0; border-bottom: 1px solid #0f1a2e; }
+#log .falla { color: var(--red); } #log .info { color: var(--amber); } #log .t { color: var(--mut); margin-right: 8px; }
+.io { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; font: 11.5px var(--mono); }
+.io div { display: flex; align-items: center; gap: 6px; padding: 1.5px 0; color: var(--mut); }
+.io i { width: 9px; height: 9px; border-radius: 50%; background: #1e293b; flex: none; }
+.io i.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.io i.red.on { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.io span.k { color: #475569; }
+.graf { display: grid; gap: 0; }
+.st { display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--panel2); font: 12px var(--mono); }
+.st .n { width: 22px; height: 22px; border-radius: 4px; border: 1px solid #334155; display: grid; place-items: center; color: var(--mut); flex: none; }
+.st.ini .n { border-style: double; border-width: 3px; }
+.st .a { color: #64748b; margin-left: auto; font-size: 10.5px; }
+.st.act { border-color: var(--cyan); background: rgba(34, 211, 238, .12); color: var(--cyan); }
+.st.act .n { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+.st.fal.act { border-color: var(--red); background: rgba(248, 113, 113, .12); color: var(--red); }
+.st.fal.act .n { background: var(--red); border-color: var(--red); color: #1a0000; }
+.tr { font: 10.5px var(--mono); color: #64748b; padding: 1px 0 1px 30px; border-left: 2px solid #1e293b; margin-left: 19px; }
+.tr::before { content: '⟂ '; color: var(--amber); }
+.stt { font: 11px var(--mono); color: var(--amber); margin-top: 6px; }
+@media (max-width: 1250px) { .layout { grid-template-columns: 260px minmax(0, 1fr); } .layout > .col:last-child { grid-column: 1 / -1; } }
+@media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Línea de envasado · lógica GRAFCET en ciclos de scan de 100 ms</h1>
+  <span class="badge warn">simulación didáctica</span>
+  <span class="sp"></span>
+  <span class="badge" id="bTiempo">t = 0 s</span>
+</div>
+
+<div class="wrap layout">
+  <div class="col">
+    <div class="panel">
+      <h2>Botonera</h2>
+      <div class="btns">
+        <button class="primary" id="bStart">MARCHA</button>
+        <button id="bStop">PARO (fin de ciclo)</button>
+        <button id="bReset">RESET</button>
+        <button class="danger" id="bEstop">E-STOP</button>
+      </div>
+      <div class="stt" id="estado"></div>
+    </div>
+    <div class="panel">
+      <h2>Inyectar condiciones</h2>
+      <div class="sw" id="sw"></div>
+      <div class="row" style="margin-top:8px"><label>Envases defectuosos</label><span class="grow"></span><b id="vDef" class="cy">5 %</b></div>
+      <input type="range" id="pDef" min="0" max="40" step="1" value="5">
+    </div>
+    <div class="panel">
+      <h2>Simulación</h2>
+      <div class="row">
+        <button id="bPausa">Pausa</button>
+        <button data-v="1" class="vel on">×1</button><button data-v="5" class="vel">×5</button><button data-v="20" class="vel">×20</button>
+      </div>
+      <div class="row" style="margin-top:8px"><button id="bAuto">Reproducir demo</button><span class="note" style="padding:0" id="demoEstado"></span></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="cnt" id="cnt"></div>
+    <div class="panel"><canvas id="cv"></canvas></div>
+    <div class="panel"><h2>Registro de eventos</h2><div id="log"></div></div>
+    <div class="panel"><h2>Entradas / salidas del PLC</h2><div class="io" id="io"></div></div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <h2>GRAFCET (pasos y transiciones)</h2>
+      <div class="graf" id="graf"></div>
+      <div class="note" style="padding:8px 0 0">Prioridad máxima: E-STOP, resguardo abierto, aire bajo o atasco en cualquier paso en marcha → <b class="bad">10 FALLA</b>. Tras la falla no hay rearranque automático.</div>
+    </div>
+  </div>
+</div>
+<div class="note">Planta simulada: un envase a la vez recorre cinco estaciones; el PLC es un modelo en software (no hay hardware real). Las cifras son de esta simulación.</div>
+
+<script>
+// Lógica de una línea de envasado modelada como GRAFCET y ejecutada en ciclos de scan de PLC (100 ms),
+// más una planta física mínima (envase, cinta, estaciones). El MISMO archivo corre en las pruebas
+// (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LineaCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const S = { REPOSO: 0, PREP: 1, AV_LLEN: 2, LLENADO: 3, AV_TAP: 4, TAPADO: 5, AV_INSP: 6, INSPECCION: 7, SALIDA: 8, RECHAZO: 9, FALLA: 10 }
+  const NOMBRES = ['Reposo', 'Preparación', 'Avance a llenado', 'Llenado', 'Avance a tapado', 'Tapado', 'Avance a inspección', 'Inspección', 'Salida', 'Rechazo', 'Falla']
+  const FALLAS = {
+    ESTOP: 'Paro de emergencia', GUARD: 'Resguardo abierto', AIRE: 'Presión de aire baja',
+    ATASCO: 'Atasco en la línea', TIEMPO: 'Tiempo excedido en avance (falta de producto)',
+  }
+  // dt: ciclo de scan [s]; ventana: ancho del sensor de presencia [estaciones]; vel: cinta [estaciones/s]
+  const P = { dt: 0.1, tPrep: 2, tFill: 2, tCap: 1, tInsp: 0.5, tRej: 1, tPack: 2, porCaja: 6, tWatch: 8, vel: 1, ventana: 0.1 }
+
+  function prng(seed) {
+    let a = seed >>> 0
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = a
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+
+  const apagadas = () => ({ conv: false, llenar: false, tapar: false, rechazar: false, encajar: false, verde: false, ambar: false, rojo: false, sirena: false })
+
+  function crearPLC() {
+    return {
+      step: S.REPOSO, t: 0, bueno: 0, rechazo: 0, cajas: 0, enCaja: 0, packT: 0,
+      paroPend: false, falla: null, startPrev: false, stopPrev: false, rstPrev: false,
+      Q: apagadas(), eventos: [], tRun: 0, tTotal: 0,
+    }
+  }
+
+  const EN_MARCHA = new Set([S.PREP, S.AV_LLEN, S.LLENADO, S.AV_TAP, S.TAPADO, S.AV_INSP, S.INSPECCION, S.SALIDA, S.RECHAZO])
+
+  // Un ciclo de scan: lee entradas I, actualiza el GRAFCET y devuelve las salidas Q.
+  // I: {start, stop, reset, estop, guardOk, aireOk, atasco, material (true = hay), enLlenado, enTapado, enInspeccion, enSalida, nivelOk}
+  function scan(c, I, p = P) {
+    const start = I.start && !c.startPrev
+    const stop = I.stop && !c.stopPrev
+    const reset = I.reset && !c.rstPrev
+    c.startPrev = I.start; c.stopPrev = I.stop; c.rstPrev = I.reset
+    c.t += p.dt
+    c.tTotal += p.dt
+    if (EN_MARCHA.has(c.step)) c.tRun += p.dt
+
+    const ir = (n, msg) => {
+      if (c.step !== n) { c.step = n; c.t = 0; c.eventos.push({ tipo: n === S.FALLA ? 'falla' : 'paso', msg: msg ?? `→ ${NOMBRES[n]}` }) }
+    }
+    const condFalla = I.estop ? 'ESTOP' : !I.guardOk ? 'GUARD' : !I.aireOk ? 'AIRE' : I.atasco ? 'ATASCO' : null
+
+    // Transición de máxima prioridad: cualquier falla en marcha lleva a FALLA
+    if (EN_MARCHA.has(c.step) && condFalla) {
+      c.falla = condFalla
+      ir(S.FALLA, `FALLA: ${FALLAS[condFalla]}`)
+    }
+
+    if (stop && EN_MARCHA.has(c.step)) { c.paroPend = true; c.eventos.push({ tipo: 'info', msg: 'Paro solicitado: termina el ciclo en curso' }) }
+    if (!I.material && EN_MARCHA.has(c.step) && !c.paroPend) { c.paroPend = true; c.eventos.push({ tipo: 'info', msg: 'Material bajo: paro al final del ciclo' }) }
+
+    const fin = () => ir(c.paroPend ? S.REPOSO : S.AV_LLEN)
+    const vigilar = () => { if (c.t > p.tWatch) { c.falla = 'TIEMPO'; ir(S.FALLA, `FALLA: ${FALLAS.TIEMPO}`) } }
+
+    switch (c.step) {
+      case S.REPOSO:
+        if (start) {
+          if (condFalla) c.eventos.push({ tipo: 'info', msg: `Arranque bloqueado: ${FALLAS[condFalla]}` })
+          else if (!I.material) c.eventos.push({ tipo: 'info', msg: 'Arranque bloqueado: falta de material' })
+          else { c.paroPend = false; c.falla = null; ir(S.PREP) }
+        }
+        break
+      case S.PREP: if (c.t >= p.tPrep) ir(S.AV_LLEN); break
+      case S.AV_LLEN: if (I.enLlenado) ir(S.LLENADO); else vigilar(); break
+      case S.LLENADO: if (c.t >= p.tFill) ir(S.AV_TAP); break
+      case S.AV_TAP: if (I.enTapado) ir(S.TAPADO); else vigilar(); break
+      case S.TAPADO: if (c.t >= p.tCap) ir(S.AV_INSP); break
+      case S.AV_INSP: if (I.enInspeccion) ir(S.INSPECCION); else vigilar(); break
+      case S.INSPECCION:
+        if (c.t >= p.tInsp) { if (I.nivelOk) ir(S.SALIDA); else { c.rechazo++; ir(S.RECHAZO, '→ Rechazo (nivel fuera de rango)') } }
+        break
+      case S.SALIDA:
+        if (I.enSalida) {
+          c.bueno++; c.enCaja++
+          if (c.enCaja >= p.porCaja) { c.enCaja = 0; c.packT = p.tPack }
+          fin()
+        } else vigilar()
+        break
+      case S.RECHAZO: if (c.t >= p.tRej) fin(); break
+      case S.FALLA:
+        if (reset) {
+          if (condFalla) c.eventos.push({ tipo: 'info', msg: `Rearme rechazado: ${FALLAS[condFalla]} sigue activa` })
+          else { c.packT = 0; ir(S.REPOSO, 'Rearme: falla reconocida → Reposo') }
+        }
+        break
+    }
+
+    // Empacadora de cajas: ciclo paralelo, se detiene en falla
+    if (c.packT > 0 && c.step !== S.FALLA) {
+      c.packT -= p.dt
+      if (c.packT <= 0) { c.packT = 0; c.cajas++ }
+    }
+
+    const Q = apagadas()
+    const s = c.step
+    Q.conv = s === S.AV_LLEN || s === S.AV_TAP || s === S.AV_INSP || s === S.SALIDA
+    Q.llenar = s === S.LLENADO
+    Q.tapar = s === S.TAPADO
+    Q.rechazar = s === S.RECHAZO
+    Q.encajar = c.packT > 0 && s !== S.FALLA
+    Q.verde = EN_MARCHA.has(s)
+    Q.ambar = s === S.REPOSO || c.paroPend
+    Q.rojo = s === S.FALLA
+    Q.sirena = s === S.FALLA || s === S.PREP
+    c.Q = Q
+    return Q
+  }
+
+  // ---- Planta física: un envase a la vez recorre estaciones 0 (entrada) … 4 (salida) -------------
+  function crearPlanta(semilla = 1, pDefecto = 0.05) {
+    return { pkg: null, espera: 0.5, rnd: prng(semilla), pDefecto, producidos: 0, descartados: 0 }
+  }
+  function sensores(pl, p = P) {
+    const k = pl.pkg
+    const en = (x) => !!k && Math.abs(k.x - x) < p.ventana
+    return { enLlenado: en(1), enTapado: en(2), enInspeccion: en(3), enSalida: en(4), nivelOk: !!k && k.nivelOk }
+  }
+  function mover(pl, Q, ext, p = P) {
+    const dt = p.dt
+    if (!pl.pkg) {
+      pl.espera -= dt
+      if (pl.espera <= 0 && !ext.sinProducto) pl.pkg = { x: 0, llenoT: 0, lleno: false, tapado: false, nivelOk: true }
+      return
+    }
+    const k = pl.pkg
+    const en = (x) => Math.abs(k.x - x) < p.ventana
+    if (Q.conv && !ext.atasco) k.x += p.vel * dt
+    if (Q.llenar && en(1) && !k.lleno) {
+      k.llenoT += dt
+      if (k.llenoT >= p.tFill - 1e-9) { k.lleno = true; k.nivelOk = pl.rnd() >= pl.pDefecto }
+    }
+    if (Q.tapar && en(2)) k.tapado = true
+    if (Q.rechazar && en(3)) { pl.pkg = null; pl.espera = 0.5; pl.descartados++; return }
+    if (k.x > 4 + p.ventana) { pl.pkg = null; pl.espera = 0.5; pl.producidos++ }
+  }
+
+  // ---- Simulación completa: operador + PLC + planta ---------------------------------------------
+  function crearSim({ semilla = 1, pDefecto = 0.05, params = P } = {}) {
+    return {
+      t: 0, params, plc: crearPLC(), planta: crearPlanta(semilla, pDefecto),
+      op: { start: false, stop: false, reset: false, estop: false, resguardoAbierto: false, aireBajo: false, atasco: false, materialBajo: false, sinProducto: false },
+    }
+  }
+  function entradas(sim) {
+    const o = sim.op
+    return {
+      start: o.start, stop: o.stop, reset: o.reset, estop: o.estop, guardOk: !o.resguardoAbierto, aireOk: !o.aireBajo,
+      atasco: o.atasco, material: !o.materialBajo, ...sensores(sim.planta, sim.params),
+    }
+  }
+  function tick(sim) {
+    const I = entradas(sim)
+    const n0 = sim.plc.eventos.length
+    const Q = scan(sim.plc, I, sim.params)
+    for (let i = n0; i < sim.plc.eventos.length; i++) sim.plc.eventos[i].t = sim.t
+    mover(sim.planta, Q, sim.op, sim.params)
+    sim.t += sim.params.dt
+    sim.op.start = sim.op.stop = sim.op.reset = false // pulsadores: duran un scan
+    return { I, Q }
+  }
+  const pulsar = (sim, boton) => { sim.op[boton] = true }
+
+  return { S, NOMBRES, FALLAS, P, crearPLC, scan, crearPlanta, sensores, mover, crearSim, entradas, tick, pulsar, prng }
+})
+
+</script>
+<script>
+'use strict'
+const C = LineaCore, S = C.S
+const $ = (id) => document.getElementById(id)
+const sim = C.crearSim({ semilla: 11, pDefecto: 0.05 })
+let vel = 1, pausa = false, ultimo = performance.now(), belt = 0, capY = 0, rejX = 0, mostrados = 0
+
+const SW = [['resguardoAbierto', 'Resguardo abierto'], ['aireBajo', 'Presión de aire baja'], ['atasco', 'Atasco en la línea'], ['materialBajo', 'Material bajo'], ['sinProducto', 'Sin producto en la entrada']]
+for (const [k, txt] of SW) {
+  const l = document.createElement('label'); l.innerHTML = `<input type="checkbox" data-k="${k}"> ${txt}`
+  l.firstChild.onchange = (e) => { sim.op[k] = e.target.checked }
+  $('sw').appendChild(l)
+}
+const GRAF = [
+  [0, 'REPOSO', 'todo apagado', 'MARCHA · sin fallas · material'],
+  [1, 'PREPARACIÓN', 'sirena', 't ≥ 2 s'],
+  [2, 'AVANCE A LLENADO', 'cinta', 'sensor en llenado'],
+  [3, 'LLENADO', 'válvula', 't ≥ 2 s'],
+  [4, 'AVANCE A TAPADO', 'cinta', 'sensor en tapado'],
+  [5, 'TAPADO', 'tapadora', 't ≥ 1 s'],
+  [6, 'AVANCE A INSPECCIÓN', 'cinta', 'sensor en inspección'],
+  [7, 'INSPECCIÓN', 'cámara', 't ≥ 0,5 s · nivel OK → 8 · no OK → 9'],
+  [8, 'SALIDA', 'cinta', 'sensor en salida → 2 (0 si hay PARO)'],
+  [9, 'RECHAZO', 'rechazador', 't ≥ 1 s → 2 (0 si hay PARO)'],
+  [10, 'FALLA', 'todo apagado', 'RESET y falla despejada → 0'],
+]
+$('graf').innerHTML = GRAF.map(([n, nombre, acc, tr]) =>
+  `<div class="st ${n === 0 ? 'ini' : ''} ${n === 10 ? 'fal' : ''}" data-n="${n}"><span class="n">${n}</span>${nombre}<span class="a">${acc}</span></div>${n < 10 ? `<div class="tr">${tr}</div>` : `<div class="tr" style="border-color:transparent">${tr}</div>`}`).join('')
+
+const ENT = [['I0.0', 'MARCHA', (I) => I.start], ['I0.1', 'PARO', (I) => I.stop], ['I0.2', 'RESET', (I) => I.reset], ['I0.3', 'E-STOP pulsado', (I) => I.estop, 1],
+  ['I0.4', 'Resguardos cerrados', (I) => I.guardOk], ['I0.5', 'Aire OK', (I) => I.aireOk], ['I0.6', 'Atasco', (I) => I.atasco, 1], ['I0.7', 'Material OK', (I) => I.material],
+  ['I1.0', 'Sensor llenado', (I) => I.enLlenado], ['I1.1', 'Sensor tapado', (I) => I.enTapado], ['I1.2', 'Sensor inspección', (I) => I.enInspeccion], ['I1.3', 'Sensor salida', (I) => I.enSalida], ['I1.4', 'Nivel OK', (I) => I.nivelOk]]
+const SAL = [['Q0.0', 'Motor cinta', 'conv'], ['Q0.1', 'Válvula llenado', 'llenar'], ['Q0.2', 'Tapadora', 'tapar'], ['Q0.3', 'Rechazador', 'rechazar'], ['Q0.4', 'Empacadora', 'encajar'],
+  ['Q0.5', 'Baliza verde', 'verde'], ['Q0.6', 'Baliza ámbar', 'ambar'], ['Q0.7', 'Baliza roja', 'rojo', 1], ['Q1.0', 'Sirena', 'sirena']]
+$('io').innerHTML = `<div style="grid-column:1/-1;color:#94a3b8">ENTRADAS</div>${ENT.map(([a, n, , red]) => `<div><i class="${red ? 'red' : ''}" data-e="${a}"></i><span class="k">${a}</span> ${n}</div>`).join('')}<div style="grid-column:1/-1;color:#94a3b8;margin-top:6px">SALIDAS</div>${SAL.map(([a, n, , red]) => `<div><i class="${red ? 'red' : ''}" data-s="${a}"></i><span class="k">${a}</span> ${n}</div>`).join('')}`
+
+// ---- Botonera ---------------------------------------------------------------------------------
+$('bStart').onclick = () => C.pulsar(sim, 'start')
+$('bStop').onclick = () => C.pulsar(sim, 'stop')
+$('bReset').onclick = () => C.pulsar(sim, 'reset')
+function setEstop(v) { sim.op.estop = v; $('bEstop').classList.toggle('on', v); $('bEstop').textContent = v ? 'E-STOP PULSADO (soltar)' : 'E-STOP' }
+$('bEstop').onclick = () => setEstop(!sim.op.estop)
+$('bPausa').onclick = () => { pausa = !pausa; $('bPausa').textContent = pausa ? 'Continuar' : 'Pausa'; $('bPausa').classList.toggle('on', pausa) }
+document.querySelectorAll('.vel').forEach((b) => (b.onclick = () => { vel = +b.dataset.v; document.querySelectorAll('.vel').forEach((x) => x.classList.toggle('on', x === b)) }))
+$('pDef').oninput = (e) => { sim.planta.pDefecto = e.target.value / 100; $('vDef').textContent = e.target.value + ' %' }
+
+// ---- Demo guionada: muestra arranque, falla y rearme sin que el visitante haga nada ----------------
+const GUION = [
+  [1, () => C.pulsar(sim, 'start'), 'MARCHA'], [40, () => { sim.op.atasco = true; syncChecks() }, 'inyecta atasco'], [46, () => { sim.op.atasco = false; syncChecks() }, 'despeja atasco'],
+  [52, () => C.pulsar(sim, 'reset'), 'RESET'], [56, () => C.pulsar(sim, 'start'), 'MARCHA'], [100, () => setEstop(true), 'E-STOP'],
+  [108, () => setEstop(false), 'suelta E-STOP'], [112, () => C.pulsar(sim, 'reset'), 'RESET'], [116, () => C.pulsar(sim, 'start'), 'MARCHA'],
+]
+let demo = null
+function syncChecks() { document.querySelectorAll('#sw input').forEach((i) => (i.checked = !!sim.op[i.dataset.k])) }
+$('bAuto').onclick = () => {
+  if (demo) { demo = null; $('bAuto').textContent = 'Reproducir demo'; $('demoEstado').textContent = ''; return }
+  demo = { t0: sim.t, i: 0 }; vel = 5; document.querySelectorAll('.vel').forEach((x) => x.classList.toggle('on', x.dataset.v === '5'))
+  $('bAuto').textContent = 'Detener demo'
+}
+function pasoDemo() {
+  if (!demo) return
+  const t = sim.t - demo.t0
+  while (demo.i < GUION.length && t >= GUION[demo.i][0]) { GUION[demo.i][1](); $('demoEstado').textContent = `demo: ${GUION[demo.i][2]}`; demo.i++ }
+}
+
+// ---- Dibujo ---------------------------------------------------------------------------------------
+function dibujar(t) {
+  const cv = $('cv'), dpr = window.devicePixelRatio || 1
+  const w = cv.clientWidth, h = cv.clientHeight
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h)
+  const Q = sim.plc.Q, pl = sim.planta, pk = pl.pkg, step = sim.plc.step
+  const X0 = 80, dx = (w - 2 * X0 - 40) / 4, xs = [0, 1, 2, 3, 4].map((i) => X0 + i * dx)
+  const by = h * 0.66, bh = 22
+  c.font = '11px ui-monospace, Consolas, monospace'; c.textAlign = 'center'
+
+  // cinta
+  c.fillStyle = '#0b1424'; c.strokeStyle = '#223152'; c.lineWidth = 1
+  c.beginPath(); c.roundRect(X0 - 50, by, w - 2 * X0 + 70, bh, 8); c.fill(); c.stroke()
+  if (Q.conv && !sim.op.atasco) belt = (belt + 1.2) % 28
+  c.strokeStyle = '#1e2d4a'
+  for (let x = X0 - 50 + belt; x < w - X0 + 20; x += 28) { c.beginPath(); c.moveTo(x, by + 3); c.lineTo(x, by + bh - 3); c.stroke() }
+  // estaciones
+  const nombres = ['ENTRADA', 'LLENADO', 'TAPADO', 'INSPECCIÓN', 'SALIDA']
+  c.fillStyle = '#64748b'; nombres.forEach((n, i) => c.fillText(n, xs[i], by + bh + 18))
+  // llenadora
+  const gx = xs[1]
+  c.fillStyle = '#122036'; c.strokeStyle = Q.llenar ? '#34d399' : '#2b3d63'; c.beginPath(); c.roundRect(gx - 26, 24, 52, 38, 6); c.fill(); c.stroke()
+  c.fillStyle = '#2b3d63'; c.fillRect(gx - 3, 62, 6, by - 62 - 56)
+  if (Q.llenar) { c.strokeStyle = '#22d3ee'; c.lineWidth = 3; c.setLineDash([5, 4]); c.lineDashOffset = -t / 25; c.beginPath(); c.moveTo(gx, by - 56); c.lineTo(gx, by - 22); c.stroke(); c.setLineDash([]); c.lineWidth = 1 }
+  // tapadora
+  const tx = xs[2]; const objetivoY = Q.tapar ? 1 : 0; capY += (objetivoY - capY) * 0.25
+  c.fillStyle = '#122036'; c.strokeStyle = Q.tapar ? '#34d399' : '#2b3d63'; c.beginPath(); c.roundRect(tx - 24, 24, 48, 30, 6); c.fill(); c.stroke()
+  c.fillStyle = '#2b3d63'; c.fillRect(tx - 3, 54, 6, 18 + capY * (by - 56 - 72)); c.fillRect(tx - 14, 72 + capY * (by - 56 - 72), 28, 6)
+  // cámara de inspección
+  const ix = xs[3]
+  c.fillStyle = '#122036'; c.strokeStyle = step === 7 ? '#e879f9' : '#2b3d63'; c.beginPath(); c.roundRect(ix - 24, 24, 48, 28, 6); c.fill(); c.stroke()
+  if (step === 7) { const g = c.createLinearGradient(0, 52, 0, by); g.addColorStop(0, 'rgba(232,121,249,.35)'); g.addColorStop(1, 'rgba(232,121,249,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(ix - 6, 52); c.lineTo(ix + 6, 52); c.lineTo(ix + 26, by - 4); c.lineTo(ix - 26, by - 4); c.fill() }
+  // rechazador (brazo lateral) y contenedor
+  rejX += ((Q.rechazar ? 1 : 0) - rejX) * 0.3
+  c.fillStyle = '#16233b'; c.strokeStyle = '#2b3d63'; c.beginPath(); c.roundRect(ix + 52, by - 48, 34, 16, 3); c.fill(); c.stroke()
+  c.fillStyle = Q.rechazar ? '#f87171' : '#7f1d1d'; c.fillRect(ix + 52 - rejX * 40, by - 44, rejX * 40, 8); c.fillRect(ix + 50 - rejX * 40, by - 52, 5, 24)
+  c.fillStyle = '#1b0f12'; c.strokeStyle = '#7f1d1d'; c.beginPath(); c.roundRect(ix - 24, by + 52, 48, 22, 4); c.fill(); c.stroke()
+  c.fillStyle = '#f87171'; c.fillText('✕ ' + sim.plc.rechazo, ix, by + 67)
+  // empacadora
+  const ox = xs[4] + 38
+  c.fillStyle = '#122036'; c.strokeStyle = Q.encajar ? '#f59e0b' : '#2b3d63'; c.beginPath(); c.roundRect(ox - 6, by - 66, 56, 62, 6); c.fill(); c.stroke()
+  for (let i = 0; i < 6; i++) { c.fillStyle = i < sim.plc.enCaja ? '#22d3ee' : '#1e2d4a'; c.fillRect(ox + (i % 3) * 16 - 2, by - 60 + Math.floor(i / 3) * 16, 12, 12) }
+  c.fillStyle = Q.encajar ? '#f59e0b' : '#64748b'; c.fillText('cajas ' + sim.plc.cajas, ox + 22, by - 18)
+  // envase
+  if (pk) {
+    const px = X0 + pk.x * dx
+    const alto = 50, ancho = 30, y0 = by - alto
+    c.fillStyle = '#0e1a2f'; c.strokeStyle = '#8ea4c8'; c.lineWidth = 1.5; c.beginPath(); c.roundRect(px - ancho / 2, y0, ancho, alto, 5); c.fill(); c.stroke()
+    const nivel = pk.lleno ? (pk.nivelOk ? 0.88 : 0.5) : pk.llenoT / C.P.tFill * 0.88
+    c.fillStyle = pk.lleno && !pk.nivelOk ? '#f59e0b' : '#22d3ee'; c.fillRect(px - ancho / 2 + 2, y0 + alto - 2 - nivel * (alto - 6), ancho - 4, nivel * (alto - 6))
+    if (pk.tapado) { c.fillStyle = '#e2e8f0'; c.fillRect(px - ancho / 2 - 1, y0 - 5, ancho + 2, 6) }
+  }
+  // baliza
+  const bx = w - 30, blink = Math.floor(t / 400) % 2 === 0
+  c.fillStyle = '#0b1424'; c.strokeStyle = '#223152'; c.beginPath(); c.roundRect(bx - 14, 14, 28, 92, 6); c.fill(); c.stroke()
+  const luces = [['#f87171', Q.rojo && blink], ['#f59e0b', Q.ambar && (step === S.REPOSO || blink)], ['#34d399', Q.verde]]
+  luces.forEach(([col, on], i) => { c.fillStyle = on ? col : '#16233b'; if (on) { c.shadowColor = col; c.shadowBlur = 12 } c.beginPath(); c.arc(bx, 34 + i * 26, 9, 0, 7); c.fill(); c.shadowBlur = 0 })
+  // falla
+  if (step === S.FALLA) { c.fillStyle = 'rgba(127,29,29,.8)'; c.fillRect(0, h - 30, w, 30); c.fillStyle = '#fecaca'; c.font = '600 13px ui-monospace, Consolas, monospace'; c.fillText(`FALLA · ${C.FALLAS[sim.plc.falla]} · soltar/despejar y pulsar RESET`, w / 2, h - 11) }
+}
+
+// ---- Interfaz viva ----------------------------------------------------------------------------------
+function fmt(s) { const m = Math.floor(s / 60); return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}` }
+function actualizar() {
+  const p = sim.plc, I = C.entradas(sim)
+  $('bTiempo').textContent = `t = ${fmt(sim.t)}`
+  const disp = p.tTotal > 0 ? (p.tRun / p.tTotal) * 100 : 0
+  const ritmo = sim.t > 0 ? ((p.bueno + p.rechazo) / sim.t) * 60 : 0
+  $('cnt').innerHTML = [['Buenos', p.bueno, 'ok'], ['Rechazos', p.rechazo, p.rechazo ? 'warn' : ''], ['Cajas', p.cajas, ''], ['Disponibilidad', disp.toFixed(0) + ' %', ''], ['Ritmo', ritmo.toFixed(1) + ' /min', ''], ['Paso', `${p.step} · ${C.NOMBRES[p.step]}`, p.step === S.FALLA ? 'bad' : 'cy']]
+    .map(([k, v, cl]) => `<div class="c"><span>${k}</span><b class="${cl}" style="${k === 'Paso' ? 'font-size:13px;line-height:26px' : ''}">${v}</b></div>`).join('')
+  document.querySelectorAll('#graf .st').forEach((e) => e.classList.toggle('act', +e.dataset.n === p.step))
+  ENT.forEach(([a, , f]) => { const e = document.querySelector(`[data-e="${a}"]`); if (e) e.classList.toggle('on', !!f(I)) })
+  SAL.forEach(([a, , k]) => { const e = document.querySelector(`[data-s="${a}"]`); if (e) e.classList.toggle('on', !!p.Q[k]) })
+  $('estado').textContent = p.paroPend ? 'Paro pendiente: termina el ciclo' : ''
+  // registro
+  const ev = p.eventos
+  if (ev.length !== mostrados) {
+    const log = $('log'); const nuevos = ev.slice(mostrados)
+    for (const e of nuevos) { const d = document.createElement('div'); d.className = e.tipo; d.innerHTML = `<span class="t">${fmt(e.t ?? sim.t)}</span>${e.msg}`; log.prepend(d) }
+    while (log.children.length > 60) log.lastChild.remove()
+    mostrados = ev.length
+  }
+}
+function bucle(ahora) {
+  const dtReal = Math.min(0.05, (ahora - ultimo) / 1000); ultimo = ahora
+  if (!pausa) {
+    let acc = (bucle.acc || 0) + dtReal * vel
+    const dt = sim.params.dt
+    while (acc >= dt) { C.tick(sim); acc -= dt; pasoDemo() }
+    bucle.acc = acc
+  }
+  actualizar(); dibujar(ahora)
+  requestAnimationFrame(bucle)
+}
+requestAnimationFrame(bucle)
+// Avance determinista para pruebas automáticas (no depende de requestAnimationFrame).
+window.demoApi = { sim, avanzar(seg) { for (let i = 0; i < Math.round(seg / sim.params.dt); i++) { C.tick(sim); pasoDemo() } actualizar(); dibujar(performance.now()) } }
+</script>
+</body>
+</html>

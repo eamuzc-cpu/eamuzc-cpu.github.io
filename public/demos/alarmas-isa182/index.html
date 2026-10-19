@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestión de alarmas ISA-18.2 — dos tanques</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: start; }
+.col { display: grid; gap: 12px; min-width: 0; }
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 12px 16px 0; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.kpi .v { font: 600 21px var(--mono); } .kpi .k { font: 10.5px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .kpi .s { font: 10.5px var(--mono); color: #64748b; }
+#cvMimic { height: 300px; } #cvTrend { height: 150px; margin-top: 8px; } #cvRate { height: 110px; margin-top: 8px; }
+.sw { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: 12px var(--mono); color: var(--mut); }
+.sw .tg { width: 38px; height: 20px; border-radius: 10px; background: #1e293b; position: relative; transition: background .2s; }
+.sw .tg::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #94a3b8; transition: left .2s, background .2s; }
+.sw.on .tg { background: rgba(34, 211, 238, .35); } .sw.on .tg::after { left: 20px; background: var(--cyan); } .sw.on { color: var(--cyan); }
+.prio { display: inline-block; min-width: 56px; text-align: center; padding: 1px 6px; border-radius: 4px; font: 600 10.5px var(--mono); color: #02060f; }
+.p4 { background: #f87171; } .p3 { background: #f59e0b; } .p2 { background: #22d3ee; } .p1 { background: #94a3b8; }
+#alm { max-height: 330px; overflow: auto; }
+#alm td, #alm th { white-space: nowrap; } #alm td.d { white-space: normal; }
+@keyframes parpadeo { 50% { background: rgba(248, 113, 113, .18); } }
+tr.nr td { animation: parpadeo 1s infinite; } tr.rtn td { color: var(--green); } tr.rep td, tr.sup td { color: #475569; }
+.mini { padding: 2px 7px; font-size: 11px; }
+#cmp td.red { color: var(--green); font-weight: 600; }
+.leg { display: flex; gap: 12px; font: 11px var(--mono); color: var(--mut); flex-wrap: wrap; margin: 4px 0; }
+.leg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Gestión de alarmas ISA-18.2 · control de nivel de dos tanques</h1>
+  <span class="badge warn">simulación didáctica</span>
+  <span class="sp"></span>
+  <label class="sw on" id="swGest"><span class="tg"></span>Gestión ISA-18.2: <b id="vGest">ACTIVADA</b></label>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="wrap layout">
+  <div class="col">
+    <div class="panel">
+      <div class="row" style="margin-bottom:8px">
+        <label>Escenario</label><select id="esc"></select>
+        <span class="grow"></span>
+        <button id="bPausa">Pausa</button>
+        <button class="vel on" data-v="10">×10</button><button class="vel" data-v="60">×60</button><button class="vel" data-v="300">×300</button>
+        <button id="bReinicio">Reiniciar</button>
+      </div>
+      <canvas id="cvMimic"></canvas>
+      <div class="leg" style="margin-top:6px"><span><i style="background:#22d3ee"></i>nivel A / B</span><span><i style="background:#f87171"></i>alarma crítica activa</span><span><i style="background:#f59e0b"></i>alarma alta</span><span>marcas: LL · L · H · HH</span>
+        <span class="grow"></span><button id="bModo" class="mini">Modo planta: MARCHA</button></div>
+      <canvas id="cvTrend"></canvas>
+      <canvas id="cvRate"></canvas>
+      <div class="leg"><span id="legRate">alarmas por minuto (barras) · línea: alarmas en los últimos 10 min — umbral de inundación: más de 10</span></div>
+    </div>
+    <div class="panel">
+      <h2>Comparar crudo vs gestionado (misma corrida de 60 min)</h2>
+      <div class="row" style="margin-bottom:8px"><button class="primary" id="bCmp">Ejecutar comparación del escenario</button><span class="note" style="padding:0" id="cmpNota"></span></div>
+      <table id="cmp"></table>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <div class="row" style="margin-bottom:6px"><h2 style="margin:0">Resumen de alarmas</h2><span class="grow"></span><button class="mini" id="bAckAll">Reconocer todas</button></div>
+      <div id="alm"></div>
+    </div>
+    <div class="panel">
+      <h2>Mayores generadoras de alarmas (top 5)</h2>
+      <table id="top"></table>
+    </div>
+    <div class="panel">
+      <h2>Qué hace la gestión</h2>
+      <div class="note" style="padding:0;font-size:12px;line-height:1.6">
+        <b class="cy">Retardo (on-delay)</b> y <b class="cy">banda muerta</b>: evitan alarmas por ruido de sensor. ·
+        <b class="cy">Prioridades por consecuencia</b>: críticas solo para LL/HH. ·
+        <b class="cy">Supresión por estado</b>: en modo PARADA no suenan los niveles bajos. ·
+        <b class="cy">Repisado</b>: silencia una alarma molesta con caducidad. ·
+        <b class="cy">Inundación</b>: más de 10 alarmas en 10 min (termina bajo 5).
+      </div>
+    </div>
+  </div>
+</div>
+<div class="note">Proceso y alarmas simulados (niveles en %, sin planta real). Referencia de carga del operador: EEMUA 191 — ≤1 alarma/10 min muy probablemente aceptable, ≤2 manejable, ~5 sobrecargada. Las cifras son de esta simulación.</div>
+
+<script>
+// Dos tanques con control de nivel + gestión de alarmas al estilo ISA-18.2 / EEMUA 191:
+// prioridades, retardo (on-delay), banda muerta, reconocimiento, retorno a normal, repisado (shelving),
+// supresión por estado de planta, detección de inundación y KPIs. El MISMO archivo corre en las
+// pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.AlarmCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const PRIO = { CRITICA: 4, ALTA: 3, MEDIA: 2, BAJA: 1 }
+  const PRIO_NOMBRE = { 4: 'Crítica', 3: 'Alta', 2: 'Media', 1: 'Baja' }
+  const ESTADO = { NORMAL: 'Normal', ACTIVA_NR: 'Activa sin reconocer', ACTIVA_R: 'Activa reconocida', RTN_NR: 'Normalizada sin reconocer', REPISADA: 'Repisada', SUPRIMIDA: 'Suprimida' }
+  const VENTANA = 600 // 10 min
+  const SCENARIOS = {
+    normal: 'Operación normal con ruido de sensor',
+    bomba: 'Falla de la bomba P-101 (10 → 25 min)',
+    valvula: 'Válvula FV-101 atascada cerrada (10 min)',
+    demanda: 'Demanda del proceso se duplica (10 min)',
+    inundacion: 'Inundación: bomba + válvula + demanda + sensor ruidoso',
+    chattering: 'Nivel del tanque B operando cerca de LAL con sensor ruidoso',
+  }
+
+  function prng(seed) {
+    let a = seed >>> 0
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = a
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+  const gauss = (rnd) => Math.sqrt(-2 * Math.log(Math.max(rnd(), 1e-12))) * Math.cos(2 * Math.PI * rnd())
+
+  // Definición de alarmas. "crudo" = todo con umbral directo, sin retardo ni banda muerta y con prioridad única.
+  // "gestionado" = racionalizado: prioridades por consecuencia, retardo, banda muerta y supresión por estado.
+  function definir(gestion) {
+    const g = gestion
+    const nivel = (id, etiqueta, pv) => [
+      { tag: `LAHH-${id}`, desc: `${etiqueta} nivel muy alto`, pv, lim: 95, dir: 'alto', prio: g ? PRIO.CRITICA : PRIO.ALTA, delay: g ? 2 : 0, db: g ? 1 : 0 },
+      { tag: `LAH-${id}`, desc: `${etiqueta} nivel alto`, pv, lim: 85, dir: 'alto', prio: g ? PRIO.MEDIA : PRIO.ALTA, delay: g ? 5 : 0, db: g ? 2 : 0 },
+      { tag: `LAL-${id}`, desc: `${etiqueta} nivel bajo`, pv, lim: 20, dir: 'bajo', prio: g ? PRIO.MEDIA : PRIO.ALTA, delay: g ? 5 : 0, db: g ? 2 : 0, suprimeEn: g ? 'parada' : null },
+      { tag: `LALL-${id}`, desc: `${etiqueta} nivel muy bajo`, pv, lim: 8, dir: 'bajo', prio: g ? PRIO.CRITICA : PRIO.ALTA, delay: g ? 2 : 0, db: g ? 1 : 0 },
+    ]
+    return [
+      ...nivel('101', 'Tanque A', 'a'),
+      ...nivel('201', 'Tanque B', 'b'),
+      { tag: 'LDA-201', desc: 'Tanque B desviación de nivel > 10 %', pv: 'devB', lim: 10, dir: 'alto', prio: g ? PRIO.BAJA : PRIO.ALTA, delay: g ? 30 : 0, db: g ? 2 : 0 },
+      { tag: 'PAL-101', desc: 'Bomba P-101 disparada', pv: 'bombaFalla', lim: 0.5, dir: 'alto', prio: PRIO.ALTA, delay: 0, db: 0 },
+      { tag: 'XA-101', desc: 'Válvula FV-101 no sigue la orden', pv: 'devValvula', lim: 20, dir: 'alto', prio: g ? PRIO.MEDIA : PRIO.ALTA, delay: g ? 10 : 0, db: g ? 5 : 0 },
+    ].map((a) => ({ ...a, estado: 'NORMAL', condDesde: null, since: null, repisadaHasta: 0, activaDesde: null, valor: 0 }))
+  }
+
+  // ---- Planta ---------------------------------------------------------------------------------------
+  function crearPlanta() {
+    return {
+      la: 60, lb: 50, fv: 41.7, fvOrden: 41.7, bomba: 50, spA: 60, spB: 50, iA: 41.7, iB: 50,
+      bombaOk: true, valvulaAtascada: false, valvulaPos: 0, demanda: 0.25 * 0.8, ruido: 0.5, modo: 'marcha',
+    }
+  }
+  function eventosEscenario(nombre) {
+    const E = { bomba: [], valvula: [], demanda: [], ruido: [] }
+    if (nombre === 'bomba' || nombre === 'inundacion') E.bomba.push([600, 1500])
+    if (nombre === 'valvula' || nombre === 'inundacion') E.valvula.push([nombre === 'inundacion' ? 900 : 600, nombre === 'inundacion' ? 1500 : 1200])
+    if (nombre === 'demanda' || nombre === 'inundacion') E.demanda.push([nombre === 'inundacion' ? 1300 : 600, nombre === 'inundacion' ? 1900 : 1200])
+    if (nombre === 'inundacion') E.ruido.push([300, 2400])
+    return E
+  }
+  const dentro = (lista, t) => lista.some(([a, b]) => t >= a && t < b)
+
+  function pasoPlanta(p, t, E, rnd) {
+    const dt = 1
+    p.bombaOk = !dentro(E.bomba, t)
+    p.valvulaAtascada = dentro(E.valvula, t)
+    p.demanda = 0.2 * (dentro(E.demanda, t) ? 2 : 1) + 0.01 * Math.sin(t / 90)
+    p.ruidoAct = dentro(E.ruido, t) ? 2.2 : p.ruido
+    const medA = p.la + p.ruidoAct * gauss(rnd), medB = p.lb + p.ruidoAct * gauss(rnd)
+    // PI de nivel (en %): A manda la válvula de entrada, B manda la velocidad de la bomba
+    const eA = p.spA - medA, eB = p.spB - medB
+    p.iA = Math.min(100, Math.max(0, p.iA + (2 / 80) * eA * dt))
+    p.fvOrden = Math.min(100, Math.max(0, 2 * eA + p.iA))
+    p.iB = Math.min(100, Math.max(0, p.iB + (3 / 60) * eB * dt))
+    p.bomba = Math.min(100, Math.max(0, 3 * eB + p.iB))
+    if (p.valvulaAtascada) p.fv = 0
+    else p.fv += (p.fvOrden - p.fv) * (dt / 5)
+    const qIn = (p.fv / 100) * 0.6
+    const qBomba = p.bombaOk && p.la > 0.5 ? (p.bomba / 100) * 0.5 : 0
+    p.la = Math.min(100, Math.max(0, p.la + (qIn - qBomba) * dt))
+    p.lb = Math.min(100, Math.max(0, p.lb + (0.8 * qBomba - p.demanda) * dt))
+    return { a: medA, b: medB, devB: Math.abs(p.spB - medB), bombaFalla: p.bombaOk ? 0 : 1, devValvula: Math.abs(p.fvOrden - p.fv) }
+  }
+
+  // ---- Motor de alarmas -------------------------------------------------------------------------------
+  function evaluarAlarma(al, v, t, planta, kpi) {
+    const valor = v[al.pv]
+    al.valor = valor
+    const enCond = al.dir === 'alto' ? valor > al.lim : valor < al.lim
+    const reposo = al.dir === 'alto' ? valor <= al.lim - al.db : valor >= al.lim + al.db
+    const activa = al.estado === 'ACTIVA_NR' || al.estado === 'ACTIVA_R'
+    const suprimida = al.suprimeEn && planta.modo === al.suprimeEn
+
+    if (al.estado === 'REPISADA' && t >= al.repisadaHasta) al.estado = 'NORMAL'
+    if (al.estado === 'REPISADA') return
+    if (suprimida && !activa) { al.estado = al.estado === 'RTN_NR' ? 'RTN_NR' : 'SUPRIMIDA'; al.condDesde = null; return }
+    if (al.estado === 'SUPRIMIDA') al.estado = 'NORMAL'
+
+    // condición sostenida (retardo)
+    let dispara = false
+    if (enCond) {
+      if (al.condDesde == null) al.condDesde = t
+      dispara = t - al.condDesde >= al.delay
+    } else al.condDesde = null
+
+    if (al.estado === 'NORMAL' && dispara) activar(al, t, kpi)
+    else if (al.estado === 'RTN_NR' && dispara) activar(al, t, kpi) // se reactiva antes de reconocer
+    else if (activa && reposo) al.estado = al.estado === 'ACTIVA_NR' ? 'RTN_NR' : 'NORMAL'
+  }
+  function activar(al, t, kpi) {
+    al.estado = 'ACTIVA_NR'; al.activaDesde = t
+    kpi.eventos.push({ t, tag: al.tag, prio: al.prio })
+    kpi.frecuencia[al.tag] = (kpi.frecuencia[al.tag] ?? 0) + 1
+    kpi.total++
+    kpi.porPrio[al.prio]++
+  }
+
+  function crearKpi() {
+    return { eventos: [], frecuencia: {}, total: 0, porPrio: { 1: 0, 2: 0, 3: 0, 4: 0 }, pico10: 0, inundacion: false, inundaciones: 0, tInundacion: 0, tTotal: 0, obsoletas: 0 }
+  }
+  function actualizarKpi(kpi, t, alarmas) {
+    kpi.tTotal = t
+    const desde = t - VENTANA
+    let n = 0
+    for (let i = kpi.eventos.length - 1; i >= 0 && kpi.eventos[i].t > desde; i--) n++
+    kpi.n10 = n
+    if (n > kpi.pico10) kpi.pico10 = n
+    if (!kpi.inundacion && n > 10) { kpi.inundacion = true; kpi.inundaciones++ }
+    else if (kpi.inundacion && n < 5) kpi.inundacion = false
+    if (kpi.inundacion) kpi.tInundacion++
+    kpi.obsoletas = alarmas.filter((a) => (a.estado === 'ACTIVA_NR' || a.estado === 'ACTIVA_R') && t - a.activaDesde > 600).length
+  }
+  const resumen = (kpi) => ({
+    total: kpi.total,
+    por10min: kpi.tTotal > 0 ? (kpi.total / kpi.tTotal) * VENTANA : 0,
+    pico10: kpi.pico10,
+    inundaciones: kpi.inundaciones,
+    pctInundacion: kpi.tTotal > 0 ? (kpi.tInundacion / kpi.tTotal) * 100 : 0,
+    porPrio: { ...kpi.porPrio },
+    top5: Object.entries(kpi.frecuencia).sort((a, b) => b[1] - a[1]).slice(0, 5),
+  })
+
+  // ---- Simulación -------------------------------------------------------------------------------------
+  function crearSim({ escenario = 'normal', gestion = true, semilla = 1, T = 3600 } = {}) {
+    const planta = crearPlanta()
+    if (escenario === 'chattering') { planta.spB = 21.5; planta.lb = 21.5; planta.ruido = 1.2 } // consigna pegada al umbral LAL (20 %)
+    return {
+      t: 0, T, escenario, gestion, E: eventosEscenario(escenario), rnd: prng(semilla),
+      planta, alarmas: definir(gestion), kpi: crearKpi(), v: null, hist: [],
+    }
+  }
+  function tick(sim) {
+    sim.v = pasoPlanta(sim.planta, sim.t, sim.E, sim.rnd)
+    for (const al of sim.alarmas) evaluarAlarma(al, sim.v, sim.t, sim.planta, sim.kpi)
+    actualizarKpi(sim.kpi, sim.t + 1, sim.alarmas)
+    sim.hist.push({ t: sim.t, la: sim.planta.la, lb: sim.planta.lb, n10: sim.kpi.n10 })
+    sim.t += 1
+  }
+  function correr(sim, seg = sim.T - sim.t) { for (let i = 0; i < seg; i++) tick(sim); return sim }
+
+  // ---- Acciones del operador --------------------------------------------------------------------------
+  function reconocer(sim, tag) {
+    for (const al of sim.alarmas) {
+      if (tag !== 'todas' && al.tag !== tag) continue
+      if (al.estado === 'ACTIVA_NR') al.estado = 'ACTIVA_R'
+      else if (al.estado === 'RTN_NR') al.estado = 'NORMAL'
+    }
+  }
+  function repisar(sim, tag, segundos = 600) {
+    const al = sim.alarmas.find((a) => a.tag === tag)
+    if (al) { al.estado = 'REPISADA'; al.repisadaHasta = sim.t + segundos; al.condDesde = null }
+  }
+  function desrepisar(sim, tag) {
+    const al = sim.alarmas.find((a) => a.tag === tag)
+    if (al && al.estado === 'REPISADA') al.estado = 'NORMAL'
+  }
+  const ponerModo = (sim, modo) => { sim.planta.modo = modo }
+
+  return {
+    PRIO, PRIO_NOMBRE, ESTADO, SCENARIOS, definir, crearSim, tick, correr, reconocer, repisar, desrepisar, ponerModo, resumen, prng, VENTANA,
+    evaluarAlarma, crearKpi, actualizarKpi, // expuestos para probar el motor de alarmas por separado
+  }
+})
+
+</script>
+<script>
+'use strict'
+const A = AlarmCore, $ = (id) => document.getElementById(id)
+const COL = { 4: '#f87171', 3: '#f59e0b', 2: '#22d3ee', 1: '#94a3b8' }
+let gestion = true, escenario = 'normal', vel = 10, pausa = false, sim = null, ultimo = performance.now(), acc = 0, ultimaTabla = -1
+for (const [k, v] of Object.entries(A.SCENARIOS)) $('esc').add(new Option(v, k))
+
+function nueva() { sim = A.crearSim({ escenario, gestion, semilla: 3 }); ultimaTabla = -1; actualizar(true) }
+$('esc').onchange = (e) => { escenario = e.target.value; nueva() }
+$('swGest').onclick = () => { gestion = !gestion; $('swGest').classList.toggle('on', gestion); $('vGest').textContent = gestion ? 'ACTIVADA' : 'DESACTIVADA (umbrales directos)'; nueva() }
+$('bReinicio').onclick = nueva
+$('bPausa').onclick = () => { pausa = !pausa; $('bPausa').textContent = pausa ? 'Continuar' : 'Pausa'; $('bPausa').classList.toggle('on', pausa) }
+document.querySelectorAll('.vel').forEach((b) => (b.onclick = () => { vel = +b.dataset.v; document.querySelectorAll('.vel').forEach((x) => x.classList.toggle('on', x === b)) }))
+$('bAckAll').onclick = () => { A.reconocer(sim, 'todas'); actualizar(true) }
+$('bModo').onclick = () => { const p = sim.planta.modo === 'marcha' ? 'parada' : 'marcha'; A.ponerModo(sim, p); $('bModo').textContent = 'Modo planta: ' + p.toUpperCase(); $('bModo').classList.toggle('on', p === 'parada') }
+$('esc').value = escenario
+
+const fx = (x, d = 1) => x.toFixed(d)
+const hora = (t) => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`
+
+function kpiColor(v) { return v <= 1 ? 'ok' : v <= 2 ? 'cy' : v <= 5 ? 'warn' : 'bad' }
+function actualizar(forzar) {
+  const k = sim.kpi, r = A.resumen(k), t = sim.t
+  const en10 = k.n10 ?? 0, prom = r.por10min
+  $('kpis').innerHTML = [
+    ['Tiempo simulado', hora(t), `de ${hora(sim.T)}`, ''],
+    ['Alarmas activadas', r.total, `${r.porPrio[4]} crít. · ${r.porPrio[3]} altas · ${r.porPrio[2]} med. · ${r.porPrio[1]} bajas`, r.total ? 'warn' : 'ok'],
+    ['Promedio por 10 min', fx(prom), 'objetivo ≤ 1–2', kpiColor(prom)],
+    ['Últimos 10 min / pico', `${en10} / ${r.pico10}`, k.inundacion ? 'INUNDACIÓN EN CURSO' : 'sin inundación', k.inundacion ? 'bad' : r.pico10 > 10 ? 'warn' : 'ok'],
+    ['Tiempo en inundación', fx(r.pctInundacion, 0) + ' %', `${r.inundaciones} episodio(s) · ${k.obsoletas} obsoleta(s)`, r.pctInundacion > 0 ? 'bad' : 'ok'],
+  ].map(([a, b, c, cl]) => `<div class="kpi"><div class="k">${a}</div><div class="v ${cl}">${b}</div><div class="s">${c}</div></div>`).join('')
+  // tabla (4 Hz como máximo)
+  if (forzar || Math.floor(t / 2) !== ultimaTabla) { ultimaTabla = Math.floor(t / 2); tabla() }
+  $('top').innerHTML = '<tr><th>Tag</th><th>Descripción</th><th>Activaciones</th></tr>' + (r.top5.length ? r.top5.map(([tag, n]) => `<tr><td>${tag}</td><td>${sim.alarmas.find((a) => a.tag === tag).desc}</td><td>${n}</td></tr>`).join('') : '<tr><td colspan="3" style="color:#64748b">todavía no hay alarmas</td></tr>')
+  dibujar(performance.now())
+}
+function tabla() {
+  const orden = { ACTIVA_NR: 0, RTN_NR: 1, ACTIVA_R: 2, REPISADA: 3, SUPRIMIDA: 4 }
+  const filas = sim.alarmas.filter((a) => a.estado !== 'NORMAL').sort((a, b) => orden[a.estado] - orden[b.estado] || b.prio - a.prio)
+  const cls = { ACTIVA_NR: 'nr', RTN_NR: 'rtn', REPISADA: 'rep', SUPRIMIDA: 'sup', ACTIVA_R: '' }
+  $('alm').innerHTML = `<table><tr><th>Hora</th><th>Tag</th><th>Descripción</th><th>Prio.</th><th>Estado</th><th>Valor</th><th></th></tr>${
+    filas.length ? filas.map((a) => `<tr class="${cls[a.estado]}"><td>${a.activaDesde != null ? hora(a.activaDesde) : '—'}</td><td>${a.tag}</td><td class="d">${a.desc}</td><td><span class="prio p${a.prio}">${A.PRIO_NOMBRE[a.prio]}</span></td><td>${A.ESTADO[a.estado]}</td><td>${fx(a.valor)}</td><td>${
+      a.estado === 'ACTIVA_NR' || a.estado === 'RTN_NR' ? `<button class="mini" data-ack="${a.tag}">Reconocer</button>` : ''}${a.estado === 'REPISADA' ? `<button class="mini" data-un="${a.tag}">Quitar repisado</button>` : (a.estado === 'ACTIVA_R' || a.estado === 'ACTIVA_NR') ? `<button class="mini" data-rep="${a.tag}">Repisar</button>` : ''}</td></tr>`).join('')
+      : '<tr><td colspan="7" style="color:#64748b">sin alarmas — el proceso está en operación normal</td></tr>'}</table>`
+  $('alm').querySelectorAll('[data-ack]').forEach((b) => (b.onclick = () => { A.reconocer(sim, b.dataset.ack); actualizar(true) }))
+  $('alm').querySelectorAll('[data-rep]').forEach((b) => (b.onclick = () => { A.repisar(sim, b.dataset.rep, 600); actualizar(true) }))
+  $('alm').querySelectorAll('[data-un]').forEach((b) => (b.onclick = () => { A.desrepisar(sim, b.dataset.un); actualizar(true) }))
+}
+
+// ---- Comparación: corre el mismo escenario con y sin gestión -------------------------------------------
+$('bCmp').onclick = () => {
+  const crudo = A.resumen(A.correr(A.crearSim({ escenario, gestion: false, semilla: 3 })).kpi)
+  const gest = A.resumen(A.correr(A.crearSim({ escenario, gestion: true, semilla: 3 })).kpi)
+  const red = (a, b) => (a > 0 ? `<td class="red">−${fx((1 - b / a) * 100, 0)} %</td>` : '<td>—</td>')
+  const fila = (n, a, b, d = 0) => `<tr><td>${n}</td><td>${fx(a, d)}</td><td>${fx(b, d)}</td>${red(a, b)}</tr>`
+  $('cmp').innerHTML = `<tr><th>Indicador (60 min)</th><th>Crudo</th><th>Gestionado</th><th>Reducción</th></tr>
+    ${fila('Alarmas activadas', crudo.total, gest.total)}${fila('Promedio por 10 min', crudo.por10min, gest.por10min, 1)}${fila('Pico en 10 min', crudo.pico10, gest.pico10)}
+    ${fila('Episodios de inundación', crudo.inundaciones, gest.inundaciones)}${fila('% del tiempo en inundación', crudo.pctInundacion, gest.pctInundacion)}`
+  $('cmpNota').textContent = `Escenario: ${A.SCENARIOS[escenario]}`
+}
+
+// ---- Dibujo ---------------------------------------------------------------------------------------------
+function prep(cv) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h)
+  return { c, w, h }
+}
+function estadoTag(tag) { const a = sim.alarmas.find((x) => x.tag === tag); return a && (a.estado === 'ACTIVA_NR' || a.estado === 'ACTIVA_R' || a.estado === 'RTN_NR') ? a : null }
+function tanque(c, x, y, w, h, nivel, etiqueta, sufijo, valor) {
+  c.fillStyle = '#071122'; c.strokeStyle = '#334a73'; c.lineWidth = 2; c.beginPath(); c.roundRect(x, y, w, h, 6); c.fill(); c.stroke()
+  const alt = (nivel / 100) * (h - 4)
+  c.fillStyle = 'rgba(34,211,238,.55)'; c.fillRect(x + 2, y + h - 2 - alt, w - 4, alt)
+  c.fillStyle = 'rgba(34,211,238,.9)'; c.fillRect(x + 2, y + h - 2 - alt, w - 4, 2)
+  for (const [lim, tag] of [[95, 'LAHH'], [85, 'LAH'], [20, 'LAL'], [8, 'LALL']]) {
+    const yy = y + h - 2 - (lim / 100) * (h - 4), al = estadoTag(`${tag}-${sufijo}`)
+    const col = al ? COL[al.prio] : '#475569'
+    c.strokeStyle = col; c.lineWidth = al ? 2.5 : 1; c.setLineDash(al ? [] : [3, 3]); c.beginPath(); c.moveTo(x + w, yy); c.lineTo(x + w + 12, yy); c.stroke(); c.setLineDash([])
+    c.fillStyle = col; c.font = '10px ui-monospace, Consolas, monospace'; c.textAlign = 'left'; c.fillText(tag.replace('LA', ''), x + w + 15, yy + 3)
+  }
+  c.fillStyle = '#e2e8f0'; c.font = '600 12px ui-monospace, Consolas, monospace'; c.textAlign = 'center'; c.fillText(`${etiqueta}  ${valor.toFixed(1)} %`, x + w / 2, y - 8)
+}
+function dibujarMimic() {
+  const { c, w, h } = prep($('cvMimic')), P = sim.planta
+  const ax = 70, bx = w - 250, ty = 40, th = h - 90
+  // tuberías
+  c.strokeStyle = '#334a73'; c.lineWidth = 6; c.lineCap = 'round'
+  c.beginPath(); c.moveTo(10, ty + 22); c.lineTo(ax + 60, ty + 22); c.lineTo(ax + 60, ty + 6); c.stroke()
+  c.beginPath(); c.moveTo(ax + 120, ty + th - 24); c.lineTo(bx + 60, ty + th - 24); c.lineTo(bx + 60, ty + 4); c.stroke()
+  c.beginPath(); c.moveTo(bx + 120, ty + th - 24); c.lineTo(w - 20, ty + th - 24); c.stroke()
+  c.lineWidth = 1
+  tanque(c, ax, ty, 120, th, P.la, 'LT-101 · Tanque A', '101', P.la)
+  tanque(c, bx, ty, 120, th, P.lb, 'LT-201 · Tanque B', '201', P.lb)
+  // válvula FV-101
+  const xa = estadoTag('XA-101')
+  c.fillStyle = xa ? COL[xa.prio] : '#34d399'; c.beginPath(); c.moveTo(32, ty + 10); c.lineTo(52, ty + 22); c.lineTo(32, ty + 34); c.closePath(); c.fill(); c.beginPath(); c.moveTo(72, ty + 10); c.lineTo(52, ty + 22); c.lineTo(72, ty + 34); c.closePath(); c.fill()
+  c.fillStyle = '#94a3b8'; c.font = '10.5px ui-monospace, Consolas, monospace'; c.textAlign = 'center'; c.fillText(`FV-101 ${P.fv.toFixed(0)} %`, 42, ty + 56)
+  // bomba P-101
+  const px = (ax + 120 + bx) / 2, py = ty + th - 24, pal = estadoTag('PAL-101')
+  c.fillStyle = pal ? COL[pal.prio] : '#34d399'; c.beginPath(); c.arc(px, py, 17, 0, 7); c.fill()
+  c.fillStyle = '#02060f'; c.beginPath(); c.moveTo(px - 6, py - 8); c.lineTo(px + 9, py); c.lineTo(px - 6, py + 8); c.closePath(); c.fill()
+  c.fillStyle = '#94a3b8'; c.fillText(`P-101 ${P.bombaOk ? P.bomba.toFixed(0) + ' %' : 'DISPARADA'}`, px, py + 34)
+  c.fillText(`demanda ${(P.demanda * 100).toFixed(0)}`, bx + 120 + (w - 20 - (bx + 120)) / 2 + 12, py + 22)
+  if (sim.planta.modo === 'parada') { c.fillStyle = 'rgba(245,158,11,.9)'; c.font = '600 12px ui-monospace, Consolas, monospace'; c.fillText('PLANTA EN PARADA — niveles bajos suprimidos (si la gestión está activa)', w / 2, 16) }
+}
+function serie(cv, datos, opciones) {
+  const { c, w, h } = prep(cv), L = 34, R = 8, T = 8, B = 16, n = sim.T
+  const x = (t) => L + (t / n) * (w - L - R), y = (v) => T + (1 - (v - opciones.y0) / (opciones.y1 - opciones.y0)) * (h - T - B)
+  c.font = '10px ui-monospace, Consolas, monospace'; c.fillStyle = '#64748b'; c.strokeStyle = '#13203a'; c.lineWidth = 1; c.textAlign = 'right'
+  for (const v of opciones.ticks) { c.beginPath(); c.moveTo(L, y(v)); c.lineTo(w - R, y(v)); c.stroke(); c.fillText(v, L - 4, y(v) + 3) }
+  c.textAlign = 'center'; for (let m = 0; m <= 60; m += 10) c.fillText(m + ' min', x(m * 60), h - 3)
+  return { c, x, y, w, h, L, R, T, B }
+}
+function dibujarSeries() {
+  const hs = sim.hist
+  let g = serie($('cvTrend'), hs, { y0: 0, y1: 100, ticks: [0, 20, 50, 85, 100] })
+  for (const lim of [85, 20]) { g.c.strokeStyle = 'rgba(245,158,11,.4)'; g.c.setLineDash([4, 4]); g.c.beginPath(); g.c.moveTo(g.L, g.y(lim)); g.c.lineTo(g.w - g.R, g.y(lim)); g.c.stroke(); g.c.setLineDash([]) }
+  for (const [clave, col] of [['la', '#e879f9'], ['lb', '#22d3ee']]) { g.c.strokeStyle = col; g.c.lineWidth = 1.5; g.c.beginPath(); hs.forEach((p, i) => (i ? g.c.lineTo(g.x(p.t), g.y(p[clave])) : g.c.moveTo(g.x(p.t), g.y(p[clave])))); g.c.stroke() }
+  g.c.fillStyle = '#e879f9'; g.c.textAlign = 'left'; g.c.fillText('— nivel A', g.L + 8, g.T + 10); g.c.fillStyle = '#22d3ee'; g.c.fillText('— nivel B', g.L + 70, g.T + 10)
+  // alarmas por minuto + línea de 10 min
+  const porMin = new Array(60).fill(0)
+  for (const e of sim.kpi.eventos) porMin[Math.min(59, Math.floor(e.t / 60))]++
+  const tope = Math.max(12, ...porMin, ...hs.map((p) => p.n10))
+  g = serie($('cvRate'), hs, { y0: 0, y1: tope, ticks: [0, 10, tope].filter((v, i, a) => a.indexOf(v) === i) })
+  porMin.forEach((n, m) => { if (n) { g.c.fillStyle = 'rgba(248,113,113,.7)'; const x0 = g.x(m * 60), x1 = g.x(m * 60 + 60); g.c.fillRect(x0 + 1, g.y(n), Math.max(1, x1 - x0 - 2), g.y(0) - g.y(n)) } })
+  g.c.strokeStyle = 'rgba(245,158,11,.6)'; g.c.setLineDash([4, 4]); g.c.beginPath(); g.c.moveTo(g.L, g.y(10)); g.c.lineTo(g.w - g.R, g.y(10)); g.c.stroke(); g.c.setLineDash([])
+  g.c.strokeStyle = '#f59e0b'; g.c.lineWidth = 1.5; g.c.beginPath(); hs.forEach((p, i) => (i ? g.c.lineTo(g.x(p.t), g.y(p.n10)) : g.c.moveTo(g.x(p.t), g.y(p.n10)))); g.c.stroke()
+}
+function dibujar() { dibujarMimic(); dibujarSeries() }
+
+function bucle(ahora) {
+  const dt = Math.min(0.1, (ahora - ultimo) / 1000); ultimo = ahora
+  if (!pausa && sim.t < sim.T) {
+    acc += dt * vel
+    let n = 0
+    while (acc >= 1 && sim.t < sim.T) { A.tick(sim); acc -= 1; n++ }
+    if (n) actualizar(false)
+  }
+  requestAnimationFrame(bucle)
+}
+nueva(); requestAnimationFrame(bucle)
+window.addEventListener('resize', () => dibujar())
+// Avance determinista para pruebas automáticas (no depende de requestAnimationFrame).
+window.demoApi = { get sim() { return sim }, avanzar(seg) { for (let i = 0; i < seg && sim.t < sim.T; i++) A.tick(sim); actualizar(true) }, ajustar(o) { if ('escenario' in o) { escenario = o.escenario; $('esc').value = escenario } if ('gestion' in o) { gestion = o.gestion; $('swGest').classList.toggle('on', gestion); $('vGest').textContent = gestion ? 'ACTIVADA' : 'DESACTIVADA (umbrales directos)' } nueva() } }
+</script>
+</body>
+</html>

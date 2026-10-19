@@ -1,0 +1,2425 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FRACTAL LAB // Laboratorio Interactivo de Sistemas Recursivos y Caos</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Space Grotesk, Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@0.469.0"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        lab: {
+                            bg: '#05070e',
+                            panel: 'rgba(10, 14, 26, 0.76)',
+                            border: 'rgba(0, 242, 254, 0.22)',
+                            cyan: '#00f2fe',
+                            magenta: '#ff007f',
+                            violet: '#8a2be2',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #05070e;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Glassmorphism Sci-Fi Panels */
+        .glass-panel {
+            background: linear-gradient(145deg, rgba(11, 15, 29, 0.84) 0%, rgba(6, 9, 19, 0.90) 100%);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(0, 242, 254, 0.18);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-pill {
+            background: rgba(10, 14, 26, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 242, 254, 0.22);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Custom Scrollbar for Panels */
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0, 242, 254, 0.3);
+            border-radius: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 242, 254, 0.6);
+        }
+
+        /* Custom Sci-Fi Range Sliders */
+        input[type="range"].sci-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 999px;
+            outline: none;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            transition: background 0.2s;
+        }
+        input[type="range"].sci-slider:hover {
+            background: rgba(51, 65, 85, 0.95);
+        }
+        input[type="range"].sci-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00f2fe;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.9);
+            transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        input[type="range"].sci-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #ff007f;
+            box-shadow: 0 0 16px rgba(255, 0, 127, 1);
+        }
+        input[type="range"].sci-slider.magenta-slider::-webkit-slider-thumb {
+            background: #ff007f;
+            box-shadow: 0 0 12px rgba(255, 0, 127, 0.9);
+        }
+        input[type="range"].sci-slider.magenta-slider::-webkit-slider-thumb:hover {
+            background: #00f2fe;
+            box-shadow: 0 0 16px rgba(0, 242, 254, 1);
+        }
+
+        /* Fractal Active Card Glow */
+        .fractal-btn.active {
+            background: linear-gradient(90deg, rgba(0, 242, 254, 0.18) 0%, rgba(138, 43, 226, 0.18) 100%);
+            border-color: rgba(0, 242, 254, 0.7);
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.2), inset 0 0 10px rgba(0, 242, 254, 0.1);
+        }
+
+        .palette-btn.active {
+            border-color: #00f2fe;
+            box-shadow: 0 0 14px rgba(0, 242, 254, 0.55);
+            transform: translateY(-1px);
+        }
+
+        /* Neon Text Glows */
+        .neon-cyan {
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+        }
+        .neon-magenta {
+            text-shadow: 0 0 10px rgba(255, 0, 127, 0.5);
+        }
+
+        /* Smooth Panel Transitions */
+        .panel-transition {
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        }
+
+        /* Canvas Stacking */
+        #canvasContainer {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            cursor: grab;
+        }
+        #canvasContainer:active {
+            cursor: grabbing;
+        }
+        #glCanvas, #ctxCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Subtle Sci-Fi Grid Overlay on edges */
+        .hud-vignette {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            background: radial-gradient(circle at center, transparent 65%, rgba(3, 5, 12, 0.65) 100%);
+        }
+    </style>
+</head>
+<body class="relative select-none">
+
+    <!-- ================= INTERACTIVE DUAL CANVAS ENGINE ================= -->
+    <div id="canvasContainer">
+        <canvas id="glCanvas"></canvas>
+        <canvas id="ctxCanvas" class="hidden"></canvas>
+    </div>
+
+    <div class="hud-vignette"></div>
+
+    <!-- ================= TOP FORMULA & TELEMETRY HUD ================= -->
+    <header id="topHud" class="fixed top-3 left-3 right-3 z-20 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 pointer-events-none panel-transition">
+        
+        <!-- Brand + Active Engine Badge -->
+        <div class="glass-pill rounded-2xl px-4 py-2.5 flex items-center justify-between lg:justify-start gap-3.5 pointer-events-auto">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 via-violet-600 to-pink-500 p-[1px] shadow-lg shadow-cyan-500/20">
+                    <div class="w-full h-full bg-slate-950 rounded-[11px] flex items-center justify-center">
+                        <i data-lucide="orbit" class="w-5 h-5 text-cyan-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-display font-bold text-sm sm:text-base tracking-wider text-white">FRACTAL<span class="text-cyan-400">LAB</span></h1>
+                        <span id="engineBadge" class="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-400/30">
+                            GPU WebGL 60FPS
+                        </span>
+                    </div>
+                    <p id="fractalTitleHud" class="text-xs text-slate-400 font-medium truncate max-w-[200px] sm:max-w-xs">
+                        1. Conjunto de Mandelbrot & Multibrot
+                    </p>
+                </div>
+            </div>
+
+            <!-- Mobile Panel Toggle Buttons -->
+            <div class="flex lg:hidden items-center gap-1.5">
+                <button onclick="toggleLeftPanel()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-cyan-300 border border-cyan-500/20" title="Catálogo de Fractales">
+                    <i data-lucide="layers" class="w-4 h-4"></i>
+                </button>
+                <button onclick="toggleRightPanel()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-pink-400 border border-pink-500/20" title="Parámetros y Color">
+                    <i data-lucide="sliders" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Live Mathematical Formula Viewer -->
+        <div class="glass-pill rounded-2xl px-4 py-2 flex-1 max-w-3xl mx-auto flex flex-col justify-center pointer-events-auto border-cyan-500/30">
+            <div class="flex items-center justify-between gap-2 mb-0.5">
+                <span class="text-[10px] font-mono uppercase tracking-widest text-cyan-400/90 flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                    Ecuación Recursiva en Vivo
+                </span>
+                <span id="formulaCategoryTag" class="text-[10px] font-mono text-fuchsia-300/90">Plano Complejo ℝ² ≅ ℂ</span>
+            </div>
+            <div id="liveFormulaDisplay" class="font-mono text-xs sm:text-sm md:text-base text-white tracking-tight overflow-x-auto whitespace-nowrap py-0.5">
+                <!-- Populated dynamically with live numbers -->
+            </div>
+            <p id="formulaExplanation" class="text-[11px] text-slate-300/85 leading-snug line-clamp-1 mt-0.5">
+                Itera cada punto del plano complejo elevándolo al exponente continuo p y sumando su coordenada inicial c.
+            </p>
+        </div>
+
+        <!-- Real-Time Telemetry (Coords, Zoom, FPS) -->
+        <div class="hidden sm:flex glass-pill rounded-2xl px-4 py-2.5 items-center gap-4 font-mono text-xs pointer-events-auto">
+            <div>
+                <div class="text-[10px] text-slate-400 uppercase">Centro (X, Y)</div>
+                <div id="telemetryCoords" class="text-cyan-300 font-medium">-0.500, 0.000</div>
+            </div>
+            <div class="h-6 w-[1px] bg-slate-700/70"></div>
+            <div>
+                <div class="text-[10px] text-slate-400 uppercase">Zoom</div>
+                <div id="telemetryZoom" class="text-fuchsia-300 font-medium">1.00×</div>
+            </div>
+            <div class="h-6 w-[1px] bg-slate-700/70"></div>
+            <div>
+                <div class="text-[10px] text-slate-400 uppercase">Rendimiento</div>
+                <div class="flex items-center gap-1">
+                    <span id="telemetryFps" class="text-emerald-400 font-bold">60</span>
+                    <span class="text-[10px] text-slate-400">FPS</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= LEFT PANEL: FRACTAL SELECTOR & FAMOUS SEEDS ================= -->
+    <aside id="leftPanel" class="fixed top-36 lg:top-24 left-3 bottom-20 z-20 w-80 max-w-[calc(100vw-24px)] flex flex-col glass-panel rounded-2xl pointer-events-auto panel-transition">
+        
+        <!-- Panel Header -->
+        <div class="px-4 py-3 border-b border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="cpu" class="w-4 h-4 text-cyan-400"></i>
+                <h2 class="font-display font-semibold text-xs uppercase tracking-wider text-white">Sistemas Fractales (15)</h2>
+            </div>
+            <button onclick="toggleLeftPanel()" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition" title="Colapsar panel">
+                <i data-lucide="panel-left-close" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- Engine Filter Tabs -->
+        <div class="grid grid-cols-3 gap-1 p-2 bg-slate-950/60 border-b border-slate-800/70 text-[11px] font-medium">
+            <button onclick="filterFractalList('all')" id="tabAll" class="py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition">
+                Todos (15)
+            </button>
+            <button onclick="filterFractalList('webgl')" id="tabWebgl" class="py-1.5 rounded-lg text-slate-400 hover:text-white transition">
+                GPU Shader (7)
+            </button>
+            <button onclick="filterFractalList('canvas2d')" id="tabCanvas2d" class="py-1.5 rounded-lg text-slate-400 hover:text-white transition">
+                Caos & Geo (8)
+            </button>
+        </div>
+
+        <!-- Scrollable List of 15 Fractals -->
+        <div id="fractalListContainer" class="flex-1 overflow-y-auto custom-scroll p-2.5 space-y-1.5">
+            <!-- Dynamically populated by JS -->
+        </div>
+
+        <!-- Famous Presets / Seeds Section -->
+        <div class="p-3 border-t border-slate-800/90 bg-slate-950/50 rounded-b-2xl">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-display uppercase tracking-wider text-fuchsia-300 flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-fuchsia-400"></i>
+                    Semillas Famosas (Presets)
+                </span>
+            </div>
+            <div id="presetsContainer" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto custom-scroll pr-1">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </aside>
+
+    <!-- Left Panel Restore Tab (when collapsed) -->
+    <button id="leftRestoreBtn" onclick="toggleLeftPanel()" class="hidden fixed top-28 left-3 z-20 glass-pill px-3 py-2.5 rounded-xl text-cyan-300 hover:text-white hover:border-cyan-400 flex items-center gap-2 text-xs font-medium pointer-events-auto transition shadow-lg">
+        <i data-lucide="panel-left-open" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Fractales</span>
+    </button>
+
+    <!-- ================= RIGHT PANEL: DYNAMIC PARAMETERS & COLOR ENGINE ================= -->
+    <aside id="rightPanel" class="fixed top-36 lg:top-24 right-3 bottom-20 z-20 w-80 sm:w-96 max-w-[calc(100vw-24px)] flex flex-col glass-panel rounded-2xl pointer-events-auto panel-transition">
+        
+        <!-- Panel Header -->
+        <div class="px-4 py-3 border-b border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sliders-horizontal" class="w-4 h-4 text-fuchsia-400"></i>
+                <h2 class="font-display font-semibold text-xs uppercase tracking-wider text-white">Parámetros & Colorimetría</h2>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="resetCurrentParameters()" class="text-[11px] px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition" title="Restaurar parámetros por defecto">
+                    <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+                    Reset
+                </button>
+                <button onclick="toggleRightPanel()" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition" title="Colapsar panel">
+                    <i data-lucide="panel-right-close" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Scrollable Controls Body -->
+        <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-5">
+            
+            <!-- Cursor Tracking Toggle (Shown for Julia / Phoenix / Hybrid / Newton) -->
+            <div id="cursorFollowBox" class="hidden p-3 rounded-xl bg-gradient-to-r from-cyan-500/15 to-fuchsia-500/15 border border-cyan-400/30 flex items-center justify-between">
+                <div class="pr-2">
+                    <div class="text-xs font-semibold text-white flex items-center gap-1.5">
+                        <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        Modo Seguir Cursor
+                    </div>
+                    <p class="text-[11px] text-slate-300">Mueve el ratón sobre el lienzo para mutar la semilla en vivo (o presiona <kbd class="px-1 py-0.5 bg-slate-900 rounded text-cyan-300 font-mono text-[10px]">Espacio</kbd>).</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input type="checkbox" id="followCursorCheckbox" class="sr-only peer" onchange="toggleCursorFollow(this.checked)">
+                    <div class="w-10 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
+                </label>
+            </div>
+
+            <!-- Dynamic Mathematical Parameters Section -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-display uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                        <i data-lucide="function-square" class="w-3.5 h-3.5"></i>
+                        Variables de la Ecuación
+                    </span>
+                    <span id="activeFractalShortId" class="text-[10px] font-mono text-slate-400">#01</span>
+                </div>
+                <div id="dynamicSlidersContainer" class="space-y-3.5">
+                    <!-- Populated dynamically when fractal changes -->
+                </div>
+            </div>
+
+            <hr class="border-slate-800/80">
+
+            <!-- Procedural Color Palettes (8 Palettes) -->
+            <div>
+                <div class="flex items-center justify-between mb-2.5">
+                    <span class="text-xs font-display uppercase tracking-wider text-fuchsia-300 flex items-center gap-1.5">
+                        <i data-lucide="palette" class="w-3.5 h-3.5"></i>
+                        Paletas Procedurales (8)
+                    </span>
+                    <span id="activePaletteName" class="text-[11px] font-mono text-fuchsia-300">Cyberpunk Neon</span>
+                </div>
+                <div id="palettesGrid" class="grid grid-cols-2 gap-2">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Color Engine Sliders -->
+            <div class="space-y-3 pt-1">
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Frecuencia de Color (Bandas)</span>
+                        <span id="val_colorFreq" class="font-mono text-fuchsia-300">1.00</span>
+                    </div>
+                    <input type="range" id="slider_colorFreq" class="sci-slider magenta-slider" min="0.15" max="5.0" step="0.05" value="1.0">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Desfase de Fase (Ciclo)</span>
+                        <span id="val_colorPhase" class="font-mono text-fuchsia-300">0.00</span>
+                    </div>
+                    <input type="range" id="slider_colorPhase" class="sci-slider magenta-slider" min="0.0" max="6.283" step="0.02" value="0.0">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Brillo / Exposición</span>
+                        <span id="val_brightness" class="font-mono text-fuchsia-300">1.10</span>
+                    </div>
+                    <input type="range" id="slider_brightness" class="sci-slider magenta-slider" min="0.3" max="2.5" step="0.05" value="1.1">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Suavizado / Resplandor (Glow)</span>
+                        <span id="val_smoothness" class="font-mono text-fuchsia-300">1.00</span>
+                    </div>
+                    <input type="range" id="slider_smoothness" class="sci-slider magenta-slider" min="0.0" max="1.0" step="0.02" value="1.0">
+                </div>
+            </div>
+
+        </div>
+    </aside>
+
+    <!-- Right Panel Restore Tab (when collapsed) -->
+    <button id="rightRestoreBtn" onclick="toggleRightPanel()" class="hidden fixed top-28 right-3 z-20 glass-pill px-3 py-2.5 rounded-xl text-fuchsia-300 hover:text-white hover:border-fuchsia-400 flex items-center gap-2 text-xs font-medium pointer-events-auto transition shadow-lg">
+        <span class="hidden sm:inline">Parámetros</span>
+        <i data-lucide="panel-right-open" class="w-4 h-4"></i>
+    </button>
+
+    <!-- ================= BOTTOM INTERACTIVE LAB CONTROL DOCK ================= -->
+    <footer id="bottomDock" class="fixed bottom-3 left-1/2 -translate-x-1/2 z-20 max-w-[96vw] pointer-events-auto panel-transition">
+        <div class="glass-pill rounded-2xl px-3 py-2 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            
+            <!-- Navigation Controls -->
+            <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+                <button onclick="zoomStep(1.35)" class="p-2 rounded-lg hover:bg-slate-800 text-slate-200 hover:text-cyan-300 transition" title="Acercar Zoom (+)">
+                    <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                </button>
+                <button onclick="zoomStep(1 / 1.35)" class="p-2 rounded-lg hover:bg-slate-800 text-slate-200 hover:text-cyan-300 transition" title="Alejar Zoom (-)">
+                    <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                </button>
+                <button onclick="resetView()" class="px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-xs font-medium text-slate-200 hover:text-cyan-300 flex items-center gap-1 transition" title="Centrar y Resetear Vista">
+                    <i data-lucide="compass" class="w-3.5 h-3.5"></i>
+                    <span class="hidden md:inline">Centrar</span>
+                </button>
+            </div>
+
+            <!-- Evolution / Animate Parameters Mode -->
+            <div class="flex items-center gap-2.5 bg-slate-900/80 px-3 py-1 rounded-xl border border-slate-800">
+                <button id="evolveBtn" onclick="toggleEvolution()" class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500/20 to-fuchsia-500/20 hover:from-cyan-500/30 hover:to-fuchsia-500/30 border border-cyan-400/40 text-xs font-semibold text-cyan-200 flex items-center gap-1.5 transition">
+                    <i id="evolveIcon" data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+                    <span id="evolveText">Evolucionar</span>
+                </button>
+                <div class="hidden sm:flex items-center gap-2 w-28">
+                    <span class="text-[10px] font-mono text-slate-400 uppercase">Vel</span>
+                    <input type="range" id="slider_evoSpeed" class="sci-slider" min="0.1" max="3.0" step="0.1" value="1.0" title="Velocidad de Evolución">
+                </div>
+            </div>
+
+            <!-- Mutate / Randomize Button -->
+            <button onclick="mutateFractal()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-violet-600/80 to-fuchsia-600/80 hover:from-violet-500 hover:to-fuchsia-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-fuchsia-600/20 border border-fuchsia-400/40 transition active:scale-95" title="Generar combinación matemática aleatoria interesante">
+                <span class="text-sm">🎲</span>
+                <span>Mutar</span>
+            </button>
+
+            <!-- High-Res Screenshot & Immersive Mode -->
+            <div class="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+                <button onclick="captureScreenshot()" class="px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-xs font-medium text-slate-200 hover:text-emerald-300 flex items-center gap-1.5 transition" title="Descargar imagen PNG limpia">
+                    <span>📸</span>
+                    <span class="hidden md:inline">Capturar</span>
+                </button>
+                <button onclick="toggleImmersiveMode()" class="px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-xs font-medium text-slate-200 hover:text-cyan-300 flex items-center gap-1.5 transition" title="Ocultar interfaz (Modo Inmersivo)">
+                    <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                    <span class="hidden lg:inline">Inmersivo</span>
+                </button>
+            </div>
+
+        </div>
+    </footer>
+
+    <!-- Floating Exit Immersive Button -->
+    <button id="exitImmersiveBtn" onclick="toggleImmersiveMode()" class="hidden fixed bottom-5 right-5 z-30 glass-pill px-4 py-2.5 rounded-2xl text-xs font-semibold text-cyan-300 hover:text-white border border-cyan-400/40 flex items-center gap-2 shadow-2xl transition">
+        <i data-lucide="minimize-2" class="w-4 h-4"></i>
+        Mostrar Laboratorio (ESC)
+    </button>
+
+    <!-- Toast Notification Banner -->
+    <div id="toastBanner" class="fixed top-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none opacity-0 -translate-y-3 transition-all duration-300 glass-pill px-4 py-2 rounded-xl border-cyan-400/50 text-xs font-mono text-cyan-200 flex items-center gap-2 shadow-2xl">
+        <i data-lucide="sparkles" class="w-4 h-4 text-cyan-400"></i>
+        <span id="toastMessage">Semilla cargada</span>
+    </div>
+
+    <!-- ================= CORE JAVASCRIPT & SHADER ARCHITECTURE ================= -->
+    <script>
+        // ============================================================================
+        // 1. PROCEDURAL PALETTES DEFINITION (8 Palettes for both WebGL & Canvas 2D)
+        // ============================================================================
+        // Using Inigo Quilez cosine palette model: color(t) = a + b * cos(2*pi*(c*t + d))
+        const PALETTES = [
+            {
+                id: 0,
+                name: "Cyberpunk Neon",
+                cssGradient: "linear-gradient(90deg, #060814, #00f2fe, #7928ca, #ff007f)",
+                a: [0.50, 0.50, 0.58],
+                b: [0.50, 0.50, 0.45],
+                c: [1.00, 1.00, 1.00],
+                d: [0.55, 0.15, 0.80]
+            },
+            {
+                id: 1,
+                name: "Abismo Oceánico",
+                cssGradient: "linear-gradient(90deg, #021024, #052659, #00d2ff, #a8ff78)",
+                a: [0.35, 0.55, 0.65],
+                b: [0.40, 0.45, 0.35],
+                c: [0.80, 0.90, 1.00],
+                d: [0.50, 0.60, 0.70]
+            },
+            {
+                id: 2,
+                name: "Magma Solar",
+                cssGradient: "linear-gradient(90deg, #1a0000, #800000, #ff4500, #ffd700)",
+                a: [0.55, 0.32, 0.15],
+                b: [0.50, 0.42, 0.25],
+                c: [0.85, 0.80, 0.70],
+                d: [0.00, 0.15, 0.32]
+            },
+            {
+                id: 3,
+                name: "Aurora Boreal",
+                cssGradient: "linear-gradient(90deg, #070b19, #00b09b, #96c93d, #b721ff)",
+                a: [0.42, 0.56, 0.52],
+                b: [0.42, 0.44, 0.45],
+                c: [1.00, 0.85, 1.10],
+                d: [0.30, 0.65, 0.50]
+            },
+            {
+                id: 4,
+                name: "Oro Imperial",
+                cssGradient: "linear-gradient(90deg, #0c0a06, #5c4018, #d4af37, #fff6d1)",
+                a: [0.55, 0.46, 0.28],
+                b: [0.45, 0.40, 0.30],
+                c: [1.00, 0.95, 0.80],
+                d: [0.08, 0.12, 0.20]
+            },
+            {
+                id: 5,
+                name: "Psicodelia Cósmica",
+                cssGradient: "linear-gradient(90deg, #ff00cc, #333399, #00ffcc, #ffcc00)",
+                a: [0.50, 0.50, 0.50],
+                b: [0.50, 0.50, 0.50],
+                c: [1.00, 1.00, 1.00],
+                d: [0.00, 0.33, 0.67]
+            },
+            {
+                id: 6,
+                name: "Matrix / Terminal",
+                cssGradient: "linear-gradient(90deg, #000802, #003b00, #00ff41, #d4ffdf)",
+                a: [0.15, 0.55, 0.22],
+                b: [0.18, 0.48, 0.22],
+                c: [0.90, 1.00, 0.90],
+                d: [0.35, 0.10, 0.40]
+            },
+            {
+                id: 7,
+                name: "Monocromo Zen",
+                cssGradient: "linear-gradient(90deg, #050505, #434343, #bcbcbc, #ffffff)",
+                a: [0.52, 0.52, 0.55],
+                b: [0.48, 0.48, 0.48],
+                c: [1.00, 1.00, 1.00],
+                d: [0.00, 0.00, 0.02]
+            }
+        ];
+
+        // Evaluate procedural palette in JS for Canvas 2D fractals
+        function evalPaletteRGB(t, palIdx, freq, phase, brightness) {
+            const p = PALETTES[palIdx] || PALETTES[0];
+            const arg = 6.2831853 * (t * freq) + phase;
+            let r = (p.a[0] + p.b[0] * Math.cos(arg * p.c[0] + 6.2831853 * p.d[0])) * brightness;
+            let g = (p.a[1] + p.b[1] * Math.cos(arg * p.c[1] + 6.2831853 * p.d[1])) * brightness;
+            let b = (p.a[2] + p.b[2] * Math.cos(arg * p.c[2] + 6.2831853 * p.d[2])) * brightness;
+            r = Math.min(255, Math.max(0, Math.floor(r * 255)));
+            g = Math.min(255, Math.max(0, Math.floor(g * 255)));
+            b = Math.min(255, Math.max(0, Math.floor(b * 255)));
+            return [r, g, b];
+        }
+
+        function evalPaletteCSS(t, alpha = 1.0) {
+            const [r, g, b] = evalPaletteRGB(t, state.palette, state.colorFreq, state.colorPhase, state.brightness);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        // ============================================================================
+        // 2. COMPLETE SPECIFICATION OF ALL 15 FRACTALS
+        // ============================================================================
+        const FRACTALS = [
+            // ---------------- ENGINE A: GPU WEBGL SHADERS (1 - 7) ----------------
+            {
+                id: 1,
+                name: "Mandelbrot & Multibrot",
+                engine: "webgl",
+                category: "Plano Complejo ℝ² ≅ ℂ",
+                badge: "zⁿ + c",
+                defaultView: { x: -0.45, y: 0.0, zoom: 1.0 },
+                cursorSupport: false,
+                explanation: "Itera cada coordenada c del plano complejo comenzando en z₀, elevando z al exponente continuo p en cada paso.",
+                params: [
+                    { key: "p", label: "Exponente Continuo (p)", min: 1.5, max: 8.0, step: 0.01, default: 2.0, evolveAmp: 0.6 },
+                    { key: "iter", label: "Iteraciones Máximas", min: 30, max: 450, step: 1, default: 160, evolveAmp: 0 },
+                    { key: "cre", label: "Perturbación Inicial Re(z₀)", min: -0.8, max: 0.8, step: 0.005, default: 0.0, evolveAmp: 0.15 },
+                    { key: "cim", label: "Perturbación Inicial Im(z₀)", min: -0.8, max: 0.8, step: 0.005, default: 0.0, evolveAmp: 0.15 },
+                    { key: "bailout", label: "Radio de Escape", min: 2.0, max: 20.0, step: 0.5, default: 8.0, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `z<sub>n+1</sub> = z<sub>n</sub><sup><span class="text-cyan-300 font-bold">${p.p.toFixed(2)}</span></sup> + c &nbsp;<span class="text-slate-400 text-xs">[z₀ = ${p.cre.toFixed(2)} + ${p.cim.toFixed(2)}i, máx=${Math.round(p.iter)}]</span>`
+            },
+            {
+                id: 2,
+                name: "Conjunto de Julia Interactivo",
+                engine: "webgl",
+                category: "Dinámica Compleja de Fatou-Julia",
+                badge: "Semilla c",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: true,
+                explanation: "Fija una constante compleja c = Re(c) + i·Im(c) para todo el lienzo; cada píxel actúa como condición inicial z₀.",
+                params: [
+                    { key: "cre", label: "Constante Real Re(c)", min: -1.4, max: 1.4, step: 0.001, default: -0.726, evolveAmp: 0.12 },
+                    { key: "cim", label: "Constante Imaginaria Im(c)", min: -1.4, max: 1.4, step: 0.001, default: 0.188, evolveAmp: 0.12 },
+                    { key: "p", label: "Exponente Polinómico (p)", min: 1.5, max: 6.0, step: 0.01, default: 2.0, evolveAmp: 0 },
+                    { key: "iter", label: "Iteraciones Máximas", min: 30, max: 450, step: 1, default: 180, evolveAmp: 0 },
+                    { key: "bailout", label: "Radio de Escape", min: 2.0, max: 16.0, step: 0.5, default: 6.0, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `z<sub>n+1</sub> = z<sub>n</sub><sup><span class="text-cyan-300 font-bold">${p.p.toFixed(2)}</span></sup> + (<span class="text-fuchsia-300 font-bold">${p.cre >= 0 ? '+' : ''}${p.cre.toFixed(3)}</span> <span class="text-fuchsia-300 font-bold">${p.cim >= 0 ? '+' : ''}${p.cim.toFixed(3)}i</span>)`
+            },
+            {
+                id: 3,
+                name: "Burning Ship (Barco en Llamas)",
+                engine: "webgl",
+                category: "Plegado No-Analítico Complejo",
+                badge: "|Re| + i|Im|",
+                defaultView: { x: -0.45, y: -0.5, zoom: 0.95 },
+                cursorSupport: false,
+                explanation: "Toma el valor absoluto de las componentes real e imaginaria antes de elevar a la potencia p, creando velas y mástiles fractales.",
+                params: [
+                    { key: "p", label: "Exponente del Barco (p)", min: 1.5, max: 5.0, step: 0.01, default: 2.0, evolveAmp: 0.25 },
+                    { key: "shipBias", label: "Asimetría de Vela (Escala Im)", min: 0.5, max: 1.5, step: 0.005, default: 1.0, evolveAmp: 0.12 },
+                    { key: "cre", label: "Desplazamiento Inicial Re(z₀)", min: -0.6, max: 0.6, step: 0.005, default: 0.0, evolveAmp: 0.08 },
+                    { key: "iter", label: "Iteraciones Máximas", min: 30, max: 450, step: 1, default: 170, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `z<sub>n+1</sub> = (|Re(z<sub>n</sub>)| + i·<span class="text-fuchsia-300 font-bold">${p.shipBias.toFixed(2)}</span>|Im(z<sub>n</sub>)|)<sup><span class="text-cyan-300 font-bold">${p.p.toFixed(2)}</span></sup> + c`
+            },
+            {
+                id: 4,
+                name: "Fractal de Phoenix",
+                engine: "webgl",
+                category: "Recurrencia con Memoria Histórica",
+                badge: "zₙ₋₁ Memoria",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.05 },
+                cursorSupport: true,
+                explanation: "Incorpora memoria del estado anterior zₙ₋₁ multiplicado por el parámetro p, generando plumas y simetrías imperiales.",
+                params: [
+                    { key: "cre", label: "Constante Real c", min: -1.2, max: 1.2, step: 0.001, default: 0.5667, evolveAmp: 0.06 },
+                    { key: "pre", label: "Memoria Real p (zₙ₋₁)", min: -1.2, max: 1.2, step: 0.001, default: -0.500, evolveAmp: 0.08 },
+                    { key: "pim", label: "Memoria Imaginaria Im(p)", min: -0.8, max: 0.8, step: 0.001, default: 0.000, evolveAmp: 0.06 },
+                    { key: "p", label: "Exponente Principal", min: 1.8, max: 4.0, step: 0.01, default: 2.0, evolveAmp: 0 },
+                    { key: "iter", label: "Iteraciones Máximas", min: 30, max: 400, step: 1, default: 160, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `z<sub>n+1</sub> = z<sub>n</sub><sup><span class="text-cyan-300 font-bold">${p.p.toFixed(2)}</span></sup> + <span class="text-cyan-300 font-bold">${p.cre.toFixed(3)}</span> + (<span class="text-fuchsia-300 font-bold">${p.pre.toFixed(3)} + ${p.pim.toFixed(3)}i</span>)·z<sub>n-1</sub>`
+            },
+            {
+                id: 5,
+                name: "Fractal de Newton-Raphson",
+                engine: "webgl",
+                category: "Cuencas de Convergencia de Raíces",
+                badge: "zⁿ - 1 = 0",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: true,
+                explanation: "Aplica el método numérico de Newton para hallar raíces de zᵖ - 1 = 0 en el plano complejo con relajación compleja a.",
+                params: [
+                    { key: "p", label: "Grado Polinómico (p)", min: 2.5, max: 8.0, step: 0.02, default: 3.0, evolveAmp: 0.4 },
+                    { key: "cre", label: "Relajación Real Re(a)", min: 0.3, max: 2.2, step: 0.005, default: 1.000, evolveAmp: 0.22 },
+                    { key: "cim", label: "Relajación Imaginaria Im(a)", min: -0.9, max: 0.9, step: 0.005, default: 0.000, evolveAmp: 0.25 },
+                    { key: "iter", label: "Iteraciones de Convergencia", min: 15, max: 200, step: 1, default: 80, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `z<sub>n+1</sub> = z<sub>n</sub> - (<span class="text-fuchsia-300 font-bold">${p.cre.toFixed(2)} + ${p.cim.toFixed(2)}i</span>) · [ (z<sub>n</sub><sup><span class="text-cyan-300 font-bold">${p.p.toFixed(2)}</span></sup> - 1) / (<span class="text-cyan-300 font-bold">${p.p.toFixed(2)}</span>·z<sub>n</sub><sup>${(p.p - 1).toFixed(2)}</sup>) ]`
+            },
+            {
+                id: 6,
+                name: "Tricornio (Mandelbar) & Celtic",
+                engine: "webgl",
+                category: "Conjugación Compleja & Pliegue Real",
+                badge: "z̄ⁿ + Celtic",
+                defaultView: { x: -0.3, y: 0.0, zoom: 0.95 },
+                cursorSupport: false,
+                explanation: "Interpola entre el Tricornio (conjugado complejo z̄) y el fractal Celta (valor absoluto de la componente real de zᵖ).",
+                params: [
+                    { key: "p", label: "Exponente (p)", min: 1.5, max: 6.0, step: 0.01, default: 2.0, evolveAmp: 0.35 },
+                    { key: "celticMix", label: "Fusión Tricornio ↔ Celtic", min: 0.0, max: 1.0, step: 0.01, default: 0.35, evolveAmp: 0.45 },
+                    { key: "cre", label: "Desfase Semilla Re", min: -0.5, max: 0.5, step: 0.005, default: 0.0, evolveAmp: 0.1 },
+                    { key: "iter", label: "Iteraciones Máximas", min: 30, max: 400, step: 1, default: 160, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `z<sub>n+1</sub> = <span class="text-fuchsia-300 font-bold">Mix(${p.celticMix.toFixed(2)})</span>[ z̄<sub>n</sub><sup><span class="text-cyan-300 font-bold">${p.p.toFixed(2)}</span></sup> , |Re(z<sub>n</sub><sup>p</sup>)| + i·Im(z<sub>n</sub><sup>p</sup>) ] + c`
+            },
+            {
+                id: 7,
+                name: "Laboratorio de Ecuación Híbrida",
+                engine: "webgl",
+                category: "Fusión Polinómica + Trigonométrica",
+                badge: "αzᵖ + βsin(z)",
+                defaultView: { x: 0.0, y: 0.0, zoom: 0.85 },
+                cursorSupport: true,
+                explanation: "Combina términos algebraicos zᵖ con funciones trascendentes sin(z) en el plano complejo para sintetizar fractales inéditos.",
+                params: [
+                    { key: "alpha", label: "Peso Polinómico (α)", min: 0.0, max: 2.0, step: 0.01, default: 0.85, evolveAmp: 0.25 },
+                    { key: "beta", label: "Peso Trigonométrico (β)", min: 0.0, max: 2.0, step: 0.01, default: 0.65, evolveAmp: 0.30 },
+                    { key: "p", label: "Exponente Polinómico (p)", min: 1.5, max: 5.0, step: 0.01, default: 2.0, evolveAmp: 0.2 },
+                    { key: "cre", label: "Constante Semilla Re(c)", min: -1.5, max: 1.5, step: 0.005, default: -0.42, evolveAmp: 0.15 },
+                    { key: "cim", label: "Constante Semilla Im(c)", min: -1.5, max: 1.5, step: 0.005, default: 0.31, evolveAmp: 0.15 },
+                    { key: "iter", label: "Iteraciones Máximas", min: 30, max: 350, step: 1, default: 140, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `z<sub>n+1</sub> = <span class="text-cyan-300 font-bold">${p.alpha.toFixed(2)}</span>·z<sub>n</sub><sup><span class="text-cyan-300 font-bold">${p.p.toFixed(2)}</span></sup> + <span class="text-fuchsia-300 font-bold">${p.beta.toFixed(2)}</span>·sin(z<sub>n</sub>) + (${p.cre.toFixed(2)} + ${p.cim.toFixed(2)}i)`
+            },
+
+            // ---------------- ENGINE B: CANVAS 2D RECURSIVE & CHAOS (8 - 15) ----------------
+            {
+                id: 8,
+                name: "Árbol Fractal Recursivo (Canopy)",
+                engine: "canvas2d",
+                category: "Ramificación L-System Biomimética",
+                badge: "L-Tree 2D",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: false,
+                explanation: "Cada rama se subdivide recursivamente en dos sub-ramas con ángulos independientes, factor de contracción r y fuerza de viento.",
+                params: [
+                    { key: "depth", label: "Profundidad de Recursión", min: 4, max: 13, step: 1, default: 11, evolveAmp: 0 },
+                    { key: "angleL", label: "Ángulo Rama Izquierda (°)", min: 5, max: 75, step: 0.5, default: 26.0, evolveAmp: 8.0 },
+                    { key: "angleR", label: "Ángulo Rama Derecha (°)", min: 5, max: 75, step: 0.5, default: 32.0, evolveAmp: 8.0 },
+                    { key: "scale", label: "Factor de Reducción (r)", min: 0.52, max: 0.80, step: 0.005, default: 0.72, evolveAmp: 0.03 },
+                    { key: "wind", label: "Curvatura / Viento (°)", min: -30, max: 30, step: 0.5, default: 4.0, evolveAmp: 12.0 },
+                    { key: "thick", label: "Grosor del Tronco", min: 2, max: 22, step: 0.5, default: 11.0, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `L<sub>k+1</sub> = <span class="text-cyan-300 font-bold">${p.scale.toFixed(2)}</span>·L<sub>k</sub> , &nbsp;θ<sub>izq</sub> = <span class="text-fuchsia-300 font-bold">-${p.angleL.toFixed(1)}°</span>, &nbsp;θ<sub>der</sub> = <span class="text-fuchsia-300 font-bold">+${p.angleR.toFixed(1)}°</span> + Viento(<span class="text-cyan-300 font-bold">${p.wind.toFixed(1)}°</span>)`
+            },
+            {
+                id: 9,
+                name: "Atractor Extraño de Clifford",
+                engine: "canvas2d",
+                category: "Sistemas Dinámicos Caóticos",
+                badge: "Caos Clifford",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: false,
+                explanation: "Sistema caótico acoplado de Pickover/Clifford renderizado por acumulación fotónica de alta densidad en el espacio de fases.",
+                params: [
+                    { key: "a", label: "Frecuencia Angular (a)", min: -2.8, max: 2.8, step: 0.005, default: -1.400, evolveAmp: 0.18 },
+                    { key: "b", label: "Frecuencia Angular (b)", min: -2.8, max: 2.8, step: 0.005, default: 1.600, evolveAmp: 0.18 },
+                    { key: "c", label: "Amplitud Cosenoidal (c)", min: -2.8, max: 2.8, step: 0.005, default: 1.000, evolveAmp: 0.15 },
+                    { key: "d", label: "Amplitud Cosenoidal (d)", min: -2.8, max: 2.8, step: 0.005, default: 0.700, evolveAmp: 0.15 },
+                    { key: "points", label: "Densidad de Partículas (×1000)", min: 50, max: 450, step: 10, default: 220, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `x<sub>n+1</sub> = sin(<span class="text-cyan-300 font-bold">${p.a.toFixed(2)}</span>y<sub>n</sub>) + <span class="text-fuchsia-300 font-bold">${p.c.toFixed(2)}</span>cos(<span class="text-cyan-300 font-bold">${p.a.toFixed(2)}</span>x<sub>n</sub>), &nbsp;y<sub>n+1</sub> = sin(<span class="text-cyan-300 font-bold">${p.b.toFixed(2)}</span>x<sub>n</sub>) + <span class="text-fuchsia-300 font-bold">${p.d.toFixed(2)}</span>cos(<span class="text-cyan-300 font-bold">${p.b.toFixed(2)}</span>y<sub>n</sub>)`
+            },
+            {
+                id: 10,
+                name: "Atractor de Peter de Jong",
+                engine: "canvas2d",
+                category: "Atractor Extraño Trigonométrico",
+                badge: "De Jong",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: false,
+                explanation: "Diferencia de senos y cosenos cruzados que pliega el plano en velos sedosos y filamentos cuánticos de densidad variable.",
+                params: [
+                    { key: "a", label: "Parámetro Fase (a)", min: -3.2, max: 3.2, step: 0.005, default: 1.410, evolveAmp: 0.16 },
+                    { key: "b", label: "Parámetro Fase (b)", min: -3.2, max: 3.2, step: 0.005, default: -2.280, evolveAmp: 0.16 },
+                    { key: "c", label: "Parámetro Fase (c)", min: -3.2, max: 3.2, step: 0.005, default: 2.420, evolveAmp: 0.16 },
+                    { key: "d", label: "Parámetro Fase (d)", min: -3.2, max: 3.2, step: 0.005, default: -2.150, evolveAmp: 0.16 },
+                    { key: "points", label: "Densidad de Partículas (×1000)", min: 50, max: 450, step: 10, default: 220, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `x<sub>n+1</sub> = sin(<span class="text-cyan-300 font-bold">${p.a.toFixed(2)}</span>y<sub>n</sub>) - cos(<span class="text-fuchsia-300 font-bold">${p.b.toFixed(2)}</span>x<sub>n</sub>), &nbsp;y<sub>n+1</sub> = sin(<span class="text-cyan-300 font-bold">${p.c.toFixed(2)}</span>x<sub>n</sub>) - cos(<span class="text-fuchsia-300 font-bold">${p.d.toFixed(2)}</span>y<sub>n</sub>)`
+            },
+            {
+                id: 11,
+                name: "Copo de Nieve de Koch / Cesàro",
+                engine: "canvas2d",
+                category: "Geometría Recursiva de Contorno",
+                badge: "Koch / Cesàro",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: false,
+                explanation: "Cada segmento recto se divide en 4 sub-segmentos con un pico generador de ángulo θ y proporción central ajustable.",
+                params: [
+                    { key: "depth", label: "Nivel de Iteración (k)", min: 1, max: 6, step: 1, default: 4, evolveAmp: 0 },
+                    { key: "peakAngle", label: "Ángulo del Pico Generador (°)", min: -85, max: 85, step: 0.5, default: 60.0, evolveAmp: 25.0 },
+                    { key: "ratio", label: "Proporción Segmento Base", min: 0.18, max: 0.48, step: 0.005, default: 0.333, evolveAmp: 0.06 },
+                    { key: "sides", label: "Polígono Cristal Base (Lados)", min: 3, max: 6, step: 1, default: 3, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `G<sub>k+1</sub> = Subdividir(L<sub>k</sub>, θ = <span class="text-cyan-300 font-bold">${p.peakAngle.toFixed(1)}°</span>, r = <span class="text-fuchsia-300 font-bold">${p.ratio.toFixed(3)}</span>, Lados = <span class="text-cyan-300 font-bold">${Math.round(p.sides)}</span>)`
+            },
+            {
+                id: 12,
+                name: "Curva del Dragón de Heighway",
+                engine: "canvas2d",
+                category: "Plegado Recursivo Continuo",
+                badge: "Dragón θ",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: false,
+                explanation: "Pliega recursivamente cada segmento alternando izquierda y derecha con un ángulo continuo θ (a 90° forma el Dragón clásico).",
+                params: [
+                    { key: "depth", label: "Nivel de Recursión (k)", min: 4, max: 15, step: 1, default: 12, evolveAmp: 0 },
+                    { key: "foldAngle", label: "Ángulo de Plegado Continuo (°)", min: 0, max: 120, step: 0.5, default: 90.0, evolveAmp: 22.0 },
+                    { key: "asymmetry", label: "Asimetría de Plegado", min: -25, max: 25, step: 0.5, default: 0.0, evolveAmp: 12.0 },
+                    { key: "twins", label: "Simetría de Dragones ( vórtice )", min: 1, max: 4, step: 1, default: 2, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `D<sub>k+1</sub> = R(+<span class="text-cyan-300 font-bold">${p.foldAngle.toFixed(1)}°</span>)·D<sub>k</sub> ∪ R(-<span class="text-fuchsia-300 font-bold">${(p.foldAngle + p.asymmetry).toFixed(1)}°</span>)·D<sub>k</sub> &nbsp;<span class="text-slate-400 text-xs">[2<sup>${Math.round(p.depth)}</sup> segmentos]</span>`
+            },
+            {
+                id: 13,
+                name: "Helecho de Barnsley (IFS)",
+                engine: "canvas2d",
+                category: "Sistema de Funciones Iteradas Afín",
+                badge: "IFS Afín",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: false,
+                explanation: "Juego del Caos sobre 4 transformaciones afines matriciales wᵢ(x,y) = Aᵢ·x + bᵢ que codifican un helecho orgánico auto-similar.",
+                params: [
+                    { key: "curl", label: "Curvatura del Tallo (a₂)", min: -0.22, max: 0.22, step: 0.005, default: 0.040, evolveAmp: 0.08 },
+                    { key: "spread", label: "Apertura de Hojas Laterales", min: 0.45, max: 1.65, step: 0.01, default: 1.00, evolveAmp: 0.25 },
+                    { key: "scale", label: "Factor de Altura Sucesiva", min: 0.75, max: 0.91, step: 0.002, default: 0.850, evolveAmp: 0.03 },
+                    { key: "asymmetry", label: "Balance Simétrico Izq/Der", min: 0.6, max: 1.4, step: 0.01, default: 1.00, evolveAmp: 0.18 },
+                    { key: "points", label: "Cantidad de Puntos (×1000)", min: 40, max: 320, step: 10, default: 160, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `w<sub>2</sub>(x,y) = [ <span class="text-cyan-300 font-bold">${p.scale.toFixed(2)}</span>x + <span class="text-fuchsia-300 font-bold">${p.curl.toFixed(3)}</span>y , -<span class="text-fuchsia-300 font-bold">${p.curl.toFixed(3)}</span>x + <span class="text-cyan-300 font-bold">${p.scale.toFixed(2)}</span>y + 1.6 ] &nbsp;(Apertura = ${p.spread.toFixed(2)})`
+            },
+            {
+                id: 14,
+                name: "Sierpinski & Polígonos Paramétricos",
+                engine: "canvas2d",
+                category: "Homotecia Poligonal con Rotación",
+                badge: "N-Gono IFS",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: false,
+                explanation: "En cada nivel k, genera N sub-polígonos contraídos por la razón r y rotados un ángulo Δθ respecto a sus vértices atractores.",
+                params: [
+                    { key: "vertices", label: "Número de Vértices (N)", min: 3, max: 8, step: 1, default: 3, evolveAmp: 0 },
+                    { key: "ratio", label: "Razón de Contracción (r)", min: 0.32, max: 0.62, step: 0.005, default: 0.500, evolveAmp: 0.07 },
+                    { key: "rot", label: "Rotación por Nivel Δθ (°)", min: -45, max: 45, step: 0.5, default: 0.0, evolveAmp: 20.0 },
+                    { key: "depth", label: "Nivel de Recursión (k)", min: 2, max: 7, step: 1, default: 6, evolveAmp: 0 }
+                ],
+                formulaHTML: (p) => `S<sub>k+1</sub> = ⋃<sub>i=1..${Math.round(p.vertices)}</sub> [ <span class="text-cyan-300 font-bold">${p.ratio.toFixed(3)}</span> · R(<span class="text-fuchsia-300 font-bold">${p.rot.toFixed(1)}°</span>) · S<sub>k</sub> + (1 - <span class="text-cyan-300 font-bold">${p.ratio.toFixed(3)}</span>)·V<sub>i</sub> ]`
+            },
+            {
+                id: 15,
+                name: "Espirales de Polígonos (Whirl)",
+                engine: "canvas2d",
+                category: "Persecución Cíclica & Anidamiento",
+                badge: "Whirl Spiral",
+                defaultView: { x: 0.0, y: 0.0, zoom: 1.0 },
+                cursorSupport: false,
+                explanation: "Anida polígonos regulares sucesivamente rotados un ángulo θ y escalados por s, creando túneles hipnóticos de geometría sagrada.",
+                params: [
+                    { key: "sides", label: "Número de Lados (N)", min: 3, max: 10, step: 1, default: 5, evolveAmp: 0 },
+                    { key: "angle", label: "Ángulo de Giro por Paso θ (°)", min: -35, max: 35, step: 0.2, default: 8.5, evolveAmp: 12.0 },
+                    { key: "scale", label: "Factor de Escala (s)", min: 0.82, max: 0.985, step: 0.002, default: 0.945, evolveAmp: 0.02 },
+                    { key: "depth", label: "Polígonos Anidados", min: 15, max: 200, step: 1, default: 95, evolveAmp: 0 },
+                    { key: "twist", label: "Distorsión de Vórtice", min: -1.0, max: 1.0, step: 0.02, default: 0.15, evolveAmp: 0.4 }
+                ],
+                formulaHTML: (p) => `P<sub>k+1</sub> = (<span class="text-cyan-300 font-bold">${p.scale.toFixed(3)}</span>)<sup>k</sup> · R(k · <span class="text-fuchsia-300 font-bold">${p.angle.toFixed(1)}°</span>) · Polígono<sub><span class="text-cyan-300 font-bold">${Math.round(p.sides)}</span></sub>`
+            }
+        ];
+
+        // ============================================================================
+        // 3. FAMOUS SEEDS / PRESETS CATALOG
+        // ============================================================================
+        const PRESETS = [
+            {
+                name: "Valle Caballitos de Mar",
+                fractalId: 1,
+                palette: 0,
+                view: { x: -0.7453, y: 0.1127, zoom: 42.0 },
+                params: { p: 2.0, iter: 320, cre: 0.0, cim: 0.0, bailout: 8.0 },
+                colorFreq: 1.8, colorPhase: 0.4
+            },
+            {
+                name: "Espiral Eléctrica Julia",
+                fractalId: 2,
+                palette: 0,
+                view: { x: 0.0, y: 0.0, zoom: 1.15 },
+                params: { cre: -0.776, cim: 0.134, p: 2.0, iter: 260, bailout: 6.0 },
+                colorFreq: 1.6, colorPhase: 1.1
+            },
+            {
+                name: "Armada en Llamas",
+                fractalId: 3,
+                palette: 2,
+                view: { x: -1.755, y: -0.028, zoom: 18.5 },
+                params: { p: 2.0, shipBias: 1.0, cre: 0.0, iter: 260 },
+                colorFreq: 1.4, colorPhase: 0.2
+            },
+            {
+                name: "Fénix Imperial Dorado",
+                fractalId: 4,
+                palette: 4,
+                view: { x: 0.0, y: 0.0, zoom: 1.1 },
+                params: { cre: 0.5667, pre: -0.5, pim: 0.0, p: 2.0, iter: 200 },
+                colorFreq: 1.3, colorPhase: 0.0
+            },
+            {
+                name: "Nova de Newton",
+                fractalId: 5,
+                palette: 5,
+                view: { x: 0.0, y: 0.0, zoom: 1.2 },
+                params: { p: 5.0, cre: 1.12, cim: 0.28, iter: 110 },
+                colorFreq: 1.2, colorPhase: 0.8
+            },
+            {
+                name: "Catedral Bio-Híbrida",
+                fractalId: 7,
+                palette: 3,
+                view: { x: 0.0, y: 0.0, zoom: 0.9 },
+                params: { alpha: 0.68, beta: 0.92, p: 2.5, cre: -0.31, cim: 0.44, iter: 160 },
+                colorFreq: 1.5, colorPhase: 2.1
+            },
+            {
+                name: "Bosque Bonsái Asimétrico",
+                fractalId: 8,
+                palette: 3,
+                view: { x: 0.0, y: 0.0, zoom: 1.0 },
+                params: { depth: 12, angleL: 21.5, angleR: 38.0, scale: 0.74, wind: 9.5, thick: 13 },
+                colorFreq: 1.0, colorPhase: 0.5
+            },
+            {
+                name: "Galaxia de Clifford",
+                fractalId: 9,
+                palette: 1,
+                view: { x: 0.0, y: 0.0, zoom: 1.0 },
+                params: { a: -1.7, b: 1.8, c: -1.9, d: -0.4, points: 300 },
+                colorFreq: 1.2, colorPhase: 0.0
+            },
+            {
+                name: "Velo Cuántico De Jong",
+                fractalId: 10,
+                palette: 0,
+                view: { x: 0.0, y: 0.0, zoom: 1.0 },
+                params: { a: -2.01, b: -2.53, c: 1.61, d: -0.33, points: 300 },
+                colorFreq: 1.4, colorPhase: 1.2
+            },
+            {
+                name: "Cristal de Cesàro",
+                fractalId: 11,
+                palette: 1,
+                view: { x: 0.0, y: 0.0, zoom: 1.0 },
+                params: { depth: 5, peakAngle: -82.0, ratio: 0.46, sides: 4 },
+                colorFreq: 1.5, colorPhase: 0.3
+            },
+            {
+                name: "Dragón de Jade",
+                fractalId: 12,
+                palette: 6,
+                view: { x: 0.0, y: 0.0, zoom: 1.0 },
+                params: { depth: 13, foldAngle: 88.5, asymmetry: 4.5, twins: 3 },
+                colorFreq: 1.2, colorPhase: 0.0
+            },
+            {
+                name: "Vórtice Sagrado Whirl",
+                fractalId: 15,
+                palette: 0,
+                view: { x: 0.0, y: 0.0, zoom: 1.0 },
+                params: { sides: 6, angle: 6.2, scale: 0.958, depth: 130, twist: 0.35 },
+                colorFreq: 1.6, colorPhase: 0.9
+            }
+        ];
+
+        // ============================================================================
+        // 4. GLOBAL APPLICATION STATE
+        // ============================================================================
+        const state = {
+            activeFractalId: 1,
+            filterMode: 'all',
+            view: { x: -0.45, y: 0.0, zoom: 1.0 },
+            params: {},          // Current fractal parameter values
+            baseParams: {},      // Snapshot of parameter values for sinusoidal evolution
+            palette: 0,
+            colorFreq: 1.0,
+            colorPhase: 0.0,
+            brightness: 1.1,
+            smoothness: 1.0,
+            evolving: false,
+            evoSpeed: 1.0,
+            evoTime: 0.0,
+            followCursor: false,
+            immersive: false,
+            leftCollapsed: false,
+            rightCollapsed: false,
+            needsRedraw: true,
+            fps: 60
+        };
+
+        // Initialize default parameters for fractal 1
+        function loadFractalDefaults(fractalObj) {
+            state.params = {};
+            state.baseParams = {};
+            fractalObj.params.forEach(p => {
+                state.params[p.key] = p.default;
+                state.baseParams[p.key] = p.default;
+            });
+            state.view = { ...fractalObj.defaultView };
+        }
+
+        // ============================================================================
+        // 5. WEBGL ENGINE SETUP (GLSL FRAGMENT SHADER FOR FRACTALS 1 TO 7)
+        // ============================================================================
+        const glCanvas = document.getElementById('glCanvas');
+        const ctxCanvas = document.getElementById('ctxCanvas');
+        const gl = glCanvas.getContext('webgl', { preserveDrawingBuffer: true, antialias: false });
+        const ctx = ctxCanvas.getContext('2d');
+
+        const VERTEX_SHADER_SRC = `
+            attribute vec2 a_position;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+            }
+        `;
+
+        const FRAGMENT_SHADER_SRC = `
+            precision highp float;
+
+            uniform vec2 u_resolution;
+            uniform vec2 u_center;
+            uniform float u_zoom;
+            uniform int u_fractalType;
+            uniform int u_maxIter;
+
+            // Mathematical parameters
+            uniform float u_p;
+            uniform float u_cre;
+            uniform float u_cim;
+            uniform float u_pre;
+            uniform float u_pim;
+            uniform float u_bailout;
+            uniform float u_shipBias;
+            uniform float u_celticMix;
+            uniform float u_alpha;
+            uniform float u_beta;
+
+            // Color engine uniforms
+            uniform vec3 u_palA;
+            uniform vec3 u_palB;
+            uniform vec3 u_palC;
+            uniform vec3 u_palD;
+            uniform float u_colorFreq;
+            uniform float u_colorPhase;
+            uniform float u_brightness;
+            uniform float u_smoothness;
+
+            // Complex operations
+            vec2 c_mul(vec2 a, vec2 b) {
+                return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+            }
+
+            vec2 c_div(vec2 a, vec2 b) {
+                float denom = dot(b, b) + 1e-12;
+                return vec2(a.x * b.x + a.y * b.y, a.y * b.x - a.x * b.y) / denom;
+            }
+
+            vec2 c_pow(vec2 z, float p) {
+                float r2 = dot(z, z);
+                if (r2 < 1e-14) return vec2(0.0);
+                float r = pow(r2, 0.5 * p);
+                float theta = atan(z.y, z.x) * p;
+                return r * vec2(cos(theta), sin(theta));
+            }
+
+            // Complex sine: sin(x + iy) = sin(x)cosh(y) + i cos(x)sinh(y)
+            vec2 c_sin(vec2 z) {
+                float ey = exp(clamp(z.y, -12.0, 12.0));
+                float emy = exp(clamp(-z.y, -12.0, 12.0));
+                float ch = 0.5 * (ey + emy);
+                float sh = 0.5 * (ey - emy);
+                return vec2(sin(z.x) * ch, cos(z.x) * sh);
+            }
+
+            vec3 evalPalette(float t) {
+                vec3 arg = 6.2831853 * (u_palC * (t * u_colorFreq) + u_palD) + u_colorPhase;
+                return (u_palA + u_palB * cos(arg)) * u_brightness;
+            }
+
+            void main() {
+                vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+                vec2 coord = uv * (2.8 / u_zoom) + u_center;
+
+                vec2 z = vec2(0.0);
+                vec2 c = coord;
+                vec2 zPrev = vec2(0.0);
+
+                if (u_fractalType == 1) {
+                    // 1. Mandelbrot & Multibrot
+                    z = vec2(u_cre, u_cim);
+                    c = coord;
+                } else if (u_fractalType == 2) {
+                    // 2. Julia
+                    z = coord;
+                    c = vec2(u_cre, u_cim);
+                } else if (u_fractalType == 3) {
+                    // 3. Burning Ship (flip Y so ship sails upright)
+                    z = vec2(u_cre, 0.0);
+                    c = vec2(coord.x, -coord.y);
+                } else if (u_fractalType == 4) {
+                    // 4. Phoenix (rotated 90 deg for classic upright symmetry)
+                    z = vec2(-coord.y, coord.x);
+                    c = vec2(u_cre, 0.0);
+                } else if (u_fractalType == 5) {
+                    // 5. Newton-Raphson
+                    z = coord;
+                } else if (u_fractalType == 6) {
+                    // 6. Tricorn & Celtic
+                    z = vec2(u_cre, 0.0);
+                    c = coord;
+                } else if (u_fractalType == 7) {
+                    // 7. Hybrid Equation Lab
+                    z = coord;
+                    c = vec2(u_cre, u_cim);
+                }
+
+                float iter = 0.0;
+                float escaped = 0.0;
+                float bailout2 = max(4.0, u_bailout * u_bailout);
+                float lastStep2 = 1.0;
+
+                for (int i = 0; i < 500; i++) {
+                    if (i >= u_maxIter) break;
+
+                    vec2 zNext = z;
+
+                    if (u_fractalType == 1 || u_fractalType == 2) {
+                        zNext = c_pow(z, u_p) + c;
+                    } else if (u_fractalType == 3) {
+                        vec2 folded = vec2(abs(z.x), abs(z.y) * u_shipBias);
+                        zNext = c_pow(folded, u_p) + c;
+                    } else if (u_fractalType == 4) {
+                        vec2 pTerm = c_mul(vec2(u_pre, u_pim), zPrev);
+                        zNext = c_pow(z, u_p) + c + pTerm;
+                        zPrev = z;
+                    } else if (u_fractalType == 5) {
+                        // Newton z - a * (z^p - 1) / (p * z^(p-1))
+                        vec2 zp_minus_1 = c_pow(z, u_p - 1.0);
+                        vec2 zp = c_mul(zp_minus_1, z);
+                        vec2 num = zp - vec2(1.0, 0.0);
+                        vec2 den = u_p * zp_minus_1;
+                        vec2 stepVec = c_mul(vec2(u_cre, u_cim), c_div(num, den));
+                        zNext = z - stepVec;
+                        lastStep2 = dot(stepVec, stepVec);
+                        z = zNext;
+                        if (lastStep2 < 1e-6) {
+                            escaped = 1.0;
+                            break;
+                        }
+                        iter += 1.0;
+                        continue;
+                    } else if (u_fractalType == 6) {
+                        // Mix between Tricorn (conj(z)^p) and Celtic (|Re(z^p)| + i Im(z^p))
+                        vec2 zTric = c_pow(vec2(z.x, -z.y), u_p);
+                        vec2 zPow = c_pow(z, u_p);
+                        vec2 zCelt = vec2(abs(zPow.x), zPow.y);
+                        zNext = mix(zTric, zCelt, u_celticMix) + c;
+                    } else if (u_fractalType == 7) {
+                        zNext = u_alpha * c_pow(z, u_p) + u_beta * c_sin(z) + c;
+                    }
+
+                    z = zNext;
+                    if (dot(z, z) > bailout2) {
+                        escaped = 1.0;
+                        break;
+                    }
+                    iter += 1.0;
+                }
+
+                vec3 col = vec3(0.02, 0.03, 0.06);
+
+                if (u_fractalType == 5) {
+                    // Coloring for Newton-Raphson (Root angle + smooth convergence speed)
+                    float smoothIter = iter;
+                    if (escaped > 0.5 && lastStep2 > 0.0) {
+                        smoothIter += u_smoothness * (log(1e-6) / log(lastStep2));
+                    }
+                    float rootAngle = (atan(z.y, z.x) + 3.14159265) / 6.2831853;
+                    float t = smoothIter / float(u_maxIter) * 2.5 + rootAngle * 0.45;
+                    col = evalPalette(t);
+                    // Subtle dark ridges along fractal boundaries
+                    float shade = 1.0 - 0.55 * clamp(iter / float(u_maxIter), 0.0, 1.0);
+                    col *= shade;
+                } else {
+                    if (escaped > 0.5) {
+                        float r2 = max(dot(z, z), 1.0001);
+                        float log_zn = log(r2) * 0.5;
+                        float nu = log(max(log_zn / log(sqrt(bailout2)), 1e-5)) / log(max(u_p, 1.5));
+                        float smoothIter = iter + u_smoothness * (1.0 - nu);
+                        float t = smoothIter * 0.025;
+                        col = evalPalette(t);
+                    } else {
+                        // Interior subtle orbital glow
+                        float orbit = length(z) * 0.35;
+                        col = evalPalette(orbit) * 0.12;
+                    }
+                }
+
+                gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+            }
+        `;
+
+        let glProgram = null;
+        let glUniforms = {};
+
+        function initWebGL() {
+            if (!gl) return;
+            const vs = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vs, VERTEX_SHADER_SRC);
+            gl.compileShader(vs);
+
+            const fs = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fs, FRAGMENT_SHADER_SRC);
+            gl.compileShader(fs);
+
+            if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+                console.error("GLSL Compile Error:", gl.getShaderInfoLog(fs));
+            }
+
+            glProgram = gl.createProgram();
+            gl.attachShader(glProgram, vs);
+            gl.attachShader(glProgram, fs);
+            gl.linkProgram(glProgram);
+            gl.useProgram(glProgram);
+
+            const quadVerts = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
+            const buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, quadVerts, gl.STATIC_DRAW);
+
+            const posLoc = gl.getAttribLocation(glProgram, "a_position");
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+            const uNames = [
+                "u_resolution", "u_center", "u_zoom", "u_fractalType", "u_maxIter",
+                "u_p", "u_cre", "u_cim", "u_pre", "u_pim", "u_bailout", "u_shipBias",
+                "u_celticMix", "u_alpha", "u_beta", "u_palA", "u_palB", "u_palC", "u_palD",
+                "u_colorFreq", "u_colorPhase", "u_brightness", "u_smoothness"
+            ];
+            uNames.forEach(name => {
+                glUniforms[name] = gl.getUniformLocation(glProgram, name);
+            });
+        }
+
+        function renderWebGL() {
+            if (!gl || !glProgram) return;
+            gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+            gl.useProgram(glProgram);
+
+            const p = state.params;
+            const pal = PALETTES[state.palette] || PALETTES[0];
+
+            gl.uniform2f(glUniforms.u_resolution, glCanvas.width, glCanvas.height);
+            gl.uniform2f(glUniforms.u_center, state.view.x, state.view.y);
+            gl.uniform1f(glUniforms.u_zoom, state.view.zoom);
+            gl.uniform1i(glUniforms.u_fractalType, state.activeFractalId);
+            gl.uniform1i(glUniforms.u_maxIter, Math.round(p.iter || 160));
+
+            gl.uniform1f(glUniforms.u_p, p.p !== undefined ? p.p : 2.0);
+            gl.uniform1f(glUniforms.u_cre, p.cre !== undefined ? p.cre : 0.0);
+            gl.uniform1f(glUniforms.u_cim, p.cim !== undefined ? p.cim : 0.0);
+            gl.uniform1f(glUniforms.u_pre, p.pre !== undefined ? p.pre : -0.5);
+            gl.uniform1f(glUniforms.u_pim, p.pim !== undefined ? p.pim : 0.0);
+            gl.uniform1f(glUniforms.u_bailout, p.bailout !== undefined ? p.bailout : 8.0);
+            gl.uniform1f(glUniforms.u_shipBias, p.shipBias !== undefined ? p.shipBias : 1.0);
+            gl.uniform1f(glUniforms.u_celticMix, p.celticMix !== undefined ? p.celticMix : 0.0);
+            gl.uniform1f(glUniforms.u_alpha, p.alpha !== undefined ? p.alpha : 1.0);
+            gl.uniform1f(glUniforms.u_beta, p.beta !== undefined ? p.beta : 0.5);
+
+            gl.uniform3fv(glUniforms.u_palA, pal.a);
+            gl.uniform3fv(glUniforms.u_palB, pal.b);
+            gl.uniform3fv(glUniforms.u_palC, pal.c);
+            gl.uniform3fv(glUniforms.u_palD, pal.d);
+            gl.uniform1f(glUniforms.u_colorFreq, state.colorFreq);
+            gl.uniform1f(glUniforms.u_colorPhase, state.colorPhase);
+            gl.uniform1f(glUniforms.u_brightness, state.brightness);
+            gl.uniform1f(glUniforms.u_smoothness, state.smoothness);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+
+        // ============================================================================
+        // 6. ENGINE B: CANVAS 2D HIGH-DPI RECURSIVE & CHAOS RENDERERS (8 TO 15)
+        // ============================================================================
+        // Offscreen density buffer for Attractors & Barnsley Fern (9, 10, 13)
+        let densityBuffer = null;
+        let hueBuffer = null;
+        let bufferWidth = 0;
+        let bufferHeight = 0;
+
+        function ensureDensityBuffers(w, h) {
+            if (bufferWidth !== w || bufferHeight !== h || !densityBuffer) {
+                bufferWidth = w;
+                bufferHeight = h;
+                densityBuffer = new Uint32Array(w * h);
+                hueBuffer = new Float32Array(w * h);
+            } else {
+                densityBuffer.fill(0);
+                hueBuffer.fill(0);
+            }
+        }
+
+        function renderCanvas2D() {
+            const w = ctxCanvas.width;
+            const h = ctxCanvas.height;
+            const dpr = window.devicePixelRatio || 1;
+            const minDim = Math.min(w, h);
+
+            // Clear background with deep space dark tone
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = '#05070e';
+            ctx.fillRect(0, 0, w, h);
+
+            const id = state.activeFractalId;
+            const p = state.params;
+
+            // ---------------- DENSITY ATTRACTORS & IFS (9, 10, 13) ----------------
+            if (id === 9 || id === 10 || id === 13) {
+                renderDensityFractal(id, p, w, h, minDim);
+                return;
+            }
+
+            // ---------------- GEOMETRIC RECURSIVE FRACTALS (8, 11, 12, 14, 15) ----------------
+            ctx.save();
+            // Apply world pan & zoom transformation
+            const cx = w * 0.5 - (state.view.x * minDim * 0.35 * state.view.zoom);
+            const cy = h * 0.5 + (state.view.y * minDim * 0.35 * state.view.zoom);
+            ctx.translate(cx, cy);
+            ctx.scale(state.view.zoom, state.view.zoom);
+
+            if (state.smoothness > 0.3) {
+                ctx.globalCompositeOperation = 'lighter';
+            }
+
+            if (id === 8) {
+                renderRecursiveTree(p, minDim, dpr);
+            } else if (id === 11) {
+                renderKochCesaro(p, minDim, dpr);
+            } else if (id === 12) {
+                renderDragonCurve(p, minDim, dpr);
+            } else if (id === 14) {
+                renderSierpinskiPoly(p, minDim, dpr);
+            } else if (id === 15) {
+                renderWhirlPolygons(p, minDim, dpr);
+            }
+
+            ctx.restore();
+        }
+
+        // 8. Árbol Fractal Recursivo (Canopy)
+        function renderRecursiveTree(p, minDim, dpr) {
+            const maxDepth = Math.round(p.depth);
+            const radL = (p.angleL * Math.PI) / 180;
+            const radR = (p.angleR * Math.PI) / 180;
+            const windRad = (p.wind * Math.PI) / 180;
+            const scale = p.scale;
+            const baseLen = minDim * 0.21;
+            const startY = minDim * 0.34;
+
+            // Group segments by depth for ultra-fast batched stroke rendering
+            const buckets = Array.from({ length: maxDepth + 1 }, () => []);
+
+            function branch(x, y, len, angle, depth) {
+                const nx = x + Math.sin(angle) * len;
+                const ny = y - Math.cos(angle) * len;
+                buckets[depth].push(x, y, nx, ny);
+
+                if (depth < maxDepth) {
+                    const nextLen = len * scale;
+                    const bend = windRad * (depth / maxDepth) * 0.35;
+                    branch(nx, ny, nextLen, angle - radL + bend, depth + 1);
+                    branch(nx, ny, nextLen, angle + radR + bend, depth + 1);
+                }
+            }
+
+            branch(0, startY, baseLen, 0, 1);
+
+            ctx.lineCap = 'round';
+            for (let d = 1; d <= maxDepth; d++) {
+                const segs = buckets[d];
+                if (!segs.length) continue;
+                const t = d / maxDepth;
+                ctx.strokeStyle = evalPaletteCSS(t * 0.85, 0.88);
+                ctx.lineWidth = Math.max(0.8 * dpr, p.thick * dpr * Math.pow(0.74, d - 1));
+                ctx.beginPath();
+                for (let i = 0; i < segs.length; i += 4) {
+                    ctx.moveTo(segs[i], segs[i + 1]);
+                    ctx.lineTo(segs[i + 2], segs[i + 3]);
+                }
+                ctx.stroke();
+            }
+
+            // Glowing canopy blossoms at leaf tips
+            if (state.smoothness > 0.25) {
+                const tips = buckets[maxDepth];
+                ctx.fillStyle = evalPaletteCSS(1.05, 0.65 * state.smoothness);
+                const r = Math.max(1.5, 3.2 * dpr * state.smoothness);
+                ctx.beginPath();
+                for (let i = 0; i < tips.length; i += 4) {
+                    ctx.moveTo(tips[i + 2] + r, tips[i + 3]);
+                    ctx.arc(tips[i + 2], tips[i + 3], r, 0, Math.PI * 2);
+                }
+                ctx.fill();
+            }
+        }
+
+        // 9, 10, 13. High-Speed Photonic Density Renderer (Clifford, De Jong, Barnsley Fern)
+        function renderDensityFractal(id, p, w, h, minDim) {
+            // Render at native or slightly scaled resolution for guaranteed 60 FPS
+            ensureDensityBuffers(w, h);
+            const totalPts = Math.round((p.points || 200) * 1000);
+            const scale = minDim * 0.22 * state.view.zoom;
+            const cx = w * 0.5 - state.view.x * minDim * 0.35 * state.view.zoom;
+            const cy = h * 0.5 + state.view.y * minDim * 0.35 * state.view.zoom;
+
+            let x = 0.1, y = 0.1;
+            let maxCount = 1;
+
+            if (id === 9) {
+                // 9. Clifford Strange Attractor
+                const a = p.a, b = p.b, c = p.c, d = p.d;
+                for (let i = 0; i < totalPts; i++) {
+                    const nx = Math.sin(a * y) + c * Math.cos(a * x);
+                    const ny = Math.sin(b * x) + d * Math.cos(b * y);
+                    const dist = Math.hypot(nx - x, ny - y);
+                    x = nx;
+                    y = ny;
+                    const px = (cx + x * scale) | 0;
+                    const py = (cy - y * scale) | 0;
+                    if (px >= 0 && px < w && py >= 0 && py < h) {
+                        const idx = py * w + px;
+                        const cnt = ++densityBuffer[idx];
+                        hueBuffer[idx] += dist * 0.25;
+                        if (cnt > maxCount) maxCount = cnt;
+                    }
+                }
+            } else if (id === 10) {
+                // 10. Peter de Jong Strange Attractor
+                const a = p.a, b = p.b, c = p.c, d = p.d;
+                for (let i = 0; i < totalPts; i++) {
+                    const nx = Math.sin(a * y) - Math.cos(b * x);
+                    const ny = Math.sin(c * x) - Math.cos(d * y);
+                    const dist = Math.hypot(nx - x, ny - y);
+                    x = nx;
+                    y = ny;
+                    const px = (cx + x * scale * 1.1) | 0;
+                    const py = (cy - y * scale * 1.1) | 0;
+                    if (px >= 0 && px < w && py >= 0 && py < h) {
+                        const idx = py * w + px;
+                        const cnt = ++densityBuffer[idx];
+                        hueBuffer[idx] += dist * 0.25;
+                        if (cnt > maxCount) maxCount = cnt;
+                    }
+                }
+            } else if (id === 13) {
+                // 13. Barnsley Fern IFS
+                const curl = p.curl;
+                const spread = p.spread;
+                const sc = p.scale;
+                const asym = p.asymmetry;
+                const fernScale = minDim * 0.078 * state.view.zoom;
+                const fernCy = cy + minDim * 0.38 * state.view.zoom;
+
+                let seed = 1337;
+                for (let i = 0; i < totalPts; i++) {
+                    seed = (seed * 1664525 + 1013904223) >>> 0;
+                    const r = (seed & 0xffff) / 65536;
+                    let nx, ny, ruleHue;
+                    if (r < 0.01) {
+                        nx = 0.0;
+                        ny = 0.16 * y;
+                        ruleHue = 0.1;
+                    } else if (r < 0.86) {
+                        nx = sc * x + curl * y;
+                        ny = -curl * x + sc * y + 1.6;
+                        ruleHue = 0.45 + y * 0.06;
+                    } else if (r < 0.93) {
+                        nx = (0.20 * x - 0.26 * y) * spread;
+                        ny = 0.23 * x + 0.22 * y + 1.6;
+                        ruleHue = 0.78;
+                    } else {
+                        nx = (-0.15 * x + 0.28 * y) * spread * asym;
+                        ny = 0.26 * x + 0.24 * y + 0.44;
+                        ruleHue = 0.95;
+                    }
+                    x = nx;
+                    y = ny;
+                    const px = (cx + x * fernScale) | 0;
+                    const py = (fernCy - y * fernScale) | 0;
+                    if (px >= 0 && px < w && py >= 0 && py < h) {
+                        const idx = py * w + px;
+                        const cnt = ++densityBuffer[idx];
+                        hueBuffer[idx] += ruleHue;
+                        if (cnt > maxCount) maxCount = cnt;
+                    }
+                }
+            }
+
+            // Tone-map density histogram into ImageData with active procedural palette
+            const imgData = ctx.createImageData(w, h);
+            const data = imgData.data;
+            const logMax = Math.log(maxCount + 1) * (1.25 - 0.5 * state.smoothness);
+
+            for (let i = 0, len = w * h; i < len; i++) {
+                const pIdx = i << 2;
+                const cnt = densityBuffer[i];
+                if (cnt > 0) {
+                    const densityNorm = Math.min(1.0, Math.log(cnt + 1) / logMax);
+                    const avgHue = (hueBuffer[i] / cnt) * 0.35 + densityNorm * 0.65;
+                    const [r, g, b] = evalPaletteRGB(avgHue, state.palette, state.colorFreq, state.colorPhase, state.brightness);
+                    const boost = Math.pow(densityNorm, 0.75);
+                    data[pIdx]     = Math.min(255, (5 + r * boost) | 0);
+                    data[pIdx + 1] = Math.min(255, (7 + g * boost) | 0);
+                    data[pIdx + 2] = Math.min(255, (14 + b * boost) | 0);
+                    data[pIdx + 3] = 255;
+                } else {
+                    data[pIdx]     = 5;
+                    data[pIdx + 1] = 7;
+                    data[pIdx + 2] = 14;
+                    data[pIdx + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        // 11. Copo de Nieve de Koch / Cesàro
+        function renderKochCesaro(p, minDim, dpr) {
+            const depth = Math.round(p.depth);
+            const peakRad = (p.peakAngle * Math.PI) / 180;
+            const r = p.ratio;
+            const sides = Math.round(p.sides);
+            const radius = minDim * 0.34;
+
+            // Initial regular polygon vertices
+            let pts = [];
+            for (let i = 0; i < sides; i++) {
+                const a = (i * 2 * Math.PI) / sides - Math.PI / 2;
+                pts.push({ x: Math.cos(a) * radius, y: Math.sin(a) * radius });
+            }
+
+            // Subdivide edges recursively
+            for (let d = 0; d < depth; d++) {
+                const nextPts = [];
+                const len = pts.length;
+                for (let i = 0; i < len; i++) {
+                    const A = pts[i];
+                    const B = pts[(i + 1) % len];
+                    const dx = B.x - A.x;
+                    const dy = B.y - A.y;
+
+                    const P1 = { x: A.x + dx * r, y: A.y + dy * r };
+                    const P3 = { x: A.x + dx * (1 - r), y: A.y + dy * (1 - r) };
+
+                    const segX = P3.x - P1.x;
+                    const segY = P3.y - P1.y;
+                    const segLen = Math.hypot(segX, segY);
+                    const baseAngle = Math.atan2(segY, segX);
+                    const sideLen = (segLen * 0.5) / Math.max(0.15, Math.cos(peakRad));
+
+                    const P2 = {
+                        x: P1.x + Math.cos(baseAngle - peakRad) * sideLen,
+                        y: P1.y + Math.sin(baseAngle - peakRad) * sideLen
+                    };
+
+                    nextPts.push(A, P1, P2, P3);
+                }
+                pts = nextPts;
+            }
+
+            // Draw segments in color bands
+            const total = pts.length;
+            const chunks = 48;
+            const step = Math.max(1, Math.floor(total / chunks));
+            ctx.lineWidth = Math.max(1.2, 2.0 * dpr);
+            ctx.lineJoin = 'round';
+
+            for (let c = 0; c < total; c += step) {
+                const end = Math.min(total, c + step);
+                const t = c / total;
+                ctx.strokeStyle = evalPaletteCSS(t, 0.92);
+                ctx.beginPath();
+                ctx.moveTo(pts[c].x, pts[c].y);
+                for (let j = c + 1; j <= end; j++) {
+                    const pt = pts[j % total];
+                    ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        // 12. Curva del Dragón de Heighway (Con ángulo continuo)
+        function renderDragonCurve(p, minDim, dpr) {
+            const depth = Math.round(p.depth);
+            const theta1 = (p.foldAngle * Math.PI) / 180;
+            const theta2 = ((p.foldAngle + p.asymmetry) * Math.PI) / 180;
+            const twins = Math.round(p.twins);
+
+            // Compute scale factor so the dragon stays well-proportioned across any angle
+            const scaleFactor = 1 / Math.max(1.18, 2 * Math.cos(theta1 * 0.5));
+            const baseSpan = minDim * 0.38;
+
+            for (let tIdx = 0; tIdx < twins; tIdx++) {
+                const rotOffset = (tIdx * 2 * Math.PI) / twins;
+                let pts = [
+                    { x: -baseSpan * 0.5, y: 0 },
+                    { x: baseSpan * 0.5, y: 0 }
+                ];
+
+                // Rotate initial segment
+                pts = pts.map(pt => ({
+                    x: pt.x * Math.cos(rotOffset) - pt.y * Math.sin(rotOffset),
+                    y: pt.x * Math.sin(rotOffset) + pt.y * Math.cos(rotOffset)
+                }));
+
+                for (let d = 0; d < depth; d++) {
+                    const nextPts = [pts[0]];
+                    for (let i = 0; i < pts.length - 1; i++) {
+                        const A = pts[i];
+                        const B = pts[i + 1];
+                        const dx = B.x - A.x;
+                        const dy = B.y - A.y;
+                        const sign = (i % 2 === 0) ? 1 : -1;
+                        const ang = (i % 2 === 0) ? theta1 : theta2;
+                        const cosA = Math.cos(sign * ang) * scaleFactor;
+                        const sinA = Math.sin(sign * ang) * scaleFactor;
+
+                        const M = {
+                            x: A.x + dx * cosA - dy * sinA,
+                            y: A.y + dx * sinA + dy * cosA
+                        };
+                        nextPts.push(M, B);
+                    }
+                    pts = nextPts;
+                }
+
+                // Render dragon curve in colored gradient chunks
+                const total = pts.length - 1;
+                const chunks = 36;
+                const step = Math.max(1, Math.floor(total / chunks));
+                ctx.lineWidth = Math.max(1.0, 1.8 * dpr);
+
+                for (let c = 0; c < total; c += step) {
+                    const end = Math.min(total, c + step);
+                    const colorT = (c / total) + (tIdx / twins) * 0.35;
+                    ctx.strokeStyle = evalPaletteCSS(colorT, 0.88);
+                    ctx.beginPath();
+                    ctx.moveTo(pts[c].x, pts[c].y);
+                    for (let j = c + 1; j <= end; j++) {
+                        ctx.lineTo(pts[j].x, pts[j].y);
+                    }
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // 14. Triángulo y Alfombra de Sierpinski Paramétrica
+        function renderSierpinskiPoly(p, minDim, dpr) {
+            const N = Math.round(p.vertices);
+            const r = p.ratio;
+            const rotRad = (p.rot * Math.PI) / 180;
+            // Cap effective depth when N is large to prevent exponential lag
+            const maxAllowedDepth = N <= 3 ? 7 : (N <= 5 ? 5 : 4);
+            const depth = Math.min(Math.round(p.depth), maxAllowedDepth);
+            const baseRadius = minDim * 0.38;
+
+            // Precompute unit polygon corners
+            const unitPoly = [];
+            for (let i = 0; i < N; i++) {
+                const a = (i * 2 * Math.PI) / N - Math.PI / 2;
+                unitPoly.push({ x: Math.cos(a), y: Math.sin(a) });
+            }
+
+            const buckets = Array.from({ length: depth + 1 }, () => []);
+
+            function subdivide(cx, cy, rad, ang, lvl) {
+                if (lvl === depth) {
+                    buckets[lvl].push({ cx, cy, rad, ang });
+                    return;
+                }
+                if (state.smoothness > 0.5 && lvl >= depth - 2) {
+                    buckets[lvl].push({ cx, cy, rad, ang });
+                }
+                const nextRad = rad * r;
+                const offsetDist = rad * (1 - r);
+                for (let i = 0; i < N; i++) {
+                    const vx = unitPoly[i].x * Math.cos(ang) - unitPoly[i].y * Math.sin(ang);
+                    const vy = unitPoly[i].x * Math.sin(ang) + unitPoly[i].y * Math.cos(ang);
+                    subdivide(cx + vx * offsetDist, cy + vy * offsetDist, nextRad, ang + rotRad, lvl + 1);
+                }
+            }
+
+            subdivide(0, 0, baseRadius, 0, 1);
+
+            ctx.lineWidth = Math.max(0.9, 1.4 * dpr);
+            for (let lvl = 1; lvl <= depth; lvl++) {
+                const list = buckets[lvl];
+                if (!list.length) continue;
+                const t = lvl / depth;
+                ctx.strokeStyle = evalPaletteCSS(t, lvl === depth ? 0.92 : 0.32);
+                ctx.fillStyle = evalPaletteCSS(t + 0.15, lvl === depth ? 0.16 : 0.04);
+
+                ctx.beginPath();
+                for (let k = 0; k < list.length; k++) {
+                    const item = list[k];
+                    const cosA = Math.cos(item.ang) * item.rad;
+                    const sinA = Math.sin(item.ang) * item.rad;
+                    for (let i = 0; i < N; i++) {
+                        const px = item.cx + unitPoly[i].x * cosA - unitPoly[i].y * sinA;
+                        const py = item.cy + unitPoly[i].x * sinA + unitPoly[i].y * cosA;
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                }
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        // 15. Espirales de Polígonos Recursivos (Whirl)
+        function renderWhirlPolygons(p, minDim, dpr) {
+            const sides = Math.round(p.sides);
+            const stepRad = (p.angle * Math.PI) / 180;
+            const scale = p.scale;
+            const depth = Math.round(p.depth);
+            const twist = p.twist;
+
+            let curRadius = minDim * 0.42;
+            let curAngle = -Math.PI / 2;
+            ctx.lineWidth = Math.max(1.1, 1.8 * dpr);
+
+            for (let k = 0; k < depth; k++) {
+                const t = k / depth;
+                ctx.strokeStyle = evalPaletteCSS(t * 1.4, 0.88 * (1 - t * 0.4));
+
+                const driftX = Math.cos(k * 0.12) * curRadius * twist * 0.18;
+                const driftY = Math.sin(k * 0.12) * curRadius * twist * 0.18;
+
+                ctx.beginPath();
+                for (let i = 0; i < sides; i++) {
+                    const a = curAngle + (i * 2 * Math.PI) / sides;
+                    const px = driftX + Math.cos(a) * curRadius;
+                    const py = driftY + Math.sin(a) * curRadius;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.stroke();
+
+                curRadius *= scale;
+                curAngle += stepRad;
+                if (curRadius < 0.8) break;
+            }
+        }
+
+        // ============================================================================
+        // 7. UI POPULATION, DYNAMIC CONTROLS & FORMULA VIEWER
+        // ============================================================================
+        function getActiveFractal() {
+            return FRACTALS.find(f => f.id === state.activeFractalId) || FRACTALS[0];
+        }
+
+        function renderFractalCatalog() {
+            const container = document.getElementById('fractalListContainer');
+            container.innerHTML = '';
+
+            FRACTALS.forEach(f => {
+                if (state.filterMode !== 'all' && f.engine !== state.filterMode) return;
+                const isActive = f.id === state.activeFractalId;
+                const isGPU = f.engine === 'webgl';
+
+                const btn = document.createElement('button');
+                btn.className = `fractal-btn w-full text-left p-2.5 rounded-xl border transition flex items-center justify-between gap-2 ${
+                    isActive
+                        ? 'active text-white'
+                        : 'bg-slate-900/50 hover:bg-slate-800/70 border-slate-800/80 text-slate-300'
+                }`;
+                btn.onclick = () => selectFractal(f.id);
+
+                btn.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-6 h-6 rounded-lg text-[11px] font-mono font-bold flex items-center justify-center shrink-0 ${
+                            isGPU ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30'
+                        }">${String(f.id).padStart(2, '0')}</span>
+                        <div class="min-w-0">
+                            <div class="text-xs font-semibold truncate">${f.name}</div>
+                            <div class="text-[10px] text-slate-400 truncate">${f.engine === 'webgl' ? 'GPU Shader GLSL' : 'Canvas 2D Caos/Geo'}</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950/80 text-slate-300 border border-slate-700/60 shrink-0">
+                        ${f.badge}
+                    </span>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function filterFractalList(mode) {
+            state.filterMode = mode;
+            const tabs = { all: 'tabAll', webgl: 'tabWebgl', canvas2d: 'tabCanvas2d' };
+            Object.entries(tabs).forEach(([k, id]) => {
+                const el = document.getElementById(id);
+                if (k === mode) {
+                    el.className = "py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 transition";
+                } else {
+                    el.className = "py-1.5 rounded-lg text-slate-400 hover:text-white transition";
+                }
+            });
+            renderFractalCatalog();
+        }
+
+        function renderPresets() {
+            const container = document.getElementById('presetsContainer');
+            container.innerHTML = '';
+            PRESETS.forEach((pr, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "text-[11px] px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-fuchsia-500/20 text-slate-300 hover:text-fuchsia-200 border border-slate-700/80 hover:border-fuchsia-400/50 transition truncate max-w-full";
+                btn.textContent = pr.name;
+                btn.onclick = () => applyPreset(idx);
+                container.appendChild(btn);
+            });
+        }
+
+        function renderPalettesGrid() {
+            const grid = document.getElementById('palettesGrid');
+            grid.innerHTML = '';
+            PALETTES.forEach(pal => {
+                const active = pal.id === state.palette;
+                const btn = document.createElement('button');
+                btn.className = `palette-btn p-2 rounded-xl bg-slate-900/80 border text-left transition ${
+                    active ? 'active border-cyan-400' : 'border-slate-800 hover:border-slate-600'
+                }`;
+                btn.onclick = () => selectPalette(pal.id);
+                btn.innerHTML = `
+                    <div class="w-full h-3 rounded-md mb-1.5" style="background: ${pal.cssGradient}"></div>
+                    <div class="text-[11px] font-medium text-slate-200 truncate">${pal.name}</div>
+                `;
+                grid.appendChild(btn);
+            });
+            document.getElementById('activePaletteName').textContent = PALETTES[state.palette].name;
+        }
+
+        function buildDynamicSliders() {
+            const f = getActiveFractal();
+            const container = document.getElementById('dynamicSlidersContainer');
+            container.innerHTML = '';
+
+            document.getElementById('activeFractalShortId').textContent = `#${String(f.id).padStart(2, '0')} · ${f.engine.toUpperCase()}`;
+
+            // Cursor tracking visibility
+            const cursorBox = document.getElementById('cursorFollowBox');
+            if (f.cursorSupport) {
+                cursorBox.classList.remove('hidden');
+                document.getElementById('followCursorCheckbox').checked = state.followCursor;
+            } else {
+                cursorBox.classList.add('hidden');
+                state.followCursor = false;
+            }
+
+            f.params.forEach(param => {
+                const val = state.params[param.key];
+                const decimals = param.step < 0.01 ? 3 : (param.step < 1 ? 2 : 0);
+
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = `
+                    <div class="flex justify-between items-center text-xs mb-1">
+                        <span class="text-slate-200 font-medium">${param.label}</span>
+                        <span id="val_${param.key}" class="font-mono text-cyan-300 bg-slate-900/90 px-1.5 py-0.5 rounded border border-cyan-500/20">${Number(val).toFixed(decimals)}</span>
+                    </div>
+                    <input
+                        type="range"
+                        id="slider_${param.key}"
+                        class="sci-slider"
+                        min="${param.min}"
+                        max="${param.max}"
+                        step="${param.step}"
+                        value="${val}"
+                    >
+                `;
+                const input = wrapper.querySelector('input');
+                input.addEventListener('input', (e) => {
+                    const num = parseFloat(e.target.value);
+                    state.params[param.key] = num;
+                    state.baseParams[param.key] = num;
+                    document.getElementById(`val_${param.key}`).textContent = num.toFixed(decimals);
+                    updateLiveFormulaHUD();
+                    state.needsRedraw = true;
+                });
+
+                container.appendChild(wrapper);
+            });
+        }
+
+        function syncSlidersFromState() {
+            const f = getActiveFractal();
+            f.params.forEach(param => {
+                const val = state.params[param.key];
+                const decimals = param.step < 0.01 ? 3 : (param.step < 1 ? 2 : 0);
+                const slider = document.getElementById(`slider_${param.key}`);
+                const label = document.getElementById(`val_${param.key}`);
+                if (slider) slider.value = val;
+                if (label) label.textContent = Number(val).toFixed(decimals);
+            });
+
+            document.getElementById('slider_colorFreq').value = state.colorFreq;
+            document.getElementById('val_colorFreq').textContent = state.colorFreq.toFixed(2);
+            document.getElementById('slider_colorPhase').value = state.colorPhase;
+            document.getElementById('val_colorPhase').textContent = state.colorPhase.toFixed(2);
+            document.getElementById('slider_brightness').value = state.brightness;
+            document.getElementById('val_brightness').textContent = state.brightness.toFixed(2);
+            document.getElementById('slider_smoothness').value = state.smoothness;
+            document.getElementById('val_smoothness').textContent = state.smoothness.toFixed(2);
+        }
+
+        function updateLiveFormulaHUD() {
+            const f = getActiveFractal();
+            document.getElementById('fractalTitleHud').textContent = `${f.id}. ${f.name}`;
+            document.getElementById('formulaCategoryTag').textContent = f.category;
+            document.getElementById('liveFormulaDisplay').innerHTML = f.formulaHTML(state.params);
+            document.getElementById('formulaExplanation').textContent = f.explanation;
+
+            const badge = document.getElementById('engineBadge');
+            if (f.engine === 'webgl') {
+                badge.textContent = 'GPU WebGL 60FPS';
+                badge.className = 'text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-400/30';
+            } else {
+                badge.textContent = 'Canvas 2D High-DPI';
+                badge.className = 'text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-400/30';
+            }
+
+            document.getElementById('telemetryCoords').textContent = `${state.view.x.toFixed(3)}, ${state.view.y.toFixed(3)}`;
+            document.getElementById('telemetryZoom').textContent = state.view.zoom >= 100
+                ? `${Math.round(state.view.zoom)}×`
+                : `${state.view.zoom.toFixed(2)}×`;
+        }
+
+        function selectFractal(id, skipDefaultLoad = false) {
+            state.activeFractalId = id;
+            const f = getActiveFractal();
+
+            // Switch active canvas visibility seamlessly
+            if (f.engine === 'webgl') {
+                glCanvas.classList.remove('hidden');
+                ctxCanvas.classList.add('hidden');
+            } else {
+                glCanvas.classList.add('hidden');
+                ctxCanvas.classList.remove('hidden');
+            }
+
+            if (!skipDefaultLoad) {
+                loadFractalDefaults(f);
+            }
+
+            renderFractalCatalog();
+            buildDynamicSliders();
+            updateLiveFormulaHUD();
+            state.needsRedraw = true;
+        }
+
+        function selectPalette(palId) {
+            state.palette = palId;
+            renderPalettesGrid();
+            state.needsRedraw = true;
+        }
+
+        function applyPreset(idx) {
+            const pr = PRESETS[idx];
+            if (!pr) return;
+            state.activeFractalId = pr.fractalId;
+            const f = getActiveFractal();
+            loadFractalDefaults(f);
+
+            Object.entries(pr.params).forEach(([k, v]) => {
+                state.params[k] = v;
+                state.baseParams[k] = v;
+            });
+            state.view = { ...pr.view };
+            state.palette = pr.palette;
+            state.colorFreq = pr.colorFreq;
+            state.colorPhase = pr.colorPhase;
+
+            selectFractal(pr.fractalId, true);
+            renderPalettesGrid();
+            syncSlidersFromState();
+            showToast(`Semilla cargada: ${pr.name}`);
+        }
+
+        // ============================================================================
+        // 8. LAB SPECIAL ACTIONS: MUTATE, EVOLVE, SCREENSHOT, RESET, IMMERSIVE
+        // ============================================================================
+        function mutateFractal() {
+            const f = getActiveFractal();
+            f.params.forEach(p => {
+                // Keep iterations/depth reasonable while randomizing shape parameters
+                if (p.key === 'iter' || p.key === 'points' || p.key === 'depth') return;
+                const span = p.max - p.min;
+                // Bias towards mathematically rich central range (20% - 80% of range)
+                let randVal = p.min + (0.18 + Math.random() * 0.64) * span;
+                randVal = Math.round(randVal / p.step) * p.step;
+                randVal = Math.max(p.min, Math.min(p.max, randVal));
+                state.params[p.key] = randVal;
+                state.baseParams[p.key] = randVal;
+            });
+
+            state.palette = Math.floor(Math.random() * PALETTES.length);
+            state.colorFreq = +(0.6 + Math.random() * 2.2).toFixed(2);
+            state.colorPhase = +(Math.random() * 6.28).toFixed(2);
+
+            renderPalettesGrid();
+            syncSlidersFromState();
+            updateLiveFormulaHUD();
+            state.needsRedraw = true;
+            showToast("🎲 Mutación matemática generada");
+        }
+
+        function toggleEvolution() {
+            state.evolving = !state.evolving;
+            const btn = document.getElementById('evolveBtn');
+            const text = document.getElementById('evolveText');
+            const icon = document.getElementById('evolveIcon');
+
+            if (state.evolving) {
+                // Snapshot current parameters as oscillation center
+                Object.assign(state.baseParams, state.params);
+                text.textContent = "Pausar";
+                btn.classList.add('border-fuchsia-400', 'text-fuchsia-200');
+                icon.setAttribute('data-lucide', 'pause');
+                showToast("▶ Evolución sinusoidal activada");
+            } else {
+                text.textContent = "Evolucionar";
+                btn.classList.remove('border-fuchsia-400', 'text-fuchsia-200');
+                icon.setAttribute('data-lucide', 'play');
+            }
+            lucide.createIcons();
+        }
+
+        function resetCurrentParameters() {
+            const f = getActiveFractal();
+            loadFractalDefaults(f);
+            syncSlidersFromState();
+            updateLiveFormulaHUD();
+            state.needsRedraw = true;
+            showToast("Parámetros restaurados");
+        }
+
+        function resetView() {
+            const f = getActiveFractal();
+            state.view = { ...f.defaultView };
+            updateLiveFormulaHUD();
+            state.needsRedraw = true;
+        }
+
+        function zoomStep(factor) {
+            state.view.zoom = Math.max(0.15, Math.min(100000, state.view.zoom * factor));
+            updateLiveFormulaHUD();
+            state.needsRedraw = true;
+        }
+
+        function toggleCursorFollow(checked) {
+            state.followCursor = checked;
+            if (checked) {
+                showToast("Modo Seguir Cursor activo (Espacio para fijar)");
+            }
+        }
+
+        function captureScreenshot() {
+            const f = getActiveFractal();
+            // Force immediate render before capture
+            if (f.engine === 'webgl') renderWebGL();
+            else renderCanvas2D();
+
+            const activeCanvas = f.engine === 'webgl' ? glCanvas : ctxCanvas;
+            const dataURL = activeCanvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            const slug = f.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            link.download = `fractal-lab-${slug}-${Date.now()}.png`;
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("📸 Imagen PNG descargada en alta resolución");
+        }
+
+        function toggleImmersiveMode() {
+            state.immersive = !state.immersive;
+            const topHud = document.getElementById('topHud');
+            const leftPanel = document.getElementById('leftPanel');
+            const rightPanel = document.getElementById('rightPanel');
+            const bottomDock = document.getElementById('bottomDock');
+            const leftRestore = document.getElementById('leftRestoreBtn');
+            const rightRestore = document.getElementById('rightRestoreBtn');
+            const exitBtn = document.getElementById('exitImmersiveBtn');
+
+            if (state.immersive) {
+                topHud.classList.add('opacity-0', '-translate-y-full');
+                leftPanel.classList.add('opacity-0', '-translate-x-[120%]');
+                rightPanel.classList.add('opacity-0', 'translate-x-[120%]');
+                bottomDock.classList.add('opacity-0', 'translate-y-24');
+                leftRestore.classList.add('hidden');
+                rightRestore.classList.add('hidden');
+                exitBtn.classList.remove('hidden');
+            } else {
+                topHud.classList.remove('opacity-0', '-translate-y-full');
+                bottomDock.classList.remove('opacity-0', 'translate-y-24');
+                exitBtn.classList.add('hidden');
+                if (!state.leftCollapsed) leftPanel.classList.remove('opacity-0', '-translate-x-[120%]');
+                else leftRestore.classList.remove('hidden');
+                if (!state.rightCollapsed) rightPanel.classList.remove('opacity-0', 'translate-x-[120%]');
+                else rightRestore.classList.remove('hidden');
+            }
+        }
+
+        function toggleLeftPanel() {
+            state.leftCollapsed = !state.leftCollapsed;
+            const panel = document.getElementById('leftPanel');
+            const restore = document.getElementById('leftRestoreBtn');
+            if (state.leftCollapsed) {
+                panel.classList.add('opacity-0', '-translate-x-[120%]', 'pointer-events-none');
+                restore.classList.remove('hidden');
+            } else {
+                panel.classList.remove('opacity-0', '-translate-x-[120%]', 'pointer-events-none');
+                restore.classList.add('hidden');
+            }
+        }
+
+        function toggleRightPanel() {
+            state.rightCollapsed = !state.rightCollapsed;
+            const panel = document.getElementById('rightPanel');
+            const restore = document.getElementById('rightRestoreBtn');
+            if (state.rightCollapsed) {
+                panel.classList.add('opacity-0', 'translate-x-[120%]', 'pointer-events-none');
+                restore.classList.remove('hidden');
+            } else {
+                panel.classList.remove('opacity-0', 'translate-x-[120%]', 'pointer-events-none');
+                restore.classList.add('hidden');
+            }
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const banner = document.getElementById('toastBanner');
+            document.getElementById('toastMessage').textContent = msg;
+            banner.classList.remove('opacity-0', '-translate-y-3');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                banner.classList.add('opacity-0', '-translate-y-3');
+            }, 2400);
+        }
+
+        // ============================================================================
+        // 9. INTERACTIVE CANVAS NAVIGATION (MOUSE, WHEEL ZOOM TO CURSOR, TOUCH)
+        // ============================================================================
+        const container = document.getElementById('canvasContainer');
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        container.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            const rect = container.getBoundingClientRect();
+            const minDim = Math.min(rect.width, rect.height);
+
+            if (isDragging) {
+                const dx = e.clientX - lastMouseX;
+                const dy = e.clientY - lastMouseY;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+
+                const scale = 2.8 / (minDim * state.view.zoom);
+                state.view.x -= dx * scale;
+                state.view.y += dy * scale;
+                updateLiveFormulaHUD();
+                state.needsRedraw = true;
+            } else if (state.followCursor) {
+                const f = getActiveFractal();
+                if (f.cursorSupport) {
+                    const nx = ((e.clientX - rect.width * 0.5) / (rect.width * 0.5)) * 1.25;
+                    const ny = ((rect.height * 0.5 - e.clientY) / (rect.height * 0.5)) * 1.25;
+                    if (state.params.cre !== undefined) {
+                        state.params.cre = nx;
+                        state.baseParams.cre = nx;
+                    }
+                    if (state.params.cim !== undefined) {
+                        state.params.cim = ny;
+                        state.baseParams.cim = ny;
+                    } else if (state.params.pre !== undefined) {
+                        state.params.pre = ny;
+                        state.baseParams.pre = ny;
+                    }
+                    syncSlidersFromState();
+                    updateLiveFormulaHUD();
+                    state.needsRedraw = true;
+                }
+            }
+        });
+
+        // Smooth zoom towards cursor position
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const minDim = Math.min(rect.width, rect.height);
+
+            // Normalized mouse offset from center
+            const uvX = (e.clientX - rect.width * 0.5) / minDim;
+            const uvY = (rect.height * 0.5 - e.clientY) / minDim;
+
+            const factor = e.deltaY < 0 ? 1.16 : (1 / 1.16);
+            const oldZoom = state.view.zoom;
+            const newZoom = Math.max(0.15, Math.min(100000, oldZoom * factor));
+
+            // Keep complex point under cursor stationary
+            state.view.x += uvX * 2.8 * (1 / oldZoom - 1 / newZoom);
+            state.view.y += uvY * 2.8 * (1 / oldZoom - 1 / newZoom);
+            state.view.zoom = newZoom;
+
+            updateLiveFormulaHUD();
+            state.needsRedraw = true;
+        }, { passive: false });
+
+        // Touch Pan & Pinch Zoom Support
+        let touchDist = 0;
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                lastMouseX = e.touches[0].clientX;
+                lastMouseY = e.touches[0].clientY;
+            } else if (e.touches.length === 2) {
+                isDragging = false;
+                touchDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            }
+        }, { passive: true });
+
+        container.addEventListener('touchmove', (e) => {
+            const rect = container.getBoundingClientRect();
+            const minDim = Math.min(rect.width, rect.height);
+
+            if (e.touches.length === 1 && isDragging) {
+                const dx = e.touches[0].clientX - lastMouseX;
+                const dy = e.touches[0].clientY - lastMouseY;
+                lastMouseX = e.touches[0].clientX;
+                lastMouseY = e.touches[0].clientY;
+                const scale = 2.8 / (minDim * state.view.zoom);
+                state.view.x -= dx * scale;
+                state.view.y += dy * scale;
+                updateLiveFormulaHUD();
+                state.needsRedraw = true;
+            } else if (e.touches.length === 2) {
+                const newDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                if (touchDist > 10) {
+                    const ratio = newDist / touchDist;
+                    state.view.zoom = Math.max(0.15, Math.min(100000, state.view.zoom * ratio));
+                    updateLiveFormulaHUD();
+                    state.needsRedraw = true;
+                }
+                touchDist = newDist;
+            }
+        }, { passive: true });
+
+        container.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (state.immersive) toggleImmersiveMode();
+            } else if (e.code === 'Space' && e.target === document.body) {
+                e.preventDefault();
+                const f = getActiveFractal();
+                if (f.cursorSupport) {
+                    state.followCursor = !state.followCursor;
+                    document.getElementById('followCursorCheckbox').checked = state.followCursor;
+                    showToast(state.followCursor ? "Seguir Cursor: ACTIVO" : "Seguir Cursor: FIJADO");
+                } else {
+                    toggleEvolution();
+                }
+            }
+        });
+
+        // Color & Evolution Sliders Listeners
+        document.getElementById('slider_colorFreq').addEventListener('input', (e) => {
+            state.colorFreq = parseFloat(e.target.value);
+            document.getElementById('val_colorFreq').textContent = state.colorFreq.toFixed(2);
+            state.needsRedraw = true;
+        });
+        document.getElementById('slider_colorPhase').addEventListener('input', (e) => {
+            state.colorPhase = parseFloat(e.target.value);
+            document.getElementById('val_colorPhase').textContent = state.colorPhase.toFixed(2);
+            state.needsRedraw = true;
+        });
+        document.getElementById('slider_brightness').addEventListener('input', (e) => {
+            state.brightness = parseFloat(e.target.value);
+            document.getElementById('val_brightness').textContent = state.brightness.toFixed(2);
+            state.needsRedraw = true;
+        });
+        document.getElementById('slider_smoothness').addEventListener('input', (e) => {
+            state.smoothness = parseFloat(e.target.value);
+            document.getElementById('val_smoothness').textContent = state.smoothness.toFixed(2);
+            state.needsRedraw = true;
+        });
+        document.getElementById('slider_evoSpeed').addEventListener('input', (e) => {
+            state.evoSpeed = parseFloat(e.target.value);
+        });
+
+        // Responsive High-DPI Canvas Resize
+        function resizeCanvases() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const w = Math.floor(window.innerWidth * dpr);
+            const h = Math.floor(window.innerHeight * dpr);
+
+            if (glCanvas.width !== w || glCanvas.height !== h) {
+                glCanvas.width = w;
+                glCanvas.height = h;
+                ctxCanvas.width = w;
+                ctxCanvas.height = h;
+                state.needsRedraw = true;
+            }
+        }
+        window.addEventListener('resize', resizeCanvases);
+
+        // ============================================================================
+        // 10. MAIN REAL-TIME ANIMATION & TELEMETRY LOOP
+        // ============================================================================
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let fpsLastCheck = performance.now();
+
+        function animateLoop(now) {
+            const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
+            lastFrameTime = now;
+
+            // FPS Counter
+            frameCount++;
+            if (now - fpsLastCheck >= 500) {
+                state.fps = Math.min(60, Math.round((frameCount * 1000) / (now - fpsLastCheck)));
+                document.getElementById('telemetryFps').textContent = state.fps;
+                frameCount = 0;
+                fpsLastCheck = now;
+            }
+
+            // Sinusoidal Parameter Evolution Mode
+            if (state.evolving) {
+                state.evoTime += dt * state.evoSpeed;
+                const f = getActiveFractal();
+
+                f.params.forEach((param, idx) => {
+                    if (param.evolveAmp > 0) {
+                        const base = state.baseParams[param.key] !== undefined ? state.baseParams[param.key] : param.default;
+                        const wave = Math.sin(state.evoTime * 1.15 + idx * 1.35) * param.evolveAmp;
+                        let nextVal = Math.max(param.min, Math.min(param.max, base + wave));
+                        state.params[param.key] = nextVal;
+                    }
+                });
+
+                // Subtle color phase cycling
+                state.colorPhase = (state.colorPhase + dt * 0.45 * state.evoSpeed) % 6.283185;
+                syncSlidersFromState();
+                updateLiveFormulaHUD();
+                state.needsRedraw = true;
+            }
+
+            // Render active fractal engine when needed
+            if (state.needsRedraw) {
+                const f = getActiveFractal();
+                if (f.engine === 'webgl') {
+                    renderWebGL();
+                } else {
+                    renderCanvas2D();
+                }
+                state.needsRedraw = false;
+            }
+
+            requestAnimationFrame(animateLoop);
+        }
+
+        // Initialize everything on window load
+        window.onload = function () {
+            lucide.createIcons();
+            resizeCanvases();
+            initWebGL();
+            renderPresets();
+            renderPalettesGrid();
+
+            // Auto-collapse side panels on narrow screens initially so canvas is visible
+            if (window.innerWidth < 1024) {
+                toggleLeftPanel();
+                toggleRightPanel();
+            }
+
+            selectFractal(1);
+            requestAnimationFrame(animateLoop);
+        };
+    </script>
+</body>
+</html>

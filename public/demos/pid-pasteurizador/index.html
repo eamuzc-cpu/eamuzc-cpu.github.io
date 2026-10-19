@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lazo PID de un pasteurizador — simulador de sintonía</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: 310px 1fr; align-items: start; }
+.ctl { display: grid; gap: 8px; }
+.ctl .f { display: grid; gap: 2px; }
+.ctl .f .l { display: flex; justify-content: space-between; }
+.ctl .f .l b { color: var(--txt); font-weight: 600; }
+.gains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.gains input { width: 100%; }
+.metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 8px; }
+.metric { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.metric .v { font: 600 20px var(--mono); }
+.metric .k { font: 11px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; }
+#cvPv { height: 330px; } #cvU { height: 150px; margin-top: 8px; }
+.legend { display: flex; gap: 14px; font: 11px var(--mono); color: var(--mut); margin: 6px 0 2px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+tr.cur td { background: rgba(34, 211, 238, .08); }
+.scn { display: flex; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .metrics { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Lazo PID de un pasteurizador · sintonía y anti-windup</h1>
+  <span class="badge warn">simulación didáctica</span>
+  <span class="sp"></span>
+  <span class="badge" id="badgeModelo">modelo FOPDT</span>
+</div>
+
+<div class="wrap layout">
+  <div class="ctl">
+    <div class="panel">
+      <h2>Escenario</h2>
+      <div class="scn" id="scn"></div>
+    </div>
+    <div class="panel">
+      <h2>Planta estimada (modelo FOPDT)</h2>
+      <div class="f"><div class="l"><label>Ganancia K [°C/%]</label><b id="vK"></b></div><input id="K" type="range" min="0.5" max="2" step="0.05"></div>
+      <div class="f"><div class="l"><label>Constante de tiempo τ [s]</label><b id="vTau"></b></div><input id="tau" type="range" min="30" max="200" step="5"></div>
+      <div class="f"><div class="l"><label>Tiempo muerto θ [s]</label><b id="vTheta"></b></div><input id="theta" type="range" min="5" max="40" step="1"></div>
+      <div class="f"><div class="l"><label>Error de modelo: θ real +%</label><b id="vDTheta"></b></div><input id="dTheta" type="range" min="0" max="100" step="5"></div>
+      <div class="f"><div class="l"><label>Error de modelo: K real +%</label><b id="vDK"></b></div><input id="dK" type="range" min="0" max="60" step="5"></div>
+    </div>
+    <div class="panel">
+      <h2>Controlador PID</h2>
+      <div class="f"><label>Método de sintonía</label>
+        <select id="method"></select></div>
+      <div class="f" id="lamBox"><div class="l"><label>λ = f · θ, f =</label><b id="vLam"></b></div><input id="lam" type="range" min="1" max="4" step="0.25"></div>
+      <div class="gains">
+        <div class="f"><label>Kp</label><input id="Kp" type="number" step="0.1" min="0"></div>
+        <div class="f"><label>Ti [s]</label><input id="Ti" type="number" step="1" min="1"></div>
+        <div class="f"><label>Td [s]</label><input id="Td" type="number" step="0.5" min="0"></div>
+      </div>
+      <div class="row"><label><input type="checkbox" id="aw"> anti-windup (back-calculation)</label></div>
+      <div class="f"><div class="l"><label>Límite superior del actuador [%]</label><b id="vUmax"></b></div><input id="umax" type="range" min="40" max="100" step="5"></div>
+      <div class="f"><div class="l"><label>Ruido de medición [°C]</label><b id="vNoise"></b></div><input id="noise" type="range" min="0" max="1" step="0.05"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="metrics" id="metrics"></div>
+    <div class="panel">
+      <div class="legend"><span><i style="background:#22d3ee"></i>PV temperatura</span><span><i style="background:#f59e0b"></i>SP consigna</span><span><i style="background:rgba(245,158,11,.35)"></i>banda ±2 %</span><span id="lgDist"></span></div>
+      <canvas id="cvPv"></canvas>
+      <div class="legend"><span><i style="background:#e879f9"></i>Salida del PID (válvula %)</span><span id="hover" class="cy"></span></div>
+      <canvas id="cvU"></canvas>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <h2>Comparación de sintonías en este escenario (misma planta real)</h2>
+      <table id="cmp"></table>
+    </div>
+  </div>
+</div>
+<div class="note">Planta simulada T = 20 + K·u(t−θ) con dinámica de primer orden; no es un pasteurizador real. Las sintonías se calculan con el modelo estimado y se simulan sobre la planta “real” (con el error de modelo elegido). Las cifras son de esta simulación.</div>
+
+<script>
+// Núcleo de simulación: planta FOPDT (primer orden + tiempo muerto) + PID discreto con anti-windup.
+// El MISMO archivo corre en las pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.PidCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  // Planta del pasteurizador (didáctica): T = Tamb + K·u, con constante de tiempo tau y tiempo muerto theta.
+  const PLANTA = { K: 1.0, tau: 90, theta: 15, Tamb: 20 }
+
+  // ---- Sintonía a partir del modelo FOPDT -------------------------------------------------------
+  function sintonizar(metodo, p, opt = {}) {
+    const { K, tau, theta } = p
+    const r = theta / tau
+    switch (metodo) {
+      case 'zn-pi': // Ziegler-Nichols, curva de reacción
+        return { Kp: (0.9 * tau) / (K * theta), Ti: 3.33 * theta, Td: 0 }
+      case 'zn-pid':
+        return { Kp: (1.2 * tau) / (K * theta), Ti: 2 * theta, Td: 0.5 * theta }
+      case 'cc-pi': // Cohen-Coon
+        return {
+          Kp: (1 / K) * (tau / theta) * (0.9 + r / 12),
+          Ti: (theta * (30 + 3 * r)) / (9 + 20 * r),
+          Td: 0,
+        }
+      case 'lambda': { // IMC / lambda: lazo cerrado de primer orden con constante lambda = f·theta
+        const lambda = (opt.lambdaFactor ?? 2) * theta
+        return { Kp: tau / (K * (lambda + theta)), Ti: tau, Td: 0 }
+      }
+      default:
+        throw new Error(`método desconocido: ${metodo}`)
+    }
+  }
+
+  const METODOS = [
+    { id: 'zn-pi', nombre: 'Ziegler-Nichols PI' },
+    { id: 'zn-pid', nombre: 'Ziegler-Nichols PID' },
+    { id: 'cc-pi', nombre: 'Cohen-Coon PI' },
+    { id: 'lambda', nombre: 'Lambda (IMC) PI' },
+  ]
+
+  // PRNG determinista (mulberry32) para el ruido de medición.
+  function prng(seed) {
+    let a = seed >>> 0
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = a
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+  function gauss(rnd) {
+    const u = Math.max(rnd(), 1e-12)
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd())
+  }
+
+  // ---- Simulación ---------------------------------------------------------------------------------
+  // sp: [{t, v}] escalones de consigna; dist: [{t, v}] perturbación aditiva en °C sobre la planta.
+  function simular({ planta, ctrl, sp, dist = [], T = 600, dt = 0.5, u0 = 20, ruido = 0, semilla = 1 }) {
+    const { K, tau, theta, Tamb } = planta
+    const { Kp, Ti, Td, N = 10, antiWindup = true, umin = 0, umax = 100 } = ctrl
+    const n = Math.round(T / dt)
+    const nd = Math.max(0, Math.round(theta / dt))
+    const buf = new Array(nd + 1).fill(u0)
+    const a = Math.exp(-dt / tau)
+    const rnd = prng(semilla)
+
+    let y = Tamb + K * u0
+    let I = u0 // bumpless: arranca en equilibrio con e = 0
+    let pvPrev = y
+    let dFilt = 0
+    const Tf = Td > 0 ? Td / N : 0
+    const Tt = Math.max(Ti / 2, 2 * dt)
+
+    const out = { t: [], pv: [], sp: [], u: [], d: [] }
+    let spAct = sp[0].v
+    let dAct = 0
+    for (let k = 0; k <= n; k++) {
+      const t = k * dt
+      for (const s of sp) if (t >= s.t) spAct = s.v
+      dAct = 0
+      for (const d of dist) if (t >= d.t) dAct = d.v
+      const pv = y + (ruido ? ruido * gauss(rnd) : 0)
+
+      const e = spAct - pv
+      const P = Kp * e
+      if (Td > 0) {
+        const dpv = pv - pvPrev
+        dFilt = (Tf / (Tf + dt)) * dFilt + ((Kp * Td) / (Tf + dt)) * -dpv
+      }
+      const uSin = P + I + dFilt
+      const u = Math.min(umax, Math.max(umin, uSin))
+      I += (Kp / Ti) * e * dt
+      if (antiWindup) I += (dt / Tt) * (u - uSin) // back-calculation
+      pvPrev = pv
+
+      out.t.push(t); out.pv.push(pv); out.sp.push(spAct); out.u.push(u); out.d.push(dAct)
+
+      buf.push(u)
+      const uRet = buf.shift()
+      y = a * y + (1 - a) * (Tamb + K * uRet + dAct)
+    }
+    return out
+  }
+
+  // ---- Métricas de una respuesta a escalón de consigna en t0 ------------------------------------
+  function metricas(tr, t0, sp0, sp1) {
+    const dt = tr.t[1] - tr.t[0]
+    const i0 = Math.round(t0 / dt)
+    const paso = sp1 - sp0
+    const banda = 0.02 * Math.abs(paso)
+    let pico = -Infinity
+    let iae = 0
+    let itae = 0
+    let ultimoFuera = -1
+    let umax = -Infinity
+    for (let i = i0; i < tr.t.length; i++) {
+      const e = Math.abs(tr.sp[i] - tr.pv[i])
+      iae += e * dt
+      itae += (tr.t[i] - t0) * e * dt
+      const v = paso >= 0 ? tr.pv[i] : -tr.pv[i]
+      if (v > pico) pico = v
+      if (Math.abs(tr.pv[i] - sp1) > banda) ultimoFuera = i
+      if (tr.u[i] > umax) umax = tr.u[i]
+    }
+    const picoReal = paso >= 0 ? pico : -pico
+    const sobre = Math.max(0, ((picoReal - sp1) / paso) * 100)
+    const settle = ultimoFuera < 0 ? 0 : ultimoFuera >= tr.t.length - 1 ? Infinity : (ultimoFuera + 1) * dt - t0
+    return { sobreimpulso: sobre, asentamiento: settle, iae, itae, uMax: umax }
+  }
+
+  // Perturbación: desviación máxima respecto a la consigna y tiempo en recuperar la banda de ±1 °C.
+  function metricasPerturbacion(tr, td, banda = 1) {
+    const dt = tr.t[1] - tr.t[0]
+    let maxDev = 0
+    let ultimoFuera = -1
+    for (let i = Math.round(td / dt); i < tr.t.length; i++) {
+      const e = Math.abs(tr.sp[i] - tr.pv[i])
+      if (e > maxDev) maxDev = e
+      if (e > banda) ultimoFuera = i
+    }
+    const rec = ultimoFuera < 0 ? 0 : ultimoFuera >= tr.t.length - 1 ? Infinity : (ultimoFuera + 1) * dt - td
+    return { desviacionMax: maxDev, recuperacion: rec }
+  }
+
+  return { PLANTA, METODOS, sintonizar, simular, metricas, metricasPerturbacion, prng }
+})
+
+</script>
+<script>
+'use strict'
+const $ = (id) => document.getElementById(id)
+const SCEN = [
+  { id: 0, nombre: 'Escalón 40→72 °C', sp1: 72, dist: [], T: 600 },
+  { id: 1, nombre: 'Escalón grande 40→110 °C (satura)', sp1: 110, dist: [], T: 900 },
+  { id: 2, nombre: 'Escalón + perturbación −8 °C', sp1: 72, dist: [{ t: 400, v: -8 }], T: 900 },
+]
+const st = { method: 'lambda', K: 1, tau: 90, theta: 15, dTheta: 0, dK: 0, lam: 2, Kp: 2, Ti: 90, Td: 0, aw: true, umax: 100, noise: 0, scn: 0 }
+
+for (const m of PidCore.METODOS) $('method').add(new Option(m.nombre, m.id))
+$('method').add(new Option('Manual', 'manual'))
+SCEN.forEach((s) => {
+  const b = document.createElement('button'); b.textContent = s.nombre; b.dataset.i = s.id
+  b.onclick = () => { st.scn = s.id; sync() }
+  $('scn').appendChild(b)
+})
+
+function leer() {
+  st.method = $('method').value
+  for (const k of ['K', 'tau', 'theta', 'dTheta', 'dK', 'lam', 'umax', 'noise']) st[k] = +$(k).value
+  st.aw = $('aw').checked
+  if (st.method === 'manual') { st.Kp = +$('Kp').value; st.Ti = Math.max(1, +$('Ti').value); st.Td = +$('Td').value }
+}
+function escribir() {
+  $('method').value = st.method
+  for (const k of ['K', 'tau', 'theta', 'dTheta', 'dK', 'lam', 'umax', 'noise']) $(k).value = st[k]
+  $('aw').checked = st.aw
+  $('vK').textContent = st.K.toFixed(2); $('vTau').textContent = st.tau + ' s'; $('vTheta').textContent = st.theta + ' s'
+  $('vDTheta').textContent = '+' + st.dTheta + ' %'; $('vDK').textContent = '+' + st.dK + ' %'
+  $('vLam').textContent = st.lam.toFixed(2); $('vUmax').textContent = st.umax + ' %'; $('vNoise').textContent = st.noise.toFixed(2)
+  $('lamBox').style.display = st.method === 'lambda' ? '' : 'none'
+  $('Kp').value = st.Kp.toFixed(2); $('Ti').value = st.Ti.toFixed(1); $('Td').value = st.Td.toFixed(1)
+  document.querySelectorAll('#scn button').forEach((b) => b.classList.toggle('on', +b.dataset.i === st.scn))
+}
+
+function planta() {
+  const est = { K: st.K, tau: st.tau, theta: st.theta, Tamb: 20 }
+  const real = { ...est, theta: est.theta * (1 + st.dTheta / 100), K: est.K * (1 + st.dK / 100) }
+  return { est, real }
+}
+function correr(gains, scn, p) {
+  const u0 = Math.min(st.umax, Math.max(0, (40 - 20) / p.real.K))
+  const tr = PidCore.simular({
+    planta: p.real, ctrl: { ...gains, antiWindup: st.aw, umax: st.umax },
+    sp: [{ t: 0, v: 40 }, { t: 20, v: scn.sp1 }], dist: scn.dist, T: scn.T, u0, ruido: st.noise, semilla: 3,
+  })
+  return { tr, m: PidCore.metricas(tr, 20, 40, scn.sp1), pd: scn.dist.length ? PidCore.metricasPerturbacion(tr, scn.dist[0].t) : null }
+}
+
+const fx = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : '∞')
+function sync() {
+  if (st.method !== 'manual') {
+    const { est } = planta()
+    const g = PidCore.sintonizar(st.method, est, { lambdaFactor: st.lam })
+    st.Kp = g.Kp; st.Ti = g.Ti; st.Td = g.Td
+  }
+  escribir()
+  const p = planta(), scn = SCEN[st.scn]
+  const cur = correr({ Kp: st.Kp, Ti: st.Ti, Td: st.Td }, scn, p)
+  view = { ...cur, scn }
+  const m = cur.m
+  const ov = m.sobreimpulso, ts = m.asentamiento
+  const cells = [
+    ['Sobreimpulso', fx(ov) + ' %', ov < 10 ? 'ok' : ov < 25 ? 'warn' : 'bad'],
+    ['Asentamiento ±2 %', Number.isFinite(ts) ? fx(ts, 0) + ' s' : 'no se asienta', Number.isFinite(ts) ? 'ok' : 'bad'],
+    ['IAE', fx(m.iae, 0), ''], ['ITAE', fx(m.itae, 0), ''],
+    cur.pd ? ['Desviación por perturbación', fx(cur.pd.desviacionMax) + ' °C', cur.pd.desviacionMax < 4 ? 'ok' : 'warn'] : ['Salida máx. del PID', fx(m.uMax, 0) + ' %', ''],
+  ]
+  $('metrics').innerHTML = cells.map(([k, v, c]) => `<div class="metric"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join('')
+  $('lgDist').textContent = scn.dist.length ? '┆ perturbación −8 °C a los 400 s' : ''
+  $('badgeModelo').textContent = `τ/θ = ${(p.est.tau / p.est.theta).toFixed(1)}`
+
+  let rows = '<tr><th>Método</th><th>Kp</th><th>Ti</th><th>Td</th><th>Sobreimp.</th><th>Asent.</th><th>IAE</th><th>ITAE</th></tr>'
+  for (const mt of PidCore.METODOS) {
+    const g = PidCore.sintonizar(mt.id, p.est, { lambdaFactor: st.lam })
+    const r = correr(g, scn, p).m
+    rows += `<tr class="${st.method === mt.id ? 'cur' : ''}"><td>${mt.nombre}</td><td>${fx(g.Kp, 2)}</td><td>${fx(g.Ti)}</td><td>${fx(g.Td)}</td><td class="${r.sobreimpulso < 10 ? 'ok' : r.sobreimpulso < 25 ? 'warn' : 'bad'}">${fx(r.sobreimpulso)} %</td><td class="${Number.isFinite(r.asentamiento) ? '' : 'bad'}">${Number.isFinite(r.asentamiento) ? fx(r.asentamiento, 0) + ' s' : 'no se asienta'}</td><td>${fx(r.iae, 0)}</td><td>${fx(r.itae, 0)}</td></tr>`
+  }
+  $('cmp').innerHTML = rows
+  dibujar()
+}
+
+// ---- Gráficos (canvas propio, sin librerías) ------------------------------------------------------
+let view = null, cursorX = null
+function prep(cv) {
+  const dpr = window.devicePixelRatio || 1
+  const w = cv.clientWidth, h = cv.clientHeight
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h)
+  return { c, w, h }
+}
+function trazo(cv, { t, series, y0, y1, banda, marks }) {
+  const { c, w, h } = prep(cv)
+  const L = 46, R = 10, Tp = 8, B = 20
+  const x = (v) => L + ((v - t[0]) / (t.at(-1) - t[0])) * (w - L - R)
+  const y = (v) => Tp + (1 - (v - y0) / (y1 - y0)) * (h - Tp - B)
+  c.font = '11px ui-monospace, Consolas, monospace'; c.fillStyle = '#64748b'; c.strokeStyle = '#13203a'; c.lineWidth = 1
+  const paso = (y1 - y0) / 4
+  for (let i = 0; i <= 4; i++) { const v = y0 + paso * i; c.beginPath(); c.moveTo(L, y(v)); c.lineTo(w - R, y(v)); c.stroke(); c.textAlign = 'right'; c.fillText(v.toFixed(0), L - 6, y(v) + 4) }
+  c.textAlign = 'center'
+  const tx = Math.ceil(t.at(-1) / 6 / 50) * 50
+  for (let v = 0; v <= t.at(-1); v += tx) { c.beginPath(); c.moveTo(x(v), Tp); c.lineTo(x(v), h - B); c.stroke(); c.fillText(v + ' s', x(v), h - 5) }
+  if (banda) { c.fillStyle = 'rgba(245,158,11,.14)'; c.fillRect(x(banda.t0), y(banda.hi), x(t.at(-1)) - x(banda.t0), y(banda.lo) - y(banda.hi)) }
+  for (const m of marks || []) { c.strokeStyle = 'rgba(248,113,113,.6)'; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(x(m), Tp); c.lineTo(x(m), h - B); c.stroke(); c.setLineDash([]) }
+  for (const s of series) {
+    c.strokeStyle = s.color; c.lineWidth = s.w || 1.8; c.beginPath()
+    s.y.forEach((v, i) => (i ? c.lineTo(x(t[i]), y(v)) : c.moveTo(x(t[i]), y(v)))); c.stroke()
+  }
+  if (cursorX != null && cursorX > L && cursorX < w - R) {
+    c.strokeStyle = 'rgba(226,232,240,.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(cursorX, Tp); c.lineTo(cursorX, h - B); c.stroke()
+  }
+}
+function dibujar() {
+  if (!view) return
+  const { tr, scn } = view
+  const lo = Math.min(30, ...tr.pv) - 2, hi = Math.max(scn.sp1, ...tr.pv) + 6
+  trazo($('cvPv'), {
+    t: tr.t, y0: Math.floor(lo / 10) * 10, y1: Math.ceil(hi / 10) * 10,
+    banda: { t0: 20, lo: scn.sp1 - 0.02 * (scn.sp1 - 40), hi: scn.sp1 + 0.02 * (scn.sp1 - 40) },
+    marks: scn.dist.map((d) => d.t),
+    series: [{ y: tr.sp, color: '#f59e0b', w: 1.4 }, { y: tr.pv, color: '#22d3ee' }],
+  })
+  trazo($('cvU'), { t: tr.t, y0: 0, y1: 100, marks: scn.dist.map((d) => d.t), series: [{ y: tr.u, color: '#e879f9' }] })
+}
+for (const id of ['cvPv', 'cvU']) {
+  $(id).addEventListener('mousemove', (e) => {
+    if (!view) return
+    const r = $(id).getBoundingClientRect(); cursorX = e.clientX - r.left
+    const L = 46, R = 10, w = r.width
+    const i = Math.max(0, Math.min(view.tr.t.length - 1, Math.round(((cursorX - L) / (w - L - R)) * (view.tr.t.length - 1))))
+    $('hover').textContent = `t = ${view.tr.t[i].toFixed(0)} s · PV = ${view.tr.pv[i].toFixed(1)} °C · SP = ${view.tr.sp[i].toFixed(0)} °C · u = ${view.tr.u[i].toFixed(0)} %`
+    dibujar()
+  })
+  $(id).addEventListener('mouseleave', () => { cursorX = null; $('hover').textContent = ''; dibujar() })
+}
+
+for (const id of ['K', 'tau', 'theta', 'dTheta', 'dK', 'lam', 'umax', 'noise', 'aw', 'method']) $(id).addEventListener('input', () => { leer(); sync() })
+for (const id of ['Kp', 'Ti', 'Td']) $(id).addEventListener('input', () => { st.method = 'manual'; $('method').value = 'manual'; leer(); sync() })
+window.addEventListener('resize', dibujar)
+escribir(); sync()
+</script>
+</body>
+</html>

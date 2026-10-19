@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mantenimiento predictivo por vibración — FFT, envolvente y detección</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: 290px minmax(0, 1fr) 330px; align-items: start; }
+.col { display: grid; gap: 12px; min-width: 0; }
+.f { display: grid; gap: 3px; margin-bottom: 9px; } .f .l { display: flex; justify-content: space-between; }
+#cvW { height: 150px; } #cvS { height: 170px; } #cvE { height: 210px; } #cvD { height: 190px; }
+.estado { display: flex; align-items: center; gap: 10px; }
+.est { font: 600 20px var(--mono); padding: 6px 14px; border-radius: 10px; border: 1px solid; }
+.est.normal { color: var(--green); border-color: rgba(52, 211, 153, .5); background: rgba(52, 211, 153, .08); }
+.est.alerta { color: var(--amber); border-color: rgba(245, 158, 11, .6); background: rgba(245, 158, 11, .1); }
+.est.alarma { color: var(--red); border-color: rgba(248, 113, 113, .7); background: rgba(248, 113, 113, .12); }
+.barra { height: 10px; border-radius: 5px; background: #16233b; position: relative; margin: 8px 0 4px; }
+.barra i { display: block; height: 100%; border-radius: 5px; } .barra b { position: absolute; top: -4px; width: 2px; height: 18px; background: #e2e8f0; }
+.snr { display: grid; grid-template-columns: 94px 1fr 38px; gap: 6px; align-items: center; font: 11.5px var(--mono); color: var(--mut); margin: 3px 0; }
+.snr .b { height: 8px; background: #16233b; border-radius: 4px; overflow: hidden; } .snr .b i { display: block; height: 100%; background: var(--cyan); }
+.leg { font: 11px var(--mono); color: var(--mut); margin-top: 4px; }
+.leg i { display: inline-block; width: 10px; height: 10px; vertical-align: -1px; margin-right: 4px; border-radius: 2px; }
+#evTab td, #evTab th { text-align: center; } #evTab td:first-child, #evTab th:first-child { text-align: left; }
+@media (max-width: 1250px) { .layout { grid-template-columns: 280px minmax(0, 1fr); } .layout > .col:last-child { grid-column: 1 / -1; } }
+@media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Mantenimiento predictivo por vibración · rodamiento 6205</h1>
+  <span class="badge warn">datos sintéticos</span>
+  <span class="badge">FFT · envolvente · Mahalanobis</span>
+  <span class="sp"></span><span class="badge" id="bCal">calibrando línea base…</span>
+</div>
+<div class="wrap layout">
+  <div class="col">
+    <div class="panel">
+      <h2>Condición del rodamiento</h2>
+      <div class="f"><label>Tipo de falla</label><select id="falla"></select></div>
+      <div class="f"><div class="l"><label>Severidad</label><b id="vSev" class="cy"></b></div><input id="sev" type="range" min="0" max="1" step="0.05" value="0.5"></div>
+      <div class="f"><div class="l"><label>Velocidad [rpm]</label><b id="vRpm" class="cy"></b></div><input id="rpm" type="range" min="1200" max="3000" step="100" value="1800"></div>
+      <div class="f"><div class="l"><label>Ruido de fondo</label><b id="vRuido" class="cy"></b></div><input id="ruido" type="range" min="0.05" max="0.3" step="0.01" value="0.12"></div>
+      <div class="row"><button class="primary" id="bNueva">Nueva muestra</button><button id="bAuto">Auto</button></div>
+      <div class="note" style="padding:8px 0 0">Cada muestra es una ventana de 0,68 s a 12 kHz generada con un modelo físico (impactos periódicos que excitan una resonancia a 3,3 kHz).</div>
+    </div>
+    <div class="panel">
+      <h2>Degradación de 60 días</h2>
+      <div class="row"><button id="bDeg">Simular degradación</button><span class="note" style="padding:0" id="degTxt"></span></div>
+      <canvas id="cvD" style="margin-top:8px"></canvas>
+      <div class="leg"><i style="background:#22d3ee"></i>distancia / umbral &nbsp; <i style="background:#e879f9"></i>severidad real &nbsp; <i style="background:#f59e0b"></i>alerta (3 días seguidos)</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel"><h2>Señal en el tiempo (primeros 0,15 s)</h2><canvas id="cvW"></canvas></div>
+    <div class="panel"><h2>Espectro (0–6 kHz) · banda de resonancia usada para la envolvente</h2><canvas id="cvS"></canvas></div>
+    <div class="panel"><h2>Espectro de la envolvente (0–400 Hz) · frecuencias características</h2><canvas id="cvE"></canvas>
+      <div class="leg" id="legE"></div></div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <h2>Diagnóstico de esta muestra</h2>
+      <div class="estado"><span class="est normal" id="est">NORMAL</span><span id="tipo" class="cy" style="font:13px var(--mono)"></span></div>
+      <div class="barra" id="barra"><i></i><b></b></div>
+      <div class="kv"><span>Distancia de Mahalanobis</span><b id="dist">—</b></div>
+      <div class="kv"><span>Umbral (línea base sana)</span><b id="umb">—</b></div>
+      <h2 style="margin-top:10px">Picos en la envolvente (SNR)</h2><div id="snr"></div>
+      <h2 style="margin-top:10px">Características</h2><div id="car"></div>
+    </div>
+    <div class="panel">
+      <h2>Evaluación del detector (datos sintéticos independientes)</h2>
+      <div class="row" style="margin-bottom:8px"><button id="bEval">Evaluar</button><span class="note" style="padding:0" id="evTxt"></span></div>
+      <table id="evTab"></table>
+    </div>
+  </div>
+</div>
+<div class="note">Todo es sintético: no son mediciones de una máquina real. La línea base se calibra con 200 ventanas sanas para cada velocidad; el umbral es el percentil 99 de sus distancias × 1,15. Las cifras son de esta simulación.</div>
+
+<script>
+// Mantenimiento predictivo por vibración de un rodamiento: señal sintética con modelo físico de fallas,
+// FFT, envolvente (Hilbert por FFT), frecuencias características, características estadísticas y detector
+// de anomalías por distancia de Mahalanobis. El MISMO archivo corre en las pruebas (node --test) y en index.html.
+// Los datos son SINTÉTICOS: no son mediciones de una máquina real.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.VibCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  // Rodamiento 6205-2RS (el de los datos públicos de Case Western): 9 bolas, d = 7,94 mm, D = 39,04 mm, ángulo 0°
+  const ROD = { n: 9, d: 7.94, D: 39.04 }
+  const ordenes = () => {
+    const r = ROD.d / ROD.D
+    return { BPFO: (ROD.n / 2) * (1 - r), BPFI: (ROD.n / 2) * (1 + r), BSF: (ROD.D / (2 * ROD.d)) * (1 - r * r), FTF: 0.5 * (1 - r) }
+  }
+  const FS = 12000, N = 8192, F_RES = 3300, BETA = 700
+  const TIPOS = { sana: 'Sana', exterior: 'Pista exterior', interior: 'Pista interior', bola: 'Elemento rodante' }
+
+  // ---- Utilidades -------------------------------------------------------------------------------------------
+  function prng(seed) {
+    let a = seed >>> 0
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = a
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+  const gauss = (r) => Math.sqrt(-2 * Math.log(Math.max(r(), 1e-12))) * Math.cos(2 * Math.PI * r())
+  const mediana = (v) => { const s = [...v].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 }
+  const percentil = (v, p) => { const s = [...v].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(s.length * p))] }
+
+  // ---- FFT radix-2 iterativa ------------------------------------------------------------------------------------
+  const cacheFFT = new Map()
+  function tablas(n) {
+    if (cacheFFT.has(n)) return cacheFFT.get(n)
+    const rev = new Uint32Array(n), bits = Math.log2(n)
+    for (let i = 0; i < n; i++) { let x = i, r = 0; for (let b = 0; b < bits; b++) { r = (r << 1) | (x & 1); x >>= 1 } rev[i] = r }
+    const cos = new Float64Array(n / 2), sin = new Float64Array(n / 2)
+    for (let i = 0; i < n / 2; i++) { cos[i] = Math.cos((2 * Math.PI * i) / n); sin[i] = -Math.sin((2 * Math.PI * i) / n) }
+    const t = { rev, cos, sin }; cacheFFT.set(n, t); return t
+  }
+  function fft(re, im) {
+    const n = re.length, { rev, cos, sin } = tablas(n)
+    for (let i = 0; i < n; i++) { const j = rev[i]; if (j > i) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t } }
+    for (let tam = 2; tam <= n; tam <<= 1) {
+      const mitad = tam >> 1, paso = n / tam
+      for (let ini = 0; ini < n; ini += tam) {
+        for (let k = 0, w = 0; k < mitad; k++, w += paso) {
+          const a = ini + k, b = a + mitad, wr = cos[w], wi = sin[w]
+          const xr = re[b] * wr - im[b] * wi, xi = re[b] * wi + im[b] * wr
+          re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi
+        }
+      }
+    }
+  }
+  function ifft(re, im) { for (let i = 0; i < re.length; i++) im[i] = -im[i]; fft(re, im); const n = re.length; for (let i = 0; i < n; i++) { re[i] /= n; im[i] = -im[i] / n } }
+  // Espectro de amplitud unilateral: |X|/N·2
+  function espectro(x) {
+    const n = x.length, re = Float64Array.from(x), im = new Float64Array(n)
+    fft(re, im)
+    const out = new Float64Array(n / 2)
+    for (let i = 0; i < n / 2; i++) out[i] = (Math.hypot(re[i], im[i]) / n) * 2
+    return out
+  }
+  // Envolvente: pasa-banda por FFT [f1, f2], señal analítica (se anulan las frecuencias negativas) y módulo
+  function envolvente(x, fs, f1, f2) {
+    const n = x.length, re = Float64Array.from(x), im = new Float64Array(n)
+    fft(re, im)
+    const k1 = Math.round((f1 / fs) * n), k2 = Math.round((f2 / fs) * n)
+    for (let k = 0; k < n; k++) {
+      const enBanda = k >= k1 && k <= k2
+      if (!enBanda) { re[k] = 0; im[k] = 0 } else if (k > 0 && k < n / 2) { re[k] *= 2; im[k] *= 2 }
+      if (k > n / 2) { re[k] = 0; im[k] = 0 }
+    }
+    ifft(re, im)
+    const env = new Float64Array(n)
+    for (let i = 0; i < n; i++) env[i] = Math.hypot(re[i], im[i])
+    return env
+  }
+
+  // ---- Señal sintética ------------------------------------------------------------------------------------------
+  // severidad 0..1; la amplitud de los impactos crece con la severidad (ley potencial para que lo leve sea sutil)
+  function senal({ falla = 'sana', severidad = 0, rpm = 1797, ruido = 0.12, semilla = 1 } = {}) {
+    const r = prng(semilla), fr = rpm / 60, o = ordenes(), x = new Float64Array(N)
+    const fases = [r() * 6.28, r() * 6.28, r() * 6.28]
+    for (let i = 0; i < N; i++) {
+      const t = i / FS
+      x[i] = 0.15 * Math.sin(2 * Math.PI * fr * t + fases[0]) + 0.06 * Math.sin(4 * Math.PI * fr * t + fases[1]) + 0.03 * Math.sin(6 * Math.PI * fr * t + fases[2]) + ruido * gauss(r)
+    }
+    if (falla !== 'sana' && severidad > 0) {
+      const f = { exterior: o.BPFO * fr, interior: o.BPFI * fr, bola: 2 * o.BSF * fr }[falla]
+      const A = 1.6 * Math.pow(severidad, 1.3), largo = Math.round(0.012 * FS), T = 1 / f
+      for (let tk = r() * T; tk < N / FS; tk += T * (1 + 0.01 * gauss(r))) {
+        let m = 1
+        if (falla === 'interior') m = 0.3 + 0.7 * 0.5 * (1 + Math.cos(2 * Math.PI * fr * tk)) // zona de carga
+        if (falla === 'bola') m = 0.4 + 0.6 * 0.5 * (1 + Math.cos(2 * Math.PI * o.FTF * fr * tk)) // jaula
+        const a = A * m * (1 + 0.2 * gauss(r)), i0 = Math.floor(tk * FS)
+        for (let j = 0; j < largo && i0 + j < N; j++) { const tau = j / FS; x[i0 + j] += a * Math.exp(-BETA * tau) * Math.sin(2 * Math.PI * F_RES * tau) }
+      }
+    }
+    return x
+  }
+
+  // ---- Características ------------------------------------------------------------------------------------------
+  function caracteristicas(x, rpm = 1797) {
+    const n = x.length, fr = rpm / 60, o = ordenes()
+    let s1 = 0, s2 = 0, s4 = 0, pico = 0
+    for (const v of x) s1 += v
+    const med = s1 / n
+    for (const v of x) { const d = v - med; s2 += d * d; s4 += d ** 4; if (Math.abs(d) > pico) pico = Math.abs(d) }
+    const rms = Math.sqrt(s2 / n), kurt = s4 / n / (s2 / n) ** 2, cresta = pico / rms
+    const env = envolvente(x, FS, 2000, 4800); let m = 0; for (const v of env) m += v; m /= n
+    const e = Float64Array.from(env, (v) => v - m), es = espectro(e), df = FS / n
+    const k0 = Math.round(10 / df), k1 = Math.round(600 / df), ruido = mediana(Array.from(es.subarray(k0, k1)))
+    const pk = (f) => { const c = Math.round(f / df), w = Math.round(2 / df); let mx = 0; for (let k = c - w; k <= c + w; k++) if (es[k] > mx) mx = es[k]; return mx / ruido }
+    const snr = { exterior: pk(o.BPFO * fr), interior: pk(o.BPFI * fr), bola: pk(2 * o.BSF * fr) }
+    return { rms, kurt, cresta, snr, v: [Math.log(rms), kurt, cresta, Math.log(snr.exterior), Math.log(snr.interior), Math.log(snr.bola)], es, env }
+  }
+
+  // ---- Detector: distancia de Mahalanobis respecto de la línea base sana --------------------------------------------
+  function invertir(A) {
+    const n = A.length, M = A.map((f, i) => [...f, ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))])
+    for (let i = 0; i < n; i++) {
+      let p = i; for (let k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[p][i])) p = k
+      ;[M[i], M[p]] = [M[p], M[i]]
+      const d = M[i][i]; for (let j = 0; j < 2 * n; j++) M[i][j] /= d
+      for (let k = 0; k < n; k++) if (k !== i) { const f = M[k][i]; for (let j = 0; j < 2 * n; j++) M[k][j] -= f * M[i][j] }
+    }
+    return M.map((f) => f.slice(n))
+  }
+  function ajustar(vectores, ridge = 1e-6) {
+    const n = vectores.length, d = vectores[0].length
+    const media = Array.from({ length: d }, (_, j) => vectores.reduce((a, v) => a + v[j], 0) / n)
+    const cov = Array.from({ length: d }, (_, i) => Array.from({ length: d }, (_, j) => vectores.reduce((a, v) => a + (v[i] - media[i]) * (v[j] - media[j]), 0) / (n - 1) + (i === j ? ridge : 0)))
+    return { media, inv: invertir(cov), d }
+  }
+  function distancia(modelo, v) {
+    const dif = v.map((x, i) => x - modelo.media[i]); let s = 0
+    for (let i = 0; i < modelo.d; i++) { let t = 0; for (let j = 0; j < modelo.d; j++) t += modelo.inv[i][j] * dif[j]; s += dif[i] * t }
+    return Math.sqrt(Math.max(s, 0))
+  }
+  function calibrar({ rpm = 1797, ventanas = 200, semilla = 1000 } = {}) {
+    const vs = Array.from({ length: ventanas }, (_, i) => caracteristicas(senal({ falla: 'sana', rpm, semilla: semilla + i }), rpm).v)
+    const modelo = ajustar(vs), d = vs.map((v) => distancia(modelo, v))
+    return { modelo, umbral: percentil(d, 0.99) * 1.15, rpm }
+  }
+  // Estado y diagnóstico de una ventana
+  function diagnosticar(cal, carac) {
+    const d = distancia(cal.modelo, carac.v), ratio = d / cal.umbral
+    const estado = ratio < 1 ? 'normal' : ratio < 2 ? 'alerta' : 'alarma'
+    let tipo = 'sana'
+    if (estado !== 'normal') { const [mejor, snr] = Object.entries(carac.snr).sort((a, b) => b[1] - a[1])[0]; tipo = snr > 4 ? mejor : 'indeterminada' }
+    return { distancia: d, ratio, estado, tipo }
+  }
+
+  // ---- Evaluación con datos de prueba independientes de la calibración ------------------------------------------------
+  function evaluar({ rpm = 1797, porClase = 100, severidades = [0.1, 0.2, 0.3, 0.5, 1], semilla = 50000 } = {}) {
+    const cal = calibrar({ rpm }), res = { umbral: cal.umbral, sanas: null, fallas: {} }
+    let fp = 0
+    for (let i = 0; i < porClase * 2; i++) if (diagnosticar(cal, caracteristicas(senal({ falla: 'sana', rpm, semilla: semilla + i }), rpm)).estado !== 'normal') fp++
+    res.sanas = { n: porClase * 2, falsasAlarmas: fp, tasa: fp / (porClase * 2) }
+    let s = semilla + 10000
+    for (const falla of ['exterior', 'interior', 'bola']) {
+      res.fallas[falla] = {}
+      for (const sev of severidades) {
+        let det = 0, bien = 0
+        for (let i = 0; i < porClase; i++) {
+          const dg = diagnosticar(cal, caracteristicas(senal({ falla, severidad: sev, rpm, semilla: s++ }), rpm))
+          if (dg.estado !== 'normal') { det++; if (dg.tipo === falla) bien++ }
+        }
+        res.fallas[falla][sev] = { deteccion: det / porClase, diagnosticoCorrecto: det ? bien / det : 0 }
+      }
+    }
+    return res
+  }
+  // Degradación gradual: una ventana por día; severidad 0 hasta el día 15 y luego sube hasta 1 el día 60
+  function degradacion({ falla = 'exterior', rpm = 1797, semilla = 70000, diasLinea = 15, diasTotal = 60 } = {}) {
+    const cal = calibrar({ rpm }), serie = []
+    let consecutivos = 0, alerta = null, alarma = null
+    for (let d = 1; d <= diasTotal; d++) {
+      const sev = d <= diasLinea ? 0 : Math.pow((d - diasLinea) / (diasTotal - diasLinea), 1.5)
+      const dg = diagnosticar(cal, caracteristicas(senal({ falla, severidad: sev, rpm, semilla: semilla + d }), rpm))
+      consecutivos = dg.estado !== 'normal' ? consecutivos + 1 : 0
+      if (alerta == null && consecutivos >= 3) alerta = d // persistencia: 3 días seguidos
+      if (alarma == null && dg.ratio >= 2) alarma = d
+      serie.push({ dia: d, severidad: sev, ...dg })
+    }
+    return { serie, alerta, alarma, umbral: cal.umbral }
+  }
+
+  return { ROD, ordenes, FS, N, F_RES, TIPOS, prng, fft, ifft, espectro, envolvente, senal, caracteristicas, invertir, ajustar, distancia, calibrar, diagnosticar, evaluar, degradacion, percentil, mediana }
+})
+
+</script>
+<script>
+'use strict'
+const V = VibCore, $ = (id) => document.getElementById(id)
+const cals = new Map()
+const st = { falla: 'exterior', sev: 0.5, rpm: 1800, ruido: 0.12, semilla: 1, auto: false }
+let muestra = null, deg = null
+for (const [k, v] of Object.entries(V.TIPOS)) $('falla').add(new Option(v, k))
+$('falla').value = st.falla
+
+function calibracion() {
+  if (!cals.has(st.rpm)) { $('bCal').textContent = 'calibrando línea base…'; cals.set(st.rpm, V.calibrar({ rpm: st.rpm })) }
+  $('bCal').textContent = `línea base ${st.rpm} rpm · umbral ${cals.get(st.rpm).umbral.toFixed(2)}`
+  return cals.get(st.rpm)
+}
+function leer() { st.falla = $('falla').value; st.sev = +$('sev').value; st.rpm = +$('rpm').value; st.ruido = +$('ruido').value }
+function etiquetas() { $('vSev').textContent = st.falla === 'sana' ? '—' : st.sev.toFixed(2); $('vRpm').textContent = st.rpm + ' rpm'; $('vRuido').textContent = st.ruido.toFixed(2) }
+function nueva() {
+  setTimeout(() => {
+    leer(); etiquetas(); const cal = calibracion(); st.semilla++
+    const x = V.senal({ falla: st.falla, severidad: st.falla === 'sana' ? 0 : st.sev, rpm: st.rpm, ruido: st.ruido, semilla: st.semilla })
+    const car = V.caracteristicas(x, st.rpm); muestra = { x, car, dg: V.diagnosticar(cal, car), cal }
+    render()
+  }, 0)
+}
+for (const id of ['falla', 'sev', 'rpm', 'ruido']) $(id).addEventListener('input', nueva)
+$('bNueva').onclick = nueva
+$('bAuto').onclick = () => { st.auto = !st.auto; $('bAuto').classList.toggle('on', st.auto) }
+setInterval(() => { if (st.auto) nueva() }, 1000)
+
+function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+function ejes(c, w, h, L, R, T, B, x0, x1, y0, y1, ticksX, ticksY, fx = (v) => v, fy = (v) => v.toFixed(1)) {
+  const x = (v) => L + ((v - x0) / (x1 - x0)) * (w - L - R), y = (v) => T + (1 - (v - y0) / (y1 - y0)) * (h - T - B)
+  c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.lineWidth = 1
+  c.textAlign = 'right'; for (const v of ticksY) { c.beginPath(); c.moveTo(L, y(v)); c.lineTo(w - R, y(v)); c.stroke(); c.fillText(fy(v), L - 4, y(v) + 3) }
+  c.textAlign = 'center'; for (const v of ticksX) { c.beginPath(); c.moveTo(x(v), T); c.lineTo(x(v), h - B); c.stroke(); c.fillText(fx(v), x(v), h - 4) }
+  return { x, y }
+}
+function dibujarOnda() {
+  const { c, w, h } = prep($('cvW')), x = muestra.x, n = Math.round(0.15 * V.FS)
+  const m = Math.max(1.2, ...x.subarray(0, n).map(Math.abs)) * 1.05
+  const g = ejes(c, w, h, 38, 8, 6, 16, 0, 0.15, -m, m, [0, 0.05, 0.1, 0.15], [-m, 0, m], (v) => v.toFixed(2) + ' s', (v) => v.toFixed(1))
+  c.strokeStyle = '#22d3ee'; c.lineWidth = 1; c.beginPath(); for (let i = 0; i < n; i++) { const px = g.x(i / V.FS), py = g.y(x[i]); i ? c.lineTo(px, py) : c.moveTo(px, py) } c.stroke()
+}
+function dibujarEspectro() {
+  const { c, w, h } = prep($('cvS')), es = muestra.car.es0 ?? (muestra.car.es0 = V.espectro(muestra.x)), df = V.FS / V.N, kmax = Math.round(6000 / df)
+  const m = Math.max(0.05, ...es.subarray(0, kmax)) * 1.1
+  const g = ejes(c, w, h, 38, 8, 6, 16, 0, 6000, 0, m, [0, 1000, 2000, 3000, 4000, 5000, 6000], [0, m / 2, m], (v) => v / 1000 + ' kHz', (v) => v.toFixed(2))
+  c.fillStyle = 'rgba(245,158,11,.12)'; c.fillRect(g.x(2000), 6, g.x(4800) - g.x(2000), h - 22)
+  c.strokeStyle = '#e879f9'; c.lineWidth = 1; c.beginPath(); for (let k = 0; k < kmax; k++) { const px = g.x(k * df), py = g.y(es[k]); k ? c.lineTo(px, py) : c.moveTo(px, py) } c.stroke()
+}
+function dibujarEnv() {
+  const { c, w, h } = prep($('cvE')), es = muestra.car.es, df = V.FS / V.N, fr = st.rpm / 60, o = V.ordenes()
+  const kmax = Math.round(400 / df), k0 = Math.round(8 / df), m = Math.max(...es.subarray(k0, kmax)) * 1.25
+  const g = ejes(c, w, h, 38, 8, 14, 16, 0, 400, 0, m, [0, 100, 200, 300, 400], [0, m / 2, m], (v) => v + ' Hz', (v) => v.toFixed(3))
+  const marcas = [['1×', fr, '#94a3b8'], ['BPFO', o.BPFO * fr, '#22d3ee'], ['BPFI', o.BPFI * fr, '#f59e0b'], ['2·BSF', 2 * o.BSF * fr, '#e879f9']]
+  for (const [n, f, col] of marcas) { c.strokeStyle = col; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(g.x(f), 14); c.lineTo(g.x(f), h - 16); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.textAlign = 'center'; c.fillText(`${n} ${f.toFixed(0)}`, g.x(f), 10) }
+  c.strokeStyle = '#34d399'; c.lineWidth = 1.2; c.beginPath(); for (let k = k0; k < kmax; k++) { const px = g.x(k * df), py = g.y(es[k]); k > k0 ? c.lineTo(px, py) : c.moveTo(px, py) } c.stroke()
+  $('legE').innerHTML = marcas.map(([n, f, col]) => `<span style="margin-right:12px"><i style="background:${col}"></i>${n} = ${f.toFixed(1)} Hz</span>`).join('')
+}
+const NOMBRE_TIPO = { exterior: 'pista exterior', interior: 'pista interior', bola: 'elemento rodante', sana: 'sin falla', indeterminada: 'indeterminada' }
+function render() {
+  if (!muestra) return
+  const { car, dg, cal } = muestra
+  $('est').className = 'est ' + dg.estado; $('est').textContent = dg.estado.toUpperCase()
+  $('tipo').textContent = dg.estado === 'normal' ? 'sin falla detectada' : `falla probable: ${NOMBRE_TIPO[dg.tipo]}`
+  const pct = Math.min(100, (dg.ratio / 3) * 100)
+  $('barra').innerHTML = `<i style="width:${pct}%;background:${dg.estado === 'normal' ? 'var(--green)' : dg.estado === 'alerta' ? 'var(--amber)' : 'var(--red)'}"></i><b style="left:${100 / 3}%"></b><b style="left:${200 / 3}%;opacity:.4"></b>`
+  $('dist').textContent = dg.distancia.toFixed(2) + ` (${dg.ratio.toFixed(2)}× umbral)`; $('umb').textContent = cal.umbral.toFixed(2)
+  $('snr').innerHTML = [['exterior', 'BPFO'], ['interior', 'BPFI'], ['bola', '2·BSF']].map(([k, n]) => `<div class="snr"><span>${n}</span><span class="b"><i style="width:${Math.min(100, (car.snr[k] / 20) * 100)}%"></i></span><b>${car.snr[k].toFixed(1)}</b></div>`).join('')
+  $('car').innerHTML = [['RMS', car.rms.toFixed(3)], ['Curtosis', car.kurt.toFixed(2)], ['Factor de cresta', car.cresta.toFixed(2)]].map(([k, v]) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`).join('')
+  dibujarOnda(); dibujarEspectro(); dibujarEnv(); dibujarDeg()
+}
+
+// ---- Degradación -----------------------------------------------------------------------------------------------
+$('bDeg').onclick = () => {
+  leer(); $('degTxt').textContent = 'simulando…'
+  setTimeout(() => { deg = V.degradacion({ falla: st.falla === 'sana' ? 'exterior' : st.falla, rpm: st.rpm }); $('degTxt').innerHTML = `Alerta el <b class="warn">día ${deg.alerta ?? '—'}</b> con severidad ${deg.alerta ? deg.serie[deg.alerta - 1].severidad.toFixed(2) : '—'} · alarma el día ${deg.alarma ?? '—'} · falla funcional ≈ día 60`; dibujarDeg() }, 20)
+}
+function dibujarDeg() {
+  const { c, w, h } = prep($('cvD'))
+  const ymax = Math.max(4, ...(deg ? deg.serie.map((s) => s.ratio) : [4])) * 1.05
+  const g = ejes(c, w, h, 34, 8, 8, 16, 1, 60, 0, ymax, [1, 15, 30, 45, 60], [0, 1, 2, Math.ceil(ymax)], (v) => 'd' + v, (v) => v.toFixed(0))
+  if (!deg) { c.fillStyle = '#64748b'; c.textAlign = 'center'; c.fillText('pulsa «Simular degradación»', w / 2, h / 2); return }
+  c.strokeStyle = 'rgba(248,113,113,.6)'; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(34, g.y(1)); c.lineTo(w - 8, g.y(1)); c.stroke(); c.setLineDash([])
+  c.strokeStyle = '#e879f9'; c.lineWidth = 1.4; c.beginPath(); deg.serie.forEach((s, i) => (i ? c.lineTo(g.x(s.dia), g.y(s.severidad * ymax * 0.9)) : c.moveTo(g.x(s.dia), g.y(s.severidad * ymax * 0.9)))); c.stroke()
+  c.strokeStyle = '#22d3ee'; c.lineWidth = 1.8; c.beginPath(); deg.serie.forEach((s, i) => (i ? c.lineTo(g.x(s.dia), g.y(s.ratio)) : c.moveTo(g.x(s.dia), g.y(s.ratio)))); c.stroke()
+  if (deg.alerta) { c.strokeStyle = '#f59e0b'; c.lineWidth = 2; c.beginPath(); c.moveTo(g.x(deg.alerta), 8); c.lineTo(g.x(deg.alerta), h - 16); c.stroke(); c.fillStyle = '#f59e0b'; c.textAlign = 'left'; c.fillText('alerta', g.x(deg.alerta) + 4, 20) }
+}
+
+// ---- Evaluación ------------------------------------------------------------------------------------------------
+$('bEval').onclick = () => {
+  leer(); $('evTxt').textContent = 'evaluando (≈ 3 s)…'
+  setTimeout(() => {
+    const e = V.evaluar({ rpm: st.rpm, porClase: 40, semilla: 90000 }), f = (x) => (x * 100).toFixed(0) + ' %', sevs = Object.keys(e.fallas.exterior).sort((a, b) => a - b)
+    $('evTxt').textContent = `${e.sanas.n} sanas: ${e.sanas.falsasAlarmas} falsas alarmas (${f(e.sanas.tasa)})`
+    $('evTab').innerHTML = `<tr><th>Detección</th>${sevs.map((s) => `<th>sev ${s}</th>`).join('')}</tr>` + Object.entries(e.fallas).map(([k, r]) => `<tr><td>${V.TIPOS[k]}</td>${sevs.map((s) => `<td class="${r[s].deteccion >= 0.9 ? 'ok' : r[s].deteccion >= 0.4 ? 'warn' : 'bad'}">${f(r[s].deteccion)}</td>`).join('')}</tr>`).join('')
+  }, 30)
+}
+window.addEventListener('resize', render)
+etiquetas(); nueva()
+// Avance determinista para pruebas automáticas.
+window.demoApi = { get muestra() { return muestra }, nueva, st, listo: () => !!muestra }
+</script>
+</body>
+</html>

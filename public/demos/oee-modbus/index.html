@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard de OEE — línea de envasado (datos por Modbus TCP)</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b; --txt: #e2e8f0; --mut: #94a3b8;
+  --cyan: #22d3ee; --amber: #f59e0b; --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, sans-serif; --mono: ui-monospace, 'JetBrains Mono', Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; }
+.sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.tabs { display: flex; gap: 6px; padding: 12px 16px 0; flex-wrap: wrap; }
+.tabs button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+.tabs button:hover { border-color: var(--cyan); color: var(--cyan); }
+.tabs button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.kpis { display: grid; grid-template-columns: 1.2fr repeat(3, 1fr) 1.2fr; gap: 10px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.kpi .k { font: 11px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .6px; }
+.kpi .v { font: 600 30px var(--mono); margin-top: 2px; } .kpi .s { font: 11px var(--mono); color: #64748b; }
+.bar { height: 6px; border-radius: 3px; background: #16233b; margin-top: 8px; position: relative; }
+.bar i { display: block; height: 100%; border-radius: 3px; }
+.bar b { position: absolute; top: -3px; width: 2px; height: 12px; background: #e2e8f0; opacity: .7; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+canvas { display: block; width: 100%; border-radius: 8px; }
+#tip { position: fixed; pointer-events: none; background: #0b1220; border: 1px solid var(--cyan); border-radius: 8px; padding: 6px 10px; font: 12px var(--mono); display: none; z-index: 9; }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 11px var(--mono); color: var(--mut); margin-top: 6px; }
+.leg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); }
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+@media (max-width: 1000px) { .kpis { grid-template-columns: repeat(2, 1fr); } .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>OEE y análisis de paros · línea de envasado</h1>
+  <span class="badge warn">datos sintéticos</span>
+  <span class="badge">recogidos por Modbus TCP</span>
+  <span class="sp"></span>
+  <span class="badge" id="bProto"></span>
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+  <div class="panel"><h2 id="tlTitulo">Línea de tiempo del turno</h2><canvas id="cvTl"></canvas><div class="leg" id="legTl"></div></div>
+  <div class="two">
+    <div class="panel"><h2 id="hrTitulo">OEE por hora</h2><canvas id="cvHr" style="height:230px"></canvas></div>
+    <div class="panel"><h2>Pareto de paros (minutos perdidos)</h2><canvas id="cvPa" style="height:230px"></canvas></div>
+  </div>
+  <div class="panel"><h2>Mayores paros del período</h2><table id="top"></table></div>
+</div>
+<div class="note" id="nota"></div>
+<div id="tip"></div>
+
+<script>
+'use strict'
+const DATOS = {"meta": {"muestra_s": 10, "causas": {"0": "Sin paro", "1": "Atasco de envases", "2": "Falta de tapas", "3": "Falla mecánica de la llenadora", "4": "Falla eléctrica / sensor", "5": "Cambio de formato", "6": "Limpieza CIP", "7": "Descanso (planificado)"}, "nominal": 120, "protocolo": {"transacciones": 17286, "errores": 0, "p50_ms": 0.065, "p95_ms": 0.118, "max_ms": 0.516}}, "turnos": [{"duracion_s": 28800, "planificado_s": 27010, "descanso_s": 1790, "marcha_s": 17760, "total": 34357, "buenos": 32995, "rechazos": 1362, "nominal": 120, "A": 0.6575, "P": 0.9673, "Q": 0.9604, "OEE": 0.6108, "horas": [{"hora": 1, "A": 0.6639, "P": 0.9789, "Q": 0.9628, "OEE": 0.6257}, {"hora": 2, "A": 0.9667, "P": 0.9159, "Q": 0.9642, "OEE": 0.8538}, {"hora": 3, "A": 0.6778, "P": 0.9918, "Q": 0.9674, "OEE": 0.6503}, {"hora": 4, "A": 0.45, "P": 0.9194, "Q": 0.9453, "OEE": 0.3911}, {"hora": 5, "A": 0.6685, "P": 0.9744, "Q": 0.9436, "OEE": 0.6146}, {"hora": 6, "A": 0.5778, "P": 0.9892, "Q": 0.9453, "OEE": 0.5403}, {"hora": 7, "A": 0.5389, "P": 0.9956, "Q": 0.9746, "OEE": 0.5229}, {"hora": 8, "A": 0.7222, "P": 0.99, "Q": 0.9645, "OEE": 0.6896}], "segmentos": [{"t0": 0, "t1": 500, "estado": 1, "causa": 0}, {"t0": 500, "t1": 560, "estado": 2, "causa": 1}, {"t0": 560, "t1": 1300, "estado": 1, "causa": 0}, {"t0": 1300, "t1": 1360, "estado": 2, "causa": 1}, {"t0": 1360, "t1": 1820, "estado": 1, "causa": 0}, {"t0": 1820, "t1": 2570, "estado": 2, "causa": 4}, {"t0": 2570, "t1": 3070, "estado": 1, "causa": 0}, {"t0": 3070, "t1": 3380, "estado": 2, "causa": 2}, {"t0": 3380, "t1": 3540, "estado": 1, "causa": 0}, {"t0": 3540, "t1": 3570, "estado": 2, "causa": 1}, {"t0": 3570, "t1": 4060, "estado": 1, "causa": 0}, {"t0": 4060, "t1": 4120, "estado": 2, "causa": 1}, {"t0": 4120, "t1": 4750, "estado": 1, "causa": 0}, {"t0": 4750, "t1": 4810, "estado": 2, "causa": 1}, {"t0": 4810, "t1": 8690, "estado": 1, "causa": 0}, {"t0": 8690, "t1": 8730, "estado": 2, "causa": 1}, {"t0": 8730, "t1": 9280, "estado": 1, "causa": 0}, {"t0": 9280, "t1": 9350, "estado": 2, "causa": 1}, {"t0": 9350, "t1": 9750, "estado": 1, "causa": 0}, {"t0": 9750, "t1": 9930, "estado": 2, "causa": 1}, {"t0": 9930, "t1": 11290, "estado": 3, "causa": 5}, {"t0": 11290, "t1": 11350, "estado": 1, "causa": 0}, {"t0": 11350, "t1": 11410, "estado": 2, "causa": 1}, {"t0": 11410, "t1": 11550, "estado": 1, "causa": 0}, {"t0": 11550, "t1": 11680, "estado": 2, "causa": 1}, {"t0": 11680, "t1": 12180, "estado": 1, "causa": 0}, {"t0": 12180, "t1": 12220, "estado": 2, "causa": 1}, {"t0": 12220, "t1": 12320, "estado": 1, "causa": 0}, {"t0": 12320, "t1": 12650, "estado": 2, "causa": 2}, {"t0": 12650, "t1": 12990, "estado": 1, "causa": 0}, {"t0": 12990, "t1": 13660, "estado": 2, "causa": 3}, {"t0": 13660, "t1": 13700, "estado": 1, "causa": 0}, {"t0": 13700, "t1": 13760, "estado": 2, "causa": 1}, {"t0": 13760, "t1": 14060, "estado": 1, "causa": 0}, {"t0": 14060, "t1": 14130, "estado": 2, "causa": 1}, {"t0": 14130, "t1": 14270, "estado": 1, "causa": 0}, {"t0": 14270, "t1": 14400, "estado": 2, "causa": 1}, {"t0": 14400, "t1": 14410, "estado": 1, "causa": 0}, {"t0": 14410, "t1": 16200, "estado": 0, "causa": 7}, {"t0": 16200, "t1": 16300, "estado": 1, "causa": 0}, {"t0": 16300, "t1": 16430, "estado": 2, "causa": 1}, {"t0": 16430, "t1": 16830, "estado": 1, "causa": 0}, {"t0": 16830, "t1": 17220, "estado": 2, "causa": 2}, {"t0": 17220, "t1": 17260, "estado": 1, "causa": 0}, {"t0": 17260, "t1": 17280, "estado": 2, "causa": 1}, {"t0": 17280, "t1": 17530, "estado": 1, "causa": 0}, {"t0": 17530, "t1": 17560, "estado": 2, "causa": 1}, {"t0": 17560, "t1": 17970, "estado": 1, "causa": 0}, {"t0": 17970, "t1": 18030, "estado": 2, "causa": 1}, {"t0": 18030, "t1": 18810, "estado": 1, "causa": 0}, {"t0": 18810, "t1": 19140, "estado": 2, "causa": 2}, {"t0": 19140, "t1": 19410, "estado": 1, "causa": 0}, {"t0": 19410, "t1": 19450, "estado": 2, "causa": 1}, {"t0": 19450, "t1": 19510, "estado": 1, "causa": 0}, {"t0": 19510, "t1": 19540, "estado": 2, "causa": 1}, {"t0": 19540, "t1": 19770, "estado": 1, "causa": 0}, {"t0": 19770, "t1": 19790, "estado": 2, "causa": 1}, {"t0": 19790, "t1": 19880, "estado": 1, "causa": 0}, {"t0": 19880, "t1": 19900, "estado": 2, "causa": 1}, {"t0": 19900, "t1": 20040, "estado": 1, "causa": 0}, {"t0": 20040, "t1": 20100, "estado": 2, "causa": 1}, {"t0": 20100, "t1": 20610, "estado": 1, "causa": 0}, {"t0": 20610, "t1": 21680, "estado": 2, "causa": 3}, {"t0": 21680, "t1": 22810, "estado": 1, "causa": 0}, {"t0": 22810, "t1": 22840, "estado": 2, "causa": 1}, {"t0": 22840, "t1": 23130, "estado": 2, "causa": 2}, {"t0": 23130, "t1": 23630, "estado": 1, "causa": 0}, {"t0": 23630, "t1": 23830, "estado": 2, "causa": 2}, {"t0": 23830, "t1": 23940, "estado": 1, "causa": 0}, {"t0": 23940, "t1": 24010, "estado": 2, "causa": 1}, {"t0": 24010, "t1": 24030, "estado": 1, "causa": 0}, {"t0": 24030, "t1": 24910, "estado": 2, "causa": 3}, {"t0": 24910, "t1": 25090, "estado": 1, "causa": 0}, {"t0": 25090, "t1": 25200, "estado": 2, "causa": 1}, {"t0": 25200, "t1": 26230, "estado": 1, "causa": 0}, {"t0": 26230, "t1": 26270, "estado": 2, "causa": 1}, {"t0": 26270, "t1": 27010, "estado": 1, "causa": 0}, {"t0": 27010, "t1": 27900, "estado": 3, "causa": 6}, {"t0": 27900, "t1": 28600, "estado": 1, "causa": 0}, {"t0": 28600, "t1": 28670, "estado": 2, "causa": 1}, {"t0": 28670, "t1": 28800, "estado": 1, "causa": 0}], "pareto": [{"causa": 3, "nombre": "Falla mecánica de la llenadora", "min": 43.666666666666664, "n": 3, "acum": 28.324324324324323}, {"causa": 2, "nombre": "Falta de tapas", "min": 30.833333333333332, "n": 6, "acum": 48.32432432432432}, {"causa": 1, "nombre": "Atasco de envases", "min": 29.666666666666668, "n": 28, "acum": 67.56756756756758}, {"causa": 5, "nombre": "Cambio de formato", "min": 22.666666666666668, "n": 1, "acum": 82.27027027027029}, {"causa": 6, "nombre": "Limpieza CIP", "min": 14.833333333333334, "n": 1, "acum": 91.8918918918919}, {"causa": 4, "nombre": "Falla eléctrica / sensor", "min": 12.5, "n": 1, "acum": 100.00000000000003}], "fallas": 38, "mtbf_min": 7.7894736842105265, "mttr_min": 3.0701754385964914, "causas": {"0": "Sin paro", "1": "Atasco de envases", "2": "Falta de tapas", "3": "Falla mecánica de la llenadora", "4": "Falla eléctrica / sensor", "5": "Cambio de formato", "6": "Limpieza CIP", "7": "Descanso (planificado)"}, "nombre": "Mañana (06–14)", "semilla": 11, "verificacion": {"total_plc": 34357, "total_leido": 34357, "marcha_plc_s": 17713, "marcha_leida_s": 17760}}, {"duracion_s": 28800, "planificado_s": 27010, "descanso_s": 1790, "marcha_s": 16300, "total": 31078, "buenos": 29850, "rechazos": 1228, "nominal": 120, "A": 0.6035, "P": 0.9533, "Q": 0.9605, "OEE": 0.5526, "horas": [{"hora": 1, "A": 0.5444, "P": 0.9809, "Q": 0.9511, "OEE": 0.5079}, {"hora": 2, "A": 0.6917, "P": 0.9253, "Q": 0.9646, "OEE": 0.6174}, {"hora": 3, "A": 0.775, "P": 0.9267, "Q": 0.9669, "OEE": 0.6944}, {"hora": 4, "A": 0.8306, "P": 0.9211, "Q": 0.9572, "OEE": 0.7322}, {"hora": 5, "A": 0.5635, "P": 0.975, "Q": 0.9578, "OEE": 0.5262}, {"hora": 6, "A": 0.2667, "P": 0.9812, "Q": 0.9634, "OEE": 0.2521}, {"hora": 7, "A": 0.5139, "P": 0.9911, "Q": 0.9744, "OEE": 0.4962}, {"hora": 8, "A": 0.6222, "P": 0.9835, "Q": 0.9494, "OEE": 0.581}], "segmentos": [{"t0": 0, "t1": 160, "estado": 1, "causa": 0}, {"t0": 160, "t1": 460, "estado": 2, "causa": 2}, {"t0": 460, "t1": 1070, "estado": 1, "causa": 0}, {"t0": 1070, "t1": 1100, "estado": 2, "causa": 1}, {"t0": 1100, "t1": 1300, "estado": 1, "causa": 0}, {"t0": 1300, "t1": 2390, "estado": 2, "causa": 4}, {"t0": 2390, "t1": 2410, "estado": 1, "causa": 0}, {"t0": 2410, "t1": 2450, "estado": 2, "causa": 1}, {"t0": 2450, "t1": 2590, "estado": 1, "causa": 0}, {"t0": 2590, "t1": 2660, "estado": 2, "causa": 1}, {"t0": 2660, "t1": 2880, "estado": 1, "causa": 0}, {"t0": 2880, "t1": 2940, "estado": 2, "causa": 1}, {"t0": 2940, "t1": 3260, "estado": 1, "causa": 0}, {"t0": 3260, "t1": 3310, "estado": 2, "causa": 1}, {"t0": 3310, "t1": 3710, "estado": 1, "causa": 0}, {"t0": 3710, "t1": 3740, "estado": 2, "causa": 1}, {"t0": 3740, "t1": 4180, "estado": 1, "causa": 0}, {"t0": 4180, "t1": 4260, "estado": 2, "causa": 1}, {"t0": 4260, "t1": 6200, "estado": 1, "causa": 0}, {"t0": 6200, "t1": 7550, "estado": 3, "causa": 5}, {"t0": 7550, "t1": 7890, "estado": 1, "causa": 0}, {"t0": 7890, "t1": 8070, "estado": 2, "causa": 2}, {"t0": 8070, "t1": 8200, "estado": 1, "causa": 0}, {"t0": 8200, "t1": 8220, "estado": 2, "causa": 1}, {"t0": 8220, "t1": 8570, "estado": 1, "causa": 0}, {"t0": 8570, "t1": 8600, "estado": 2, "causa": 1}, {"t0": 8600, "t1": 8890, "estado": 1, "causa": 0}, {"t0": 8890, "t1": 9120, "estado": 2, "causa": 2}, {"t0": 9120, "t1": 11060, "estado": 1, "causa": 0}, {"t0": 11060, "t1": 11100, "estado": 2, "causa": 1}, {"t0": 11100, "t1": 12210, "estado": 1, "causa": 0}, {"t0": 12210, "t1": 12260, "estado": 2, "causa": 1}, {"t0": 12260, "t1": 12930, "estado": 1, "causa": 0}, {"t0": 12930, "t1": 12970, "estado": 2, "causa": 1}, {"t0": 12970, "t1": 13420, "estado": 1, "causa": 0}, {"t0": 13420, "t1": 13580, "estado": 2, "causa": 2}, {"t0": 13580, "t1": 13620, "estado": 1, "causa": 0}, {"t0": 13620, "t1": 13940, "estado": 2, "causa": 3}, {"t0": 13940, "t1": 14410, "estado": 1, "causa": 0}, {"t0": 14410, "t1": 16200, "estado": 0, "causa": 7}, {"t0": 16200, "t1": 16590, "estado": 1, "causa": 0}, {"t0": 16590, "t1": 16630, "estado": 2, "causa": 1}, {"t0": 16630, "t1": 17110, "estado": 1, "causa": 0}, {"t0": 17110, "t1": 17160, "estado": 2, "causa": 1}, {"t0": 17160, "t1": 17300, "estado": 1, "causa": 0}, {"t0": 17300, "t1": 18940, "estado": 2, "causa": 3}, {"t0": 18940, "t1": 19130, "estado": 1, "causa": 0}, {"t0": 19130, "t1": 19160, "estado": 2, "causa": 1}, {"t0": 19160, "t1": 19270, "estado": 1, "causa": 0}, {"t0": 19270, "t1": 19300, "estado": 2, "causa": 1}, {"t0": 19300, "t1": 19500, "estado": 1, "causa": 0}, {"t0": 19500, "t1": 19570, "estado": 2, "causa": 1}, {"t0": 19570, "t1": 19710, "estado": 1, "causa": 0}, {"t0": 19710, "t1": 21280, "estado": 2, "causa": 3}, {"t0": 21280, "t1": 22200, "estado": 1, "causa": 0}, {"t0": 22200, "t1": 22380, "estado": 2, "causa": 1}, {"t0": 22380, "t1": 22760, "estado": 1, "causa": 0}, {"t0": 22760, "t1": 24280, "estado": 2, "causa": 3}, {"t0": 24280, "t1": 25090, "estado": 1, "causa": 0}, {"t0": 25090, "t1": 25110, "estado": 2, "causa": 1}, {"t0": 25110, "t1": 25160, "estado": 1, "causa": 0}, {"t0": 25160, "t1": 25190, "estado": 2, "causa": 1}, {"t0": 25190, "t1": 25700, "estado": 1, "causa": 0}, {"t0": 25700, "t1": 26010, "estado": 2, "causa": 3}, {"t0": 26010, "t1": 26510, "estado": 1, "causa": 0}, {"t0": 26510, "t1": 26570, "estado": 2, "causa": 1}, {"t0": 26570, "t1": 27010, "estado": 1, "causa": 0}, {"t0": 27010, "t1": 27900, "estado": 3, "causa": 6}, {"t0": 27900, "t1": 28160, "estado": 1, "causa": 0}, {"t0": 28160, "t1": 28190, "estado": 2, "causa": 1}, {"t0": 28190, "t1": 28710, "estado": 1, "causa": 0}, {"t0": 28710, "t1": 28780, "estado": 2, "causa": 1}, {"t0": 28780, "t1": 28800, "estado": 1, "causa": 0}], "pareto": [{"causa": 3, "nombre": "Falla mecánica de la llenadora", "min": 89.33333333333333, "n": 5, "acum": 50.04668534080299}, {"causa": 5, "nombre": "Cambio de formato", "min": 22.5, "n": 1, "acum": 62.65172735760971}, {"causa": 1, "nombre": "Atasco de envases", "min": 19.166666666666668, "n": 23, "acum": 73.38935574229691}, {"causa": 4, "nombre": "Falla eléctrica / sensor", "min": 18.166666666666668, "n": 1, "acum": 83.56676003734826}, {"causa": 6, "nombre": "Limpieza CIP", "min": 14.833333333333334, "n": 1, "acum": 91.87675070028011}, {"causa": 2, "nombre": "Falta de tapas", "min": 14.5, "n": 4, "acum": 100.0}], "fallas": 33, "mtbf_min": 8.232323232323234, "mttr_min": 4.277777777777778, "causas": {"0": "Sin paro", "1": "Atasco de envases", "2": "Falta de tapas", "3": "Falla mecánica de la llenadora", "4": "Falla eléctrica / sensor", "5": "Cambio de formato", "6": "Limpieza CIP", "7": "Descanso (planificado)"}, "nombre": "Tarde (14–22)", "semilla": 22, "verificacion": {"total_plc": 31078, "total_leido": 31078, "marcha_plc_s": 16195, "marcha_leida_s": 16300}}, {"duracion_s": 28800, "planificado_s": 27010, "descanso_s": 1790, "marcha_s": 17900, "total": 34238, "buenos": 33036, "rechazos": 1202, "nominal": 120, "A": 0.6627, "P": 0.9564, "Q": 0.9649, "OEE": 0.6116, "horas": [{"hora": 1, "A": 0.7167, "P": 0.9438, "Q": 0.9538, "OEE": 0.6451}, {"hora": 2, "A": 0.575, "P": 0.9986, "Q": 0.9574, "OEE": 0.5497}, {"hora": 3, "A": 0.9667, "P": 0.9523, "Q": 0.9697, "OEE": 0.8926}, {"hora": 4, "A": 0.6139, "P": 0.9271, "Q": 0.9602, "OEE": 0.5465}, {"hora": 5, "A": 0.8398, "P": 0.9852, "Q": 0.9756, "OEE": 0.8072}, {"hora": 6, "A": 0.7333, "P": 0.9551, "Q": 0.9623, "OEE": 0.674}, {"hora": 7, "A": 0.6444, "P": 0.9955, "Q": 0.9747, "OEE": 0.6253}, {"hora": 8, "A": 0.3, "P": 0.8569, "Q": 0.9692, "OEE": 0.2492}], "segmentos": [{"t0": 0, "t1": 480, "estado": 1, "causa": 0}, {"t0": 480, "t1": 500, "estado": 2, "causa": 1}, {"t0": 500, "t1": 1110, "estado": 1, "causa": 0}, {"t0": 1110, "t1": 1160, "estado": 2, "causa": 1}, {"t0": 1160, "t1": 1210, "estado": 1, "causa": 0}, {"t0": 1210, "t1": 1280, "estado": 2, "causa": 1}, {"t0": 1280, "t1": 1710, "estado": 1, "causa": 0}, {"t0": 1710, "t1": 1900, "estado": 2, "causa": 2}, {"t0": 1900, "t1": 2260, "estado": 1, "causa": 0}, {"t0": 2260, "t1": 2490, "estado": 2, "causa": 2}, {"t0": 2490, "t1": 2750, "estado": 1, "causa": 0}, {"t0": 2750, "t1": 3210, "estado": 2, "causa": 2}, {"t0": 3210, "t1": 3910, "estado": 1, "causa": 0}, {"t0": 3910, "t1": 3970, "estado": 2, "causa": 1}, {"t0": 3970, "t1": 4330, "estado": 1, "causa": 0}, {"t0": 4330, "t1": 4590, "estado": 2, "causa": 1}, {"t0": 4590, "t1": 5130, "estado": 1, "causa": 0}, {"t0": 5130, "t1": 6280, "estado": 2, "causa": 3}, {"t0": 6280, "t1": 6790, "estado": 1, "causa": 0}, {"t0": 6790, "t1": 6850, "estado": 2, "causa": 1}, {"t0": 6850, "t1": 8210, "estado": 1, "causa": 0}, {"t0": 8210, "t1": 8270, "estado": 2, "causa": 1}, {"t0": 8270, "t1": 9480, "estado": 1, "causa": 0}, {"t0": 9480, "t1": 9540, "estado": 2, "causa": 1}, {"t0": 9540, "t1": 10890, "estado": 1, "causa": 0}, {"t0": 10890, "t1": 10940, "estado": 2, "causa": 1}, {"t0": 10940, "t1": 11180, "estado": 1, "causa": 0}, {"t0": 11180, "t1": 12320, "estado": 3, "causa": 5}, {"t0": 12320, "t1": 12450, "estado": 1, "causa": 0}, {"t0": 12450, "t1": 12520, "estado": 2, "causa": 1}, {"t0": 12520, "t1": 13320, "estado": 1, "causa": 0}, {"t0": 13320, "t1": 13450, "estado": 2, "causa": 1}, {"t0": 13450, "t1": 14410, "estado": 1, "causa": 0}, {"t0": 14410, "t1": 16200, "estado": 0, "causa": 7}, {"t0": 16200, "t1": 17210, "estado": 1, "causa": 0}, {"t0": 17210, "t1": 17500, "estado": 2, "causa": 2}, {"t0": 17500, "t1": 18300, "estado": 1, "causa": 0}, {"t0": 18300, "t1": 18470, "estado": 2, "causa": 1}, {"t0": 18470, "t1": 18910, "estado": 1, "causa": 0}, {"t0": 18910, "t1": 19180, "estado": 2, "causa": 2}, {"t0": 19180, "t1": 19920, "estado": 1, "causa": 0}, {"t0": 19920, "t1": 20010, "estado": 2, "causa": 1}, {"t0": 20010, "t1": 21140, "estado": 1, "causa": 0}, {"t0": 21140, "t1": 21510, "estado": 2, "causa": 2}, {"t0": 21510, "t1": 21540, "estado": 1, "causa": 0}, {"t0": 21540, "t1": 21600, "estado": 2, "causa": 1}, {"t0": 21600, "t1": 22620, "estado": 1, "causa": 0}, {"t0": 22620, "t1": 23900, "estado": 2, "causa": 3}, {"t0": 23900, "t1": 25960, "estado": 1, "causa": 0}, {"t0": 25960, "t1": 26150, "estado": 2, "causa": 2}, {"t0": 26150, "t1": 26250, "estado": 1, "causa": 0}, {"t0": 26250, "t1": 26270, "estado": 2, "causa": 1}, {"t0": 26270, "t1": 26490, "estado": 1, "causa": 0}, {"t0": 26490, "t1": 28210, "estado": 2, "causa": 4}, {"t0": 28210, "t1": 28800, "estado": 3, "causa": 6}], "pareto": [{"causa": 3, "nombre": "Falla mecánica de la llenadora", "min": 40.5, "n": 2, "acum": 26.673984632272223}, {"causa": 2, "nombre": "Falta de tapas", "min": 33.333333333333336, "n": 7, "acum": 48.6278814489572}, {"causa": 4, "nombre": "Falla eléctrica / sensor", "min": 28.666666666666668, "n": 1, "acum": 67.50823271130626}, {"causa": 1, "nombre": "Atasco de envases", "min": 20.5, "n": 15, "acum": 81.0098792535675}, {"causa": 5, "nombre": "Cambio de formato", "min": 19.0, "n": 1, "acum": 93.52360043907792}, {"causa": 6, "nombre": "Limpieza CIP", "min": 9.833333333333334, "n": 1, "acum": 100.0}], "fallas": 25, "mtbf_min": 11.933333333333332, "mttr_min": 4.92, "causas": {"0": "Sin paro", "1": "Atasco de envases", "2": "Falta de tapas", "3": "Falla mecánica de la llenadora", "4": "Falla eléctrica / sensor", "5": "Cambio de formato", "6": "Limpieza CIP", "7": "Descanso (planificado)"}, "nombre": "Noche (22–06)", "semilla": 33, "verificacion": {"total_plc": 34238, "total_leido": 34238, "marcha_plc_s": 17886, "marcha_leida_s": 17900}}], "dia": {"nombre": "Día completo (3 turnos)", "planificado_s": 81030, "marcha_s": 51960, "total": 99673, "buenos": 95881, "rechazos": 3792, "A": 0.6412, "P": 0.9591, "Q": 0.962, "OEE": 0.5916, "pareto": [{"causa": 3, "nombre": "Falla mecánica de la llenadora", "min": 173.5, "n": 10, "acum": 35.81011351909184}, {"causa": 2, "nombre": "Falta de tapas", "min": 78.66666666666666, "n": 17, "acum": 52.046783625730995}, {"causa": 1, "nombre": "Atasco de envases", "min": 69.33333333333334, "n": 66, "acum": 66.35706914344685}, {"causa": 5, "nombre": "Cambio de formato", "min": 64.16666666666667, "n": 3, "acum": 79.60096319229446}, {"causa": 4, "nombre": "Falla eléctrica / sensor", "min": 59.333333333333336, "n": 3, "acum": 91.84726522187823}, {"causa": 6, "nombre": "Limpieza CIP", "min": 39.5, "n": 3, "acum": 100.0}], "fallas": 96, "mtbf_min": 9.020833333333334, "mttr_min": 3.967013888888889, "horas": []}}
+const $ = (id) => document.getElementById(id)
+const INICIO_H = [6, 14, 22]
+const CAUSA_COL = { 0: '#34d399', 1: '#f59e0b', 2: '#e879f9', 3: '#f87171', 4: '#fb923c', 5: '#60a5fa', 6: '#22d3ee', 7: '#475569' }
+const NOMBRES = DATOS.meta.causas
+let sel = 0, geom = null
+
+const pct = (x, d = 1) => (x * 100).toFixed(d) + ' %'
+const hhmm = (s, h0) => { const m = Math.round(s / 60) + h0 * 60; return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` }
+const periodos = [...DATOS.turnos, DATOS.dia]
+
+DATOS.turnos.forEach((t, i) => 0)
+$('tabs').innerHTML = periodos.map((p, i) => `<button data-i="${i}">${p.nombre}</button>`).join('')
+$('tabs').querySelectorAll('button').forEach((b) => (b.onclick = () => { sel = +b.dataset.i; render() }))
+const P = DATOS.meta.protocolo
+$('bProto').textContent = `${P.transacciones.toLocaleString('es')} transacciones · ${P.errores} errores · p95 ${P.p95_ms.toString().replace('.', ',')} ms`
+$('legTl').innerHTML = Object.entries(CAUSA_COL).map(([c, col]) => `<span><i style="background:${col}"></i>${c === '0' ? 'En marcha' : NOMBRES[c]}</span>`).join('')
+
+function prep(cv, h) {
+  const dpr = window.devicePixelRatio || 1
+  if (h) cv.style.height = h + 'px'
+  const w = cv.clientWidth, hh = cv.clientHeight
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(hh * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr) }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, hh)
+  c.font = '11px ui-monospace, Consolas, monospace'
+  return { c, w, h: hh }
+}
+
+function kpi(k, v, ref, extra, color) {
+  return `<div class="kpi"><div class="k">${k}</div><div class="v ${color}">${pct(v)}</div><div class="s">${extra}</div><div class="bar"><i style="width:${Math.min(100, v * 100)}%;background:var(--${color === 'ok' ? 'green' : color === 'warn' ? 'amber' : 'red'})"></i><b style="left:${ref * 100}%"></b></div></div>`
+}
+const col = (v, ref) => (v >= ref ? 'ok' : v >= ref - 0.15 ? 'warn' : 'bad')
+
+function render() {
+  const p = periodos[sel], esDia = sel === 3
+  $('tabs').querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.i === sel))
+  $('kpis').innerHTML = [
+    kpi('OEE', p.OEE, 0.85, `referencia clase mundial 85 %`, col(p.OEE, 0.85)),
+    kpi('Disponibilidad', p.A, 0.9, `${(p.marcha_s / 3600).toFixed(1)} h en marcha de ${(p.planificado_s / 3600).toFixed(1)} h planificadas`, col(p.A, 0.9)),
+    kpi('Rendimiento', p.P, 0.95, `${p.total.toLocaleString('es')} envases (nominal 120/min)`, col(p.P, 0.95)),
+    kpi('Calidad', p.Q, 0.99, `${p.rechazos.toLocaleString('es')} rechazos de ${p.total.toLocaleString('es')}`, col(p.Q, 0.99)),
+    `<div class="kpi"><div class="k">Fallas no planificadas</div><div class="v">${p.fallas}</div><div class="s">MTBF ${p.mtbf_min ? p.mtbf_min.toFixed(0) : '—'} min · MTTR ${p.mttr_min ? p.mttr_min.toFixed(1) : '—'} min</div></div>`,
+  ].join('')
+  $('tlTitulo').textContent = esDia ? 'Línea de tiempo de los tres turnos (24 h)' : 'Línea de tiempo del turno (8 h)'
+  $('hrTitulo').textContent = esDia ? 'OEE por turno' : 'OEE por hora'
+  dibujarTl(esDia ? DATOS.turnos.map((t, i) => [t, INICIO_H[i]]) : [[p, INICIO_H[sel]]])
+  dibujarHoras(p, esDia)
+  dibujarPareto(p)
+  // mayores paros
+  const segs = esDia ? DATOS.turnos.flatMap((t, i) => t.segmentos.map((s) => ({ ...s, turno: t.nombre.split(' ')[0], h0: INICIO_H[i] }))) : p.segmentos.map((s) => ({ ...s, turno: p.nombre.split(' ')[0], h0: INICIO_H[sel] }))
+  const top = segs.filter((s) => s.estado === 2 || s.estado === 3).sort((a, b) => b.t1 - b.t0 - (a.t1 - a.t0)).slice(0, 7)
+  $('top').innerHTML = '<tr><th>Inicio</th><th>Turno</th><th>Causa</th><th>Duración</th></tr>' + top.map((s) => `<tr><td>${hhmm(s.t0, s.h0)}</td><td>${s.turno}</td><td>${NOMBRES[s.causa]}</td><td>${((s.t1 - s.t0) / 60).toFixed(1)} min</td></tr>`).join('')
+  $('nota').textContent = `Datos generados por un simulador de línea (sin planta real) y leídos por Modbus TCP cada ${DATOS.meta.muestra_s} s simulados; OEE = Disponibilidad × Rendimiento × Calidad, con los descansos fuera del tiempo planificado.`
+}
+
+function dibujarTl(filas) {
+  const altoFila = 54, cv = $('cvTl')
+  const { c, w } = prep(cv, filas.length * altoFila + 26)
+  const L = 70, R = 8, ancho = w - L - R
+  geom = []
+  filas.forEach(([t, h0], i) => {
+    const y = 6 + i * altoFila, T = t.segmentos.at(-1).t1
+    c.fillStyle = '#94a3b8'; c.textAlign = 'right'; c.fillText(filas.length > 1 ? t.nombre.split(' ')[0] : 'turno', L - 8, y + 24)
+    for (const s of t.segmentos) {
+      const x0 = L + (s.t0 / T) * ancho, x1 = L + (s.t1 / T) * ancho
+      c.fillStyle = CAUSA_COL[s.estado === 1 ? 0 : s.causa]; c.fillRect(x0, y, Math.max(1, x1 - x0), 38)
+      geom.push({ x0, x1: Math.max(x1, x0 + 1), y, h: 38, s, h0 })
+    }
+    if (i === filas.length - 1) {
+      c.fillStyle = '#64748b'; c.textAlign = 'center'
+      for (let k = 0; k <= 8; k++) { const x = L + (k / 8) * ancho; c.fillText(`${String((h0 + k) % 24).padStart(2, '0')}:00`, x, y + 56); c.fillRect(x, y + 40, 1, 4) }
+    }
+  })
+}
+$('cvTl').addEventListener('mousemove', (e) => {
+  const r = e.target.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top
+  const g = geom && geom.find((q) => x >= q.x0 && x <= q.x1 && y >= q.y && y <= q.y + q.h)
+  const tip = $('tip')
+  if (!g) { tip.style.display = 'none'; return }
+  tip.style.display = 'block'; tip.style.left = e.clientX + 12 + 'px'; tip.style.top = e.clientY + 12 + 'px'
+  tip.innerHTML = `${g.s.estado === 1 ? 'En marcha' : NOMBRES[g.s.causa]}<br>${hhmm(g.s.t0, g.h0)} → ${hhmm(g.s.t1, g.h0)} · ${((g.s.t1 - g.s.t0) / 60).toFixed(1)} min`
+})
+$('cvTl').addEventListener('mouseleave', () => ($('tip').style.display = 'none'))
+
+function dibujarHoras(p, esDia) {
+  const { c, w, h } = prep($('cvHr'))
+  const filas = esDia ? DATOS.turnos.map((t) => ({ etq: t.nombre.split(' ')[0], v: t.OEE })) : p.horas.map((x) => ({ etq: `h${x.hora}`, v: x.OEE }))
+  const L = 38, R = 8, T = 12, B = 22, bw = (w - L - R) / filas.length
+  const y = (v) => T + (1 - v) * (h - T - B)
+  c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+  for (const v of [0, 0.25, 0.5, 0.75, 1]) { c.beginPath(); c.moveTo(L, y(v)); c.lineTo(w - R, y(v)); c.stroke(); c.fillText(Math.round(v * 100) + '', L - 5, y(v) + 4) }
+  c.strokeStyle = 'rgba(245,158,11,.7)'; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(L, y(0.85)); c.lineTo(w - R, y(0.85)); c.stroke(); c.setLineDash([])
+  c.fillStyle = '#f59e0b'; c.textAlign = 'left'; c.fillText('85 %', L + 4, y(0.85) - 4)
+  filas.forEach((f, i) => {
+    const x = L + i * bw + bw * 0.18, ww = bw * 0.64
+    c.fillStyle = f.v >= 0.85 ? '#34d399' : f.v >= 0.6 ? '#22d3ee' : '#f87171'; c.fillRect(x, y(f.v), ww, y(0) - y(f.v))
+    c.fillStyle = '#e2e8f0'; c.textAlign = 'center'; c.fillText((f.v * 100).toFixed(0), x + ww / 2, y(f.v) - 4)
+    c.fillStyle = '#64748b'; c.fillText(f.etq, x + ww / 2, h - 6)
+  })
+}
+
+function dibujarPareto(p) {
+  const { c, w, h } = prep($('cvPa'))
+  const f = p.pareto, L = 38, R = 38, T = 12, B = 48, bw = (w - L - R) / Math.max(1, f.length)
+  const max = Math.max(...f.map((x) => x.min), 1), y = (v) => T + (1 - v / max) * (h - T - B), y2 = (v) => T + (1 - v / 100) * (h - T - B)
+  c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+  for (let k = 0; k <= 4; k++) { const v = (max * k) / 4; c.beginPath(); c.moveTo(L, y(v)); c.lineTo(w - R, y(v)); c.stroke(); c.fillText(v.toFixed(0), L - 5, y(v) + 4) }
+  c.textAlign = 'left'; for (const v of [0, 50, 80, 100]) c.fillText(v + ' %', w - R + 5, y2(v) + 4)
+  f.forEach((x, i) => {
+    const xx = L + i * bw + bw * 0.15, ww = bw * 0.7
+    c.fillStyle = CAUSA_COL[x.causa]; c.fillRect(xx, y(x.min), ww, y(0) - y(x.min))
+    c.fillStyle = '#e2e8f0'; c.textAlign = 'center'; c.fillText(x.min.toFixed(0), xx + ww / 2, y(x.min) - 4)
+    c.save(); c.translate(xx + ww / 2, h - B + 8); c.rotate(0.5); c.fillStyle = '#94a3b8'; c.textAlign = 'left'; c.fillText(x.nombre.length > 18 ? x.nombre.slice(0, 17) + '…' : x.nombre, 0, 0); c.restore()
+  })
+  c.strokeStyle = '#e879f9'; c.lineWidth = 1.6; c.beginPath()
+  f.forEach((x, i) => { const px = L + i * bw + bw / 2; i ? c.lineTo(px, y2(x.acum)) : c.moveTo(px, y2(x.acum)) }); c.stroke()
+  f.forEach((x, i) => { c.fillStyle = '#e879f9'; c.beginPath(); c.arc(L + i * bw + bw / 2, y2(x.acum), 3, 0, 7); c.fill() })
+  c.lineWidth = 1
+}
+window.addEventListener('resize', render)
+render()
+</script>
+</body>
+</html>

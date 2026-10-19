@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zonas de riesgo y enclavamiento con visión artificial — simulador</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; }
+.col { display: grid; gap: 12px; min-width: 0; }
+#cvPlan { height: 400px; cursor: grab; } #cvCam { height: 300px; }
+.maq { font: 700 26px var(--mono); padding: 8px 18px; border-radius: 12px; border: 1px solid; text-align: center; }
+.maq.MARCHA { color: var(--green); border-color: rgba(52, 211, 153, .5); background: rgba(52, 211, 153, .08); }
+.maq.LENTA { color: var(--amber); border-color: rgba(245, 158, 11, .6); background: rgba(245, 158, 11, .1); }
+.maq.PARO { color: var(--red); border-color: rgba(248, 113, 113, .7); background: rgba(248, 113, 113, .12); }
+.torre { display: flex; flex-direction: column; gap: 6px; } .torre i { width: 22px; height: 22px; border-radius: 50%; background: #16233b; display: block; }
+.torre i.r.on { background: var(--red); box-shadow: 0 0 12px var(--red); } .torre i.a.on { background: var(--amber); box-shadow: 0 0 12px var(--amber); } .torre i.v.on { background: var(--green); box-shadow: 0 0 12px var(--green); }
+.pers { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #0f1a2e; font: 12px var(--mono); flex-wrap: wrap; }
+.pers.sel { color: var(--cyan); } .pers .n { flex: 1; min-width: 70px; cursor: pointer; }
+#motivos div { font: 12px var(--mono); padding: 2px 0; color: var(--amber); } #motivos div.rojo { color: var(--red); }
+#log { height: 170px; overflow: auto; font: 11.5px var(--mono); } #log div { padding: 2px 0; border-bottom: 1px solid #0f1a2e; } #log .paro { color: var(--red); } #log .t { color: #64748b; margin-right: 8px; }
+.ctl { display: grid; gap: 3px; margin-bottom: 8px; } .ctl .l { display: flex; justify-content: space-between; }
+@media (max-width: 1050px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Zonas de riesgo y enclavamiento · visión artificial</h1>
+  <span class="badge warn">detecciones simuladas</span>
+  <span class="badge">homografía · seguimiento · antirrebote · EPP</span>
+  <span class="sp"></span><span class="badge" id="bFps">15 cuadros/s</span>
+</div>
+<div class="wrap layout">
+  <div class="col">
+    <div class="panel">
+      <h2>Plano de la planta (arrastra a las personas)</h2>
+      <canvas id="cvPlan"></canvas>
+      <div class="note" style="padding:6px 0 0"><span style="color:#f87171">■</span> peligro · <span style="color:#f59e0b">■</span> advertencia · <span style="color:#60a5fa">■</span> empaque (EPP obligatorio) · punto blanco = persona real · anillo celeste = pista del seguimiento · flecha = velocidad estimada</div>
+    </div>
+    <div class="panel"><h2>Vista de cámara simulada (lo que vería el detector)</h2><canvas id="cvCam"></canvas></div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <div class="row" style="align-items:stretch">
+        <div class="maq PARO grow" id="maq">—</div>
+        <div class="torre"><i class="r" id="lr"></i><i class="a" id="la"></i><i class="v" id="lv"></i></div>
+      </div>
+      <div id="motivos" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="bRearme">RESET (rearme manual)</button><span class="note" style="padding:0" id="rearmeNota"></span></div>
+      <div class="row kv" style="margin-top:8px"><span>Paros por persona en zona de peligro</span><b id="nParos">0</b></div>
+      <div class="row kv"><span>Última reacción (pisa la zona → paro)</span><b id="lat">—</b></div>
+    </div>
+    <div class="panel">
+      <h2>Personas</h2>
+      <div id="pers"></div>
+      <div class="row" style="margin-top:8px"><button id="bAdd">+ Persona</button><button id="bDel">− Quitar última</button><button id="bCruce">Cruzar zona de peligro</button></div>
+    </div>
+    <div class="panel">
+      <h2>Condiciones de la visión</h2>
+      <div class="ctl"><div class="l"><label>Ruido de la detección [px]</label><b id="vR" class="cy"></b></div><input id="ruido" type="range" min="0" max="12" step="1" value="3"></div>
+      <div class="ctl"><div class="l"><label>Cuadros sin detección</label><b id="vP" class="cy"></b></div><input id="perd" type="range" min="0" max="30" step="1" value="5"></div>
+      <div class="row"><label><input type="checkbox" id="sinVision"> cámara sin señal</label><label><input type="checkbox" id="sinFiltro"> sin antirrebote ni histéresis</label></div>
+    </div>
+    <div class="panel"><h2>Registro de eventos</h2><div id="log"></div></div>
+  </div>
+</div>
+<div class="note">Todo es simulado: las personas son puntos que arrastras y las "detecciones" se generan con ruido; en una instalación real vendrían de un detector (p. ej. YOLO) y la parada la ejecutaría un relé o PLC de seguridad certificado. Esto NO sustituye un sistema de seguridad (ISO 13849 / IEC 62061). Las cifras son de esta simulación.</div>
+
+<script>
+// Lógica de zonas de riesgo y enclavamiento con visión artificial, sobre DETECCIONES SIMULADAS:
+// homografía píxel→plano, seguimiento (alfa-beta), pertenencia a zonas con antirrebote e histéresis,
+// regla de EPP, predicción de entrada, watchdog de pérdida de visión y paro con enclavamiento (rearme manual).
+// No incluye un detector real: recibe cajas como las daría YOLO. El MISMO archivo corre en las pruebas
+// (node --test) y dentro de index.html. NO sustituye un sistema de seguridad certificado.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.ZonasCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  // ---- Geometría -----------------------------------------------------------------------------------------
+  function dentroPoligono(p, poly) { // trazado de rayos; los puntos del borde cuentan como dentro
+    let dentro = false
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j]
+      if (distSegmento(p, poly[i], poly[j]) < 1e-9) return true
+      if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) dentro = !dentro
+    }
+    return dentro
+  }
+  function distSegmento(p, a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy
+    const t = l2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)) : 0
+    return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy))
+  }
+  const distPoligono = (p, poly) => Math.min(...poly.map((a, i) => distSegmento(p, a, poly[(i + 1) % poly.length])))
+
+  // Homografía por DLT con 4 puntos: pixeles → metros del plano del piso
+  function estimarH(origen, destino) {
+    const A = [], b = []
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = origen[i], [u, v] = destino[i]
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u)
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v)
+    }
+    const n = 8, M = A.map((f, i) => [...f, b[i]])
+    for (let i = 0; i < n; i++) {
+      let p = i; for (let k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[p][i])) p = k
+      ;[M[i], M[p]] = [M[p], M[i]]
+      for (let k = i + 1; k < n; k++) { const f = M[k][i] / M[i][i]; for (let j = i; j <= n; j++) M[k][j] -= f * M[i][j] }
+    }
+    const h = new Array(n)
+    for (let i = n - 1; i >= 0; i--) { let s = M[i][n]; for (let j = i + 1; j < n; j++) s -= M[i][j] * h[j]; h[i] = s / M[i][i] }
+    return [...h, 1]
+  }
+  function aPlano(H, u, v) { const w = H[6] * u + H[7] * v + H[8]; return [(H[0] * u + H[1] * v + H[2]) / w, (H[3] * u + H[4] * v + H[5]) / w] }
+
+  // ---- Planta de ejemplo (metros) ----------------------------------------------------------------------------
+  const ZONAS = [
+    { id: 'peligro', nombre: 'Zona de peligro (envasadora)', tipo: 'peligro', poly: [[6.8, 2.8], [15.2, 2.8], [15.2, 9.2], [6.8, 9.2]] },
+    { id: 'advertencia', nombre: 'Zona de advertencia', tipo: 'advertencia', poly: [[4.3, 0.3], [17.7, 0.3], [17.7, 11.7], [4.3, 11.7]] },
+    { id: 'epp', nombre: 'Zona de empaque (EPP obligatorio)', tipo: 'epp', poly: [[0.5, 3], [3.8, 3], [3.8, 9], [0.5, 9]] },
+  ]
+  const PARAMS = { fps: 15, nEntrada: 3, nSalida: 8, gate: 1.0, maxPerdidos: 15, confirmar: 3, alfa: 0.6, beta: 0.3, umbralEpp: 0.5, horizonte: 1.0, vigilancia: 0.5 }
+
+  // ---- Seguimiento -----------------------------------------------------------------------------------------------
+  function crearSistema({ zonas = ZONAS, params = {} } = {}) {
+    const P = { ...PARAMS, ...params }
+    return { zonas, P, t: 0, pistas: [], sigId: 1, maquina: 'MARCHA', enclavado: false, motivos: [], ultimoFrame: 0, eventos: [], baliza: 'verde', sirena: false, paros: 0, tPeligro: null, latencias: [] }
+  }
+  function asociar(sys, dets, dt) {
+    const libres = new Set(dets.map((_, i) => i)), usadas = new Set()
+    const pares = []
+    sys.pistas.forEach((p, ip) => dets.forEach((d, id) => { const dist = Math.hypot(p.x + p.vx * dt - d.x, p.y + p.vy * dt - d.y); if (dist <= sys.P.gate) pares.push([dist, ip, id]) }))
+    pares.sort((a, b) => a[0] - b[0])
+    for (const [, ip, id] of pares) if (!usadas.has(ip) && libres.has(id)) { usadas.add(ip); libres.delete(id); actualizar(sys, sys.pistas[ip], dets[id], dt) }
+    sys.pistas.forEach((p, ip) => { if (!usadas.has(ip)) { p.perdidos++; p.x += p.vx * dt; p.y += p.vy * dt } })
+    for (const id of libres) { const d = dets[id]; sys.pistas.push({ id: sys.sigId++, x: d.x, y: d.y, vx: 0, vy: 0, hits: 1, perdidos: 0, casco: d.casco ?? null, chaleco: d.chaleco ?? null, dentro: {}, cuenta: {} }) }
+    sys.pistas = sys.pistas.filter((p) => p.perdidos <= sys.P.maxPerdidos)
+  }
+  function actualizar(sys, p, d, dt) {
+    const { alfa, beta } = sys.P
+    const px = p.x + p.vx * dt, py = p.y + p.vy * dt, rx = d.x - px, ry = d.y - py
+    p.x = px + alfa * rx; p.y = py + alfa * ry; p.vx += (beta * rx) / dt; p.vy += (beta * ry) / dt
+    p.hits++; p.perdidos = 0
+    const ema = (a, b) => (b == null ? a : a == null ? b : 0.6 * a + 0.4 * b)
+    p.casco = ema(p.casco, d.casco); p.chaleco = ema(p.chaleco, d.chaleco)
+  }
+  // Pertenencia con antirrebote: entra tras nEntrada cuadros dentro, sale tras nSalida cuadros fuera
+  function pertenencia(sys, p, zona) {
+    const adentro = dentroPoligono([p.x, p.y], zona.poly), c = (p.cuenta[zona.id] ??= { a: 0, f: 0 })
+    if (adentro) { c.a++; c.f = 0 } else { c.f++; c.a = 0 }
+    if (!p.dentro[zona.id] && c.a >= sys.P.nEntrada) p.dentro[zona.id] = true
+    else if (p.dentro[zona.id] && c.f >= sys.P.nSalida) p.dentro[zona.id] = false
+    return p.dentro[zona.id]
+  }
+  const eppOk = (p, umbral) => p.casco != null && p.chaleco != null && p.casco >= umbral && p.chaleco >= umbral // dato desconocido = incumple (a prueba de fallos)
+
+  // ---- Un cuadro de visión -----------------------------------------------------------------------------------------
+  // dets: [{x, y, casco: 0..1|null, chaleco: 0..1|null}] en metros. rearme: true si el operador pulsó RESET.
+  function paso(sys, dets, { rearme = false, visionOk = true } = {}) {
+    const dt = 1 / sys.P.fps; sys.t += dt
+    const ev = (tipo, msg) => sys.eventos.push({ t: sys.t, tipo, msg })
+    if (visionOk) { sys.ultimoFrame = sys.t; asociar(sys, dets, dt) }
+    const motivos = []
+    const conf = sys.pistas.filter((p) => p.hits >= sys.P.confirmar)
+    let peligro = false, advertencia = false, eppFalta = false, acercando = false
+    const zp = sys.zonas.find((z) => z.tipo === 'peligro')
+    for (const p of conf) {
+      for (const z of sys.zonas) {
+        const ya = p.dentro[z.id], ahora = pertenencia(sys, p, z)
+        if (!ya && ahora) ev('info', `Persona ${p.id} entra en ${z.nombre}`)
+        if (ya && !ahora) ev('info', `Persona ${p.id} sale de ${z.nombre}`)
+        if (ahora && z.tipo === 'peligro') peligro = true
+        if (ahora && z.tipo === 'advertencia') advertencia = true
+        if (ahora && z.tipo === 'epp' && !eppOk(p, sys.P.umbralEpp)) { eppFalta = true; motivos.push(`Persona ${p.id}: sin EPP completo en zona de empaque`) }
+      }
+      if (zp && !p.dentro[zp.id]) { // predicción: ¿llegará a la zona de peligro en el horizonte?
+        const v = Math.hypot(p.vx, p.vy), fut = [p.x + p.vx * sys.P.horizonte, p.y + p.vy * sys.P.horizonte]
+        if (v > 0.4 && dentroPoligono(fut, zp.poly)) { acercando = true; motivos.push(`Persona ${p.id} se acerca a la zona de peligro (${v.toFixed(1)} m/s)`) }
+      }
+    }
+    const sinVision = sys.t - sys.ultimoFrame > sys.P.vigilancia
+    if (sinVision) motivos.unshift('Pérdida de visión: paro por falla segura')
+    if (peligro) motivos.unshift('Persona en zona de peligro')
+    if ((peligro || sinVision) && !sys.enclavado) {
+      sys.enclavado = true; sys.paros++; ev('paro', sinVision ? 'PARO: se perdió la señal de visión' : 'PARO: persona en zona de peligro')
+      if (sys.tPeligro != null) { sys.latencias.push(sys.t - sys.tPeligro); sys.tPeligro = null }
+    }
+    if (rearme) {
+      if (peligro || sinVision) ev('info', 'Rearme rechazado: sigue la condición de paro')
+      else if (sys.enclavado) { sys.enclavado = false; ev('info', 'Rearme aceptado') }
+    }
+    sys.maquina = sys.enclavado ? 'PARO' : advertencia || acercando ? 'LENTA' : 'MARCHA'
+    sys.baliza = sys.maquina === 'PARO' ? 'roja' : sys.maquina === 'LENTA' || eppFalta ? 'ambar' : 'verde'
+    sys.sirena = peligro || sinVision || eppFalta
+    sys.motivos = motivos
+    return sys
+  }
+
+  // ---- Escenarios y mediciones --------------------------------------------------------------------------------------
+  function prng(seed) {
+    let a = seed >>> 0
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = a
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+  const gauss = (r) => Math.sqrt(-2 * Math.log(Math.max(r(), 1e-12))) * Math.cos(2 * Math.PI * r())
+  // Un recorrido recto de una persona; devuelve si hubo paro y cuántos cuadros pasaron desde que pisó la zona
+  function recorrido({ desde, hasta, v = 1.2, ruido = 0.05, perdida = 0.05, semilla = 1, epp = true, params = {} }) {
+    const r = prng(semilla), sys = crearSistema({ params }), dt = 1 / sys.P.fps
+    const L = Math.hypot(hasta[0] - desde[0], hasta[1] - desde[1]), n = Math.ceil(L / (v * dt)) + 30
+    const zp = sys.zonas.find((z) => z.tipo === 'peligro')
+    let primerDentro = null, tParo = null
+    for (let i = 0; i < n; i++) {
+      const k = Math.min(1, (i * v * dt) / L), x = desde[0] + (hasta[0] - desde[0]) * k, y = desde[1] + (hasta[1] - desde[1]) * k
+      if (primerDentro == null && dentroPoligono([x, y], zp.poly)) primerDentro = i
+      const dets = r() < perdida ? [] : [{ x: x + ruido * gauss(r), y: y + ruido * gauss(r), casco: epp ? 0.9 : 0.1, chaleco: epp ? 0.9 : 0.1 }]
+      paso(sys, dets)
+      if (tParo == null && sys.maquina === 'PARO') tParo = i
+    }
+    return { paro: tParo != null, cuadrosHastaParo: tParo != null && primerDentro != null ? tParo - primerDentro : null, sys }
+  }
+
+  return { dentroPoligono, distPoligono, distSegmento, estimarH, aPlano, ZONAS, PARAMS, crearSistema, paso, recorrido, eppOk, prng, gauss }
+})
+
+</script>
+<script>
+'use strict'
+const Z = ZonasCore, $ = (id) => document.getElementById(id)
+const MUN = { w: 20, h: 12 }, CAM = { w: 560, h: 300 }
+const mundo = [[0, 0], [20, 0], [20, 12], [0, 12]], pix = [[40, 285], [520, 285], [420, 60], [140, 60]]
+const H_p2w = Z.estimarH(pix, mundo), H_w2p = Z.estimarH(mundo, pix)
+const rnd = Z.prng(7), gauss = () => Z.gauss(rnd)
+let sys = Z.crearSistema(), personas = [{ id: 1, x: 2, y: 2, casco: true, chaleco: true }, { id: 2, x: 19, y: 11, casco: true, chaleco: true }], sel = 1, sigP = 3
+let rearme = false, tReal = 0, ultimoLog = 0, mostrados = 0, arrastre = null, cruce = null, paros0 = 0
+
+function parametros() { return $('sinFiltro').checked ? { nEntrada: 1, nSalida: 1 } : {} }
+function reiniciar() { sys = Z.crearSistema({ params: parametros() }); mostrados = 0; $('log').innerHTML = '' }
+$('sinFiltro').onchange = reiniciar
+$('ruido').oninput = () => ($('vR').textContent = $('ruido').value + ' px'); $('perd').oninput = () => ($('vP').textContent = $('perd').value + ' %')
+$('ruido').oninput(); $('perd').oninput()
+$('bRearme').onclick = () => { rearme = true }
+$('bAdd').onclick = () => { if (personas.length < 3) { personas.push({ id: ++sigP, x: 1.5, y: 10, casco: true, chaleco: true }); sel = sigP; lista() } }
+$('bDel').onclick = () => { if (personas.length > 1) { personas.pop(); sel = personas.at(-1).id; lista() } }
+$('bCruce').onclick = () => { const p = personas.find((q) => q.id === sel) ?? personas[0]; p.x = 3; p.y = 6; cruce = { id: p.id, x1: 18, v: 1.4 } }
+function lista() {
+  $('pers').innerHTML = personas.map((p) => `<div class="pers ${p.id === sel ? 'sel' : ''}" data-id="${p.id}"><span class="n">Persona ${p.id}</span><label><input type="checkbox" data-k="casco" ${p.casco ? 'checked' : ''}> casco</label><label><input type="checkbox" data-k="chaleco" ${p.chaleco ? 'checked' : ''}> chaleco</label></div>`).join('')
+  $('pers').querySelectorAll('.pers').forEach((d) => {
+    const p = personas.find((q) => q.id === +d.dataset.id)
+    d.querySelector('.n').onclick = () => { sel = p.id; lista() }
+    d.querySelectorAll('input').forEach((i) => (i.onchange = () => { p[i.dataset.k] = i.checked }))
+  })
+}
+
+// ---- Un cuadro: persona real → píxeles (+ruido) → homografía → núcleo -----------------------------------------
+function cuadro() {
+  const sigma = +$('ruido').value, perd = +$('perd').value / 100, dets = []
+  if (cruce) { const p = personas.find((q) => q.id === cruce.id); if (p) { p.x += cruce.v / sys.P.fps; if (p.x >= cruce.x1) cruce = null } else cruce = null }
+  for (const p of personas) {
+    if (rnd() < perd) continue
+    const [u, v] = Z.aPlano(H_w2p, p.x, p.y)
+    const [mx, my] = Z.aPlano(H_p2w, u + sigma * gauss(), v + sigma * gauss())
+    dets.push({ x: mx, y: my, casco: Math.min(1, Math.max(0, (p.casco ? 0.9 : 0.1) + 0.05 * gauss())), chaleco: Math.min(1, Math.max(0, (p.chaleco ? 0.9 : 0.1) + 0.05 * gauss())) })
+  }
+  const antes = sys.paros, zp = sys.zonas[0]
+  if (sys.tPeligro == null && personas.some((p) => Z.dentroPoligono([p.x, p.y], zp.poly)) && !sys.enclavado) sys.tPeligro = sys.t // para medir la reacción
+  Z.paso(sys, dets, { rearme, visionOk: !$('sinVision').checked })
+  if (rearme) { $('rearmeNota').textContent = sys.enclavado ? 'rearme rechazado: la condición de paro sigue activa' : 'rearme aceptado'; rearme = false }
+  if (!personas.some((p) => Z.dentroPoligono([p.x, p.y], zp.poly)) && !sys.enclavado) sys.tPeligro = null
+  if (sys.paros > antes && sys.latencias.length) $('lat').textContent = sys.latencias.at(-1).toFixed(2) + ' s'
+}
+
+// ---- Dibujo ----------------------------------------------------------------------------------------------------------
+function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '11px ui-monospace, Consolas, monospace'; return { c, w, h } }
+let geoPlan = null
+function dibujarPlan() {
+  const { c, w, h } = prep($('cvPlan')), m = 8, s = Math.min((w - 2 * m) / MUN.w, (h - 2 * m) / MUN.h), ox = (w - MUN.w * s) / 2, oy = (h - MUN.h * s) / 2
+  const X = (x) => ox + x * s, Y = (y) => oy + (MUN.h - y) * s
+  geoPlan = { X, Y, s, ox, oy }
+  c.fillStyle = '#05101f'; c.fillRect(X(0), Y(MUN.h), MUN.w * s, MUN.h * s); c.strokeStyle = '#0f1d33'; c.lineWidth = 1
+  for (let x = 0; x <= MUN.w; x++) { c.beginPath(); c.moveTo(X(x), Y(0)); c.lineTo(X(x), Y(MUN.h)); c.stroke() } for (let y = 0; y <= MUN.h; y++) { c.beginPath(); c.moveTo(X(0), Y(y)); c.lineTo(X(MUN.w), Y(y)); c.stroke() }
+  const col = { epp: ['rgba(96,165,250,.14)', '#60a5fa'], advertencia: ['rgba(245,158,11,.07)', '#f59e0b'], peligro: ['rgba(248,113,113,.16)', '#f87171'] }
+  for (const z of [sys.zonas[1], sys.zonas[2], sys.zonas[0]]) { c.fillStyle = col[z.tipo][0]; c.strokeStyle = col[z.tipo][1]; c.lineWidth = 1.5; c.beginPath(); z.poly.forEach(([x, y], i) => (i ? c.lineTo(X(x), Y(y)) : c.moveTo(X(x), Y(y)))); c.closePath(); c.fill(); c.stroke(); c.fillStyle = col[z.tipo][1]; c.fillText(z.nombre, X(z.poly[0][0]) + 5, Y(z.poly[0][1]) - 5) }
+  const mc = { MARCHA: '#34d399', LENTA: '#f59e0b', PARO: '#f87171' }[sys.maquina]
+  c.fillStyle = '#0b1424'; c.strokeStyle = mc; c.lineWidth = 3; c.beginPath(); c.roundRect(X(8), Y(8), 6 * s, 4 * s, 8); c.fill(); c.stroke(); c.fillStyle = mc; c.textAlign = 'center'; c.font = '600 13px ui-monospace, Consolas, monospace'; c.fillText('ENVASADORA', X(11), Y(6.1)); c.fillText(sys.maquina, X(11), Y(5.2)); c.textAlign = 'left'; c.font = '11px ui-monospace, Consolas, monospace'
+  for (const p of sys.pistas.filter((q) => q.hits >= sys.P.confirmar)) {
+    c.strokeStyle = '#22d3ee'; c.lineWidth = 1.5; c.setLineDash(p.perdidos ? [3, 3] : []); c.beginPath(); c.arc(X(p.x), Y(p.y), 0.55 * s, 0, 7); c.stroke(); c.setLineDash([])
+    c.beginPath(); c.moveTo(X(p.x), Y(p.y)); c.lineTo(X(p.x + p.vx * 0.8), Y(p.y + p.vy * 0.8)); c.stroke()
+    c.fillStyle = '#22d3ee'; c.fillText(`#${p.id}`, X(p.x) + 0.6 * s, Y(p.y) - 0.5 * s)
+  }
+  for (const p of personas) {
+    c.fillStyle = '#e2e8f0'; c.beginPath(); c.arc(X(p.x), Y(p.y), 0.22 * s, 0, 7); c.fill()
+    if (p.id === sel) { c.strokeStyle = '#e2e8f0'; c.lineWidth = 1; c.beginPath(); c.arc(X(p.x), Y(p.y), 0.38 * s, 0, 7); c.stroke() }
+    c.fillStyle = p.casco ? '#fde047' : '#475569'; c.fillRect(X(p.x) - 6, Y(p.y) - 0.5 * s - 6, 5, 5); c.fillStyle = p.chaleco ? '#fb923c' : '#475569'; c.fillRect(X(p.x) + 1, Y(p.y) - 0.5 * s - 6, 5, 5)
+  }
+}
+function dibujarCam() {
+  const { c, w, h } = prep($('cvCam')), kx = w / CAM.w, ky = h / CAM.h
+  const P = (x, y) => { const [u, v] = Z.aPlano(H_w2p, x, y); return [u * kx, v * ky] }
+  const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#0a1424'); g.addColorStop(1, '#101b30'); c.fillStyle = g; c.fillRect(0, 0, w, h)
+  c.fillStyle = '#0d1a2e'; c.beginPath(); mundo.forEach(([x, y], i) => { const [u, v] = P(x, y); i ? c.lineTo(u, v) : c.moveTo(u, v) }); c.fill()
+  c.strokeStyle = '#17294a'; c.lineWidth = 1
+  for (let x = 0; x <= 20; x += 2) { const a = P(x, 0), b = P(x, 12); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke() } for (let y = 0; y <= 12; y += 2) { const a = P(0, y), b = P(20, y); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke() }
+  for (const z of sys.zonas) { const col = { epp: '#60a5fa', advertencia: '#f59e0b', peligro: '#f87171' }[z.tipo]; c.strokeStyle = col; c.lineWidth = 1.5; c.setLineDash([5, 4]); c.beginPath(); z.poly.forEach(([x, y], i) => { const [u, v] = P(x, y); i ? c.lineTo(u, v) : c.moveTo(u, v) }); c.closePath(); c.stroke(); c.setLineDash([]) }
+  const [mx, my] = P(11, 6), esc = (P(12, 6)[0] - P(10, 6)[0]) / 2; c.fillStyle = '#16294a'; c.fillRect(mx - 3 * esc, my - 3.2 * esc, 6 * esc, 3.2 * esc); c.fillStyle = '#7e93b8'; c.textAlign = 'center'; c.fillText('envasadora', mx, my - 1.4 * esc)
+  c.textAlign = 'left'
+  // personas: caja proporcional a la perspectiva
+  for (const p of [...personas].sort((a, b) => b.y - a.y)) {
+    const [u, v] = P(p.x, p.y), m1 = P(p.x + 1, p.y), pxm = Math.abs(m1[0] - u) || 20, alto = 1.75 * pxm * 1.0, ancho = 0.55 * pxm
+    c.fillStyle = '#c3cfe3'; c.beginPath(); c.arc(u, v - alto * 0.88, ancho * 0.22, 0, 7); c.fill(); c.fillRect(u - ancho * 0.28, v - alto * 0.78, ancho * 0.56, alto * 0.55); c.fillRect(u - ancho * 0.22, v - alto * 0.23, ancho * 0.18, alto * 0.23); c.fillRect(u + ancho * 0.04, v - alto * 0.23, ancho * 0.18, alto * 0.23)
+    if (p.casco) { c.fillStyle = '#fde047'; c.fillRect(u - ancho * 0.24, v - alto * 0.99, ancho * 0.48, ancho * 0.12) } if (p.chaleco) { c.fillStyle = '#fb923c'; c.fillRect(u - ancho * 0.28, v - alto * 0.7, ancho * 0.56, alto * 0.28) }
+    const pista = sys.pistas.find((q) => Math.hypot(q.x - p.x, q.y - p.y) < 1.2), en = pista && Object.entries(pista.dentro).filter(([, d]) => d).map(([z]) => z)
+    const rojo = en?.includes('peligro'), amb = en?.includes('advertencia') || (en?.includes('epp') && !Z.eppOk(pista, sys.P.umbralEpp))
+    c.strokeStyle = rojo ? '#f87171' : amb ? '#f59e0b' : '#34d399'; c.lineWidth = 2; c.strokeRect(u - ancho * 0.55, v - alto * 1.02, ancho * 1.1, alto * 1.04)
+    c.fillStyle = c.strokeStyle; c.fillText(`persona${pista ? ' #' + pista.id : ''} ${pista ? pista.casco?.toFixed(2) : ''}${pista ? '/' + pista.chaleco?.toFixed(2) : ''}`, u - ancho * 0.55, v - alto * 1.06)
+  }
+  if ($('sinVision').checked) { c.fillStyle = 'rgba(2,6,23,.85)'; c.fillRect(0, 0, w, h); c.fillStyle = '#f87171'; c.textAlign = 'center'; c.font = '600 18px ui-monospace, Consolas, monospace'; c.fillText('SIN SEÑAL DE CÁMARA', w / 2, h / 2); c.textAlign = 'left' }
+}
+function interfaz() {
+  $('maq').className = 'maq ' + sys.maquina; $('maq').textContent = sys.maquina === 'PARO' ? 'PARO · ENCLAVADA' : sys.maquina === 'LENTA' ? 'MARCHA LENTA' : 'MARCHA'
+  $('lr').className = 'r' + (sys.baliza === 'roja' ? ' on' : ''); $('la').className = 'a' + (sys.baliza === 'ambar' ? ' on' : ''); $('lv').className = 'v' + (sys.baliza === 'verde' ? ' on' : '')
+  $('motivos').innerHTML = sys.motivos.length ? sys.motivos.map((m) => `<div class="${/peligro|visión/.test(m) ? 'rojo' : ''}">⚠ ${m}</div>`).join('') : '<div style="color:#64748b">sin alertas</div>'
+  $('nParos').textContent = sys.paros
+  const ev = sys.eventos; if (ev.length !== mostrados) { for (const e of ev.slice(mostrados)) { const d = document.createElement('div'); d.className = e.tipo; d.innerHTML = `<span class="t">${e.t.toFixed(1)} s</span>${e.msg}`; $('log').prepend(d) } mostrados = ev.length; while ($('log').children.length > 60) $('log').lastChild.remove() }
+}
+
+// ---- Interacción con el plano -----------------------------------------------------------------------------------------
+const aMundo = (e) => { const r = $('cvPlan').getBoundingClientRect(), { s, ox, oy } = geoPlan; return [(e.clientX - r.left - ox) / s, MUN.h - (e.clientY - r.top - oy) / s] }
+$('cvPlan').addEventListener('pointerdown', (e) => { const [x, y] = aMundo(e); const p = personas.map((q) => ({ q, d: Math.hypot(q.x - x, q.y - y) })).sort((a, b) => a.d - b.d)[0]; if (p && p.d < 1) { arrastre = p.q; sel = p.q.id; cruce = null; lista(); $('cvPlan').setPointerCapture(e.pointerId) } })
+$('cvPlan').addEventListener('pointermove', (e) => { if (!arrastre) return; const [x, y] = aMundo(e); arrastre.x = Math.min(MUN.w, Math.max(0, x)); arrastre.y = Math.min(MUN.h, Math.max(0, y)) })
+$('cvPlan').addEventListener('pointerup', () => (arrastre = null))
+window.addEventListener('keydown', (e) => { const p = personas.find((q) => q.id === sel); const d = { ArrowLeft: [-0.2, 0], ArrowRight: [0.2, 0], ArrowUp: [0, 0.2], ArrowDown: [0, -0.2] }[e.key]; if (p && d && !/INPUT|SELECT/.test(document.activeElement.tagName)) { p.x = Math.min(MUN.w, Math.max(0, p.x + d[0])); p.y = Math.min(MUN.h, Math.max(0, p.y + d[1])); e.preventDefault() } })
+
+let acc = 0, ultimo = performance.now()
+function bucle(ahora) {
+  acc += Math.min(0.1, (ahora - ultimo) / 1000); ultimo = ahora
+  const dt = 1 / sys.P.fps; while (acc >= dt) { cuadro(); acc -= dt }
+  interfaz(); dibujarPlan(); dibujarCam(); requestAnimationFrame(bucle)
+}
+lista(); requestAnimationFrame(bucle)
+// Avance determinista para pruebas automáticas (no depende de requestAnimationFrame).
+window.demoApi = { get sys() { return sys }, personas, avanzar(n) { for (let i = 0; i < n; i++) cuadro(); interfaz(); dibujarPlan(); dibujarCam() }, parar() { acc = -1e9 } }
+</script>
+</body>
+</html>

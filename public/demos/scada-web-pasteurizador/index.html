@@ -1,0 +1,473 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCADA web de un pasteurizador — alarmas, roles y bitácora</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: minmax(0, 1fr) 370px; align-items: start; }
+.col { display: grid; gap: 12px; min-width: 0; }
+.ses { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.chip { font: 12px var(--mono); padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); }
+.chip.on { border-color: rgba(52, 211, 153, .6); color: var(--green); }
+#banner { display: flex; align-items: center; gap: 10px; margin: 12px 16px 0; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); font: 13px var(--mono); }
+#banner.al { border-color: var(--red); background: rgba(248, 113, 113, .1); animation: pulso 1s infinite; } #banner.rt { border-color: var(--amber); background: rgba(245, 158, 11, .08); }
+@keyframes pulso { 50% { background: rgba(248, 113, 113, .22); } }
+#cvMimic { height: 270px; } #cvTr { height: 190px; } #cvU { height: 80px; margin-top: 6px; }
+.fp { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.fp .c { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; }
+.fp .c b { display: block; font: 600 22px var(--mono); } .fp .c span { font: 10px var(--mono); color: var(--mut); text-transform: uppercase; }
+.ctl { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; align-items: center; margin-bottom: 8px; font: 12px var(--mono); }
+.ctl .req { color: #64748b; font-size: 10.5px; grid-column: 1 / -1; margin-top: -4px; }
+.ctl input[type=number] { width: 100%; }
+.lock { color: var(--amber); }
+#toast { position: fixed; right: 16px; bottom: 16px; max-width: 420px; padding: 10px 14px; border-radius: 10px; font: 12px var(--mono); display: none; z-index: 20; border: 1px solid; background: #0b1220; }
+#toast.ok { border-color: var(--green); color: var(--green); } #toast.no { border-color: var(--red); color: var(--red); }
+.low { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; }
+#alm, #aud { max-height: 260px; overflow: auto; } #alm td, #aud td, #aud th { white-space: nowrap; } #aud td.d { white-space: normal; }
+td.den { color: var(--red); } td.okk { color: var(--green); }
+tr.nr td { animation: parp 1s infinite; } @keyframes parp { 50% { background: rgba(248, 113, 113, .18); } }
+.rep { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.mini { padding: 3px 8px; font-size: 11px; }
+@media (max-width: 1100px) { .layout, .low { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>SCADA · pasteurizador HTST</h1>
+  <span class="badge warn">simulación didáctica</span>
+  <span class="sp"></span>
+  <div class="ses" id="ses"></div>
+</div>
+<div id="banner"><span id="bTxt">Sin alarmas activas</span><span class="sp" style="flex:1"></span><button class="mini" id="bAck">Reconocer todas</button></div>
+
+<div class="wrap layout">
+  <div class="col">
+    <div class="panel">
+      <div class="row" style="margin-bottom:6px"><h2 style="margin:0">Sinóptico de proceso</h2><span class="grow"></span>
+        <button id="bPausa" class="mini">Pausa</button><button class="vel mini on" data-v="1">×1</button><button class="vel mini" data-v="10">×10</button><button class="vel mini" data-v="60">×60</button></div>
+      <canvas id="cvMimic"></canvas>
+    </div>
+    <div class="panel">
+      <div class="row" style="margin-bottom:6px"><h2 style="margin:0">Tendencia</h2><span class="grow"></span>
+        <button class="rg mini" data-s="300">5 min</button><button class="rg mini on" data-s="1800">30 min</button><button class="rg mini" data-s="7200">2 h</button></div>
+      <canvas id="cvTr"></canvas><canvas id="cvU"></canvas>
+      <div class="note" style="padding:6px 0 0"><span class="cy">━</span> temperatura (banda = mín–máx) · <span class="warn">━</span> consigna · <span class="bad">┅</span> 72 °C legal · franjas rojas: válvula de desvío en recirculación · abajo: salida de vapor %</div>
+    </div>
+    <div class="low">
+      <div class="panel"><h2>Resumen de alarmas</h2><div id="alm"></div></div>
+      <div class="panel">
+        <div class="row" style="margin-bottom:6px"><h2 style="margin:0">Bitácora de auditoría</h2><span class="grow"></span>
+          <button class="mini" id="bAbrirAud">Abrir</button><button class="mini" id="bVer">Verificar integridad</button><button class="mini" id="bManip">Simular manipulación</button></div>
+        <div id="aud" class="note" style="padding:0">Cierra y abre sesión con distintos roles: cada acción, permitida o denegada, queda registrada.</div>
+        <div class="row" style="margin-top:8px"><button class="mini" id="bCsvA">Exportar bitácora (CSV)</button><button class="mini" id="bCsvT">Exportar tendencia (CSV)</button><span id="integ" class="note" style="padding:0"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <h2>TIC-101 · temperatura de pasteurización</h2>
+      <div class="fp"><div class="c"><span>PV</span><b id="pv" class="cy">—</b></div><div class="c"><span>SP</span><b id="sp" class="warn">—</b></div><div class="c"><span>Salida</span><b id="out">—</b></div></div>
+      <div class="ctl"><label>Consigna [°C]</label><span></span><input id="iSp" type="number" step="0.5" value="72"><button id="bSp">Aplicar</button><div class="req" id="rSp"></div></div>
+      <div class="ctl"><label>Caudal [L/h]</label><span></span><input id="iF" type="number" step="100" value="5000"><button id="bF">Aplicar</button><div class="req" id="rF"></div></div>
+      <div class="ctl"><label>Modo del lazo</label><span class="row"><button id="bAuto" class="mini">AUTO</button><button id="bMan" class="mini">MAN</button></span><div class="req" id="rM"></div></div>
+      <div class="ctl"><label>Salida manual [%]</label><span></span><input id="iU" type="number" step="5" value="55"><button id="bU">Aplicar</button><div class="req" id="rU"></div></div>
+      <div class="ctl"><label>Kp / Ti [s]</label><span></span><div class="row"><input id="iKp" type="number" step="0.1" value="2" style="width:70px"><input id="iTi" type="number" step="5" value="45" style="width:70px"></div><button id="bPid">Aplicar</button><div class="req" id="rP"></div></div>
+    </div>
+    <div class="panel">
+      <h2>Simulador de proceso (no es acción del SCADA)</h2>
+      <div style="display:grid;gap:6px;font:12px var(--mono);color:var(--mut)">
+        <label><input type="checkbox" id="pFria"> Entrada fría (producto −8 °C)</label>
+        <label><input type="checkbox" id="pVapor"> Falla de vapor (válvula limitada a 40 %)</label>
+        <label><input type="checkbox" id="pEns"> Ensuciamiento del intercambiador (−30 % ganancia)</label>
+      </div>
+    </div>
+    <div class="panel"><h2>Reporte de turno (tiempo simulado)</h2><div class="rep" id="rep"></div></div>
+  </div>
+</div>
+<div class="note">Proceso, usuarios y bitácora simulados en el navegador (la autenticación es solo una demostración: no hay contraseñas ni servidor). La bitácora encadena cada registro con el hash del anterior para que cualquier alteración se detecte. Las cifras son de esta simulación.</div>
+<div id="toast"></div>
+
+<script>
+﻿// SCADA web de un pasteurizador HTST (didáctico): proceso + lazo PI de temperatura + válvula de desvío de
+// flujo (FDV) + alarmas + roles con permisos + bitácora de auditoría encadenada + histórico + reporte de turno.
+// El MISMO archivo corre en las pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.ScadaCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  // ---- Roles y permisos --------------------------------------------------------------------------------------
+  const ROLES = { operador: 'Operador', supervisor: 'Supervisor', ingeniero: 'Ingeniero' }
+  const PERMISOS = {
+    reconocer: ['operador', 'supervisor', 'ingeniero'],
+    cambiarCaudal: ['operador', 'supervisor', 'ingeniero'],
+    cambiarConsigna: ['supervisor', 'ingeniero'],
+    cambiarModo: ['supervisor', 'ingeniero'],
+    manualValvula: ['supervisor', 'ingeniero'],
+    editarPID: ['ingeniero'],
+    verAuditoria: ['supervisor', 'ingeniero'],
+    exportar: ['supervisor', 'ingeniero'],
+  }
+  const REQUIERE = { reconocer: 'Operador', cambiarCaudal: 'Operador', cambiarConsigna: 'Supervisor', cambiarModo: 'Supervisor', manualValvula: 'Supervisor', editarPID: 'Ingeniero', verAuditoria: 'Supervisor', exportar: 'Supervisor' }
+  const puede = (rol, accion) => !!rol && (PERMISOS[accion] ?? []).includes(rol)
+  // Rangos permitidos por rol
+  const RANGOS = {
+    consigna: { supervisor: [70, 78], ingeniero: [60, 85] },
+    caudal: { operador: [4000, 6000], supervisor: [3000, 7000], ingeniero: [2000, 8000] },
+  }
+
+  // ---- Bitácora encadenada ----------------------------------------------------------------------------------
+  function fnv(texto) { let h = 0x811c9dc5; for (let i = 0; i < texto.length; i++) { h ^= texto.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 } return h.toString(16).padStart(8, '0') }
+  const textoRegistro = (r) => `${r.n}|${r.t}|${r.usuario}|${r.rol}|${r.accion}|${r.detalle}|${r.resultado}|${r.prev}`
+  function anotar(s, accion, detalle, resultado) {
+    const prev = s.audit.length ? s.audit.at(-1).hash : '00000000'
+    const r = { n: s.audit.length + 1, t: Math.round(s.t), usuario: s.sesion?.usuario ?? '—', rol: s.sesion?.rol ?? '—', accion, detalle, resultado, prev }
+    r.hash = fnv(textoRegistro(r)); s.audit.push(r)
+    return r
+  }
+  // Devuelve el número del primer registro alterado, o 0 si la cadena es íntegra
+  function verificarAuditoria(audit) {
+    let prev = '00000000'
+    for (const r of audit) { if (r.prev !== prev || fnv(textoRegistro(r)) !== r.hash) return r.n; prev = r.hash }
+    return 0
+  }
+
+  // ---- Proceso: pasteurizador HTST ----------------------------------------------------------------------------
+  const P = { K: 0.95, tauT: 45, theta: 8, F0: 5000, Vtubo: 21, Tin: 20, tauF: 5, Tmin: 72, holdMin: 15, retardoAvance: 5 }
+  function crearProceso() {
+    const u0 = (72 - P.Tin) / P.K
+    return {
+      T: 72, F: 5000, sp: 72, flujoSP: 5000, modo: 'AUTO', salidaManual: u0, u: u0, I: u0, Kp: 2, Ti: 45,
+      buf: new Array(P.theta + 1).fill(u0), fdv: 'AVANCE', okDesde: 0, hold: (P.Vtubo / 5000) * 3600,
+      perturb: { entradaFria: false, falloVapor: false, ensuciamiento: false }, litrosOk: 0, litrosDesv: 0, tEspec: 0, desvios: 0,
+    }
+  }
+  function pasoProceso(pr, t) {
+    const dt = 1
+    pr.F += (pr.flujoSP - pr.F) * (dt / P.tauF)
+    const Tin = P.Tin - (pr.perturb.entradaFria ? 8 : 0)
+    const K = P.K * (pr.perturb.ensuciamiento ? 0.7 : 1)
+    const umax = pr.perturb.falloVapor ? 40 : 100
+    // controlador
+    const e = pr.sp - pr.T
+    let u
+    if (pr.modo === 'AUTO') {
+      const sin = pr.Kp * e + pr.I
+      u = Math.min(umax, Math.max(0, sin))
+      pr.I += (pr.Kp / pr.Ti) * e * dt + (dt / (pr.Ti / 2)) * (u - sin)
+    } else { u = Math.min(umax, pr.salidaManual); pr.I = u }
+    pr.u = u
+    pr.buf.push(u); const uRet = pr.buf.shift()
+    const Tss = Tin + K * uRet * (P.F0 / Math.max(pr.F, 1))
+    pr.T += (Tss - pr.T) * (dt / P.tauT)
+    pr.hold = (P.Vtubo / Math.max(pr.F, 1)) * 3600
+    // FDV: desvía al instante si no cumple; solo avanza tras 5 s seguidos cumpliendo
+    const cumple = pr.T >= P.Tmin && pr.hold >= P.holdMin
+    if (!cumple) { if (pr.fdv === 'AVANCE') pr.desvios++; pr.fdv = 'DESVIO'; pr.okDesde = 0 }
+    else { pr.okDesde += dt; if (pr.fdv === 'DESVIO' && pr.okDesde >= P.retardoAvance) pr.fdv = 'AVANCE' }
+    const litros = pr.F / 3600 * dt
+    if (pr.fdv === 'AVANCE') pr.litrosOk += litros; else pr.litrosDesv += litros
+    if (cumple) pr.tEspec += dt
+  }
+
+  // ---- Alarmas (reducidas): retardo, reconocimiento y retorno a normal ----------------------------------------
+  function crearAlarmas() {
+    const a = (tag, desc, prio, delay, cond) => ({ tag, desc, prio, delay, cond, estado: 'NORMAL', desde: null, activa: null })
+    return [
+      a('TAL-101', 'Temperatura de pasteurización baja (< 71,0 °C)', 3, 5, (pr) => pr.T < 71),
+      a('TAH-101', 'Temperatura de pasteurización alta (> 76,0 °C)', 2, 5, (pr) => pr.T > 76),
+      a('HOLD-101', 'Tiempo de retención menor a 15 s', 3, 2, (pr) => pr.hold < P.holdMin),
+      a('FDV-101', 'Válvula de desvío en recirculación (> 10 s)', 2, 10, (pr) => pr.fdv === 'DESVIO'),
+      a('XV-101', 'Válvula de vapor saturada (> 95 % por 30 s)', 1, 30, (pr) => pr.u > 95),
+    ]
+  }
+  function evaluarAlarmas(s) {
+    for (const al of s.alarmas) {
+      const cond = al.cond(s.proc)
+      if (cond) { if (al.desde == null) al.desde = s.t; if (al.estado === 'NORMAL' && s.t - al.desde >= al.delay) { al.estado = 'ACTIVA_NR'; al.activa = s.t; s.eventosAlarma.push({ t: s.t, tag: al.tag }) } else if (al.estado === 'RTN_NR' && s.t - al.desde >= al.delay) { al.estado = 'ACTIVA_NR'; al.activa = s.t; s.eventosAlarma.push({ t: s.t, tag: al.tag }) } }
+      else { al.desde = null; if (al.estado === 'ACTIVA_NR') al.estado = 'RTN_NR'; else if (al.estado === 'ACTIVA_R') al.estado = 'NORMAL' }
+    }
+  }
+
+  // ---- Sesión SCADA --------------------------------------------------------------------------------------------
+  const MAX_HIST = 7200
+  function crearScada() {
+    return { t: 0, proc: crearProceso(), sesion: null, audit: [], alarmas: crearAlarmas(), eventosAlarma: [], hist: [], denegados: 0, cambiosConsigna: 0 }
+  }
+  function entrar(s, rol, usuario) {
+    if (!ROLES[rol]) return { ok: false, motivo: 'rol desconocido' }
+    s.sesion = { rol, usuario: usuario || ROLES[rol].toLowerCase() }
+    anotar(s, 'LOGIN', `ingreso como ${ROLES[rol]}`, 'OK'); return { ok: true }
+  }
+  function salir(s) { if (s.sesion) anotar(s, 'LOGOUT', 'cierre de sesión', 'OK'); s.sesion = null }
+  const denegar = (s, accion, detalle, motivo) => { s.denegados++; anotar(s, accion, `${detalle} — ${motivo}`, 'DENEGADO'); return { ok: false, motivo } }
+  const texto = (v) => (v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v ?? ''))
+
+  // Toda acción del operador pasa por aquí: sesión → permiso → rango → ejecución → bitácora
+  function accion(s, tipo, valor) {
+    const pr = s.proc
+    if (!s.sesion) return denegar(s, tipo, texto(valor), 'sesión requerida')
+    const { rol } = s.sesion
+    if (!puede(rol, tipo)) return denegar(s, tipo, texto(valor), `permiso insuficiente (requiere ${REQUIERE[tipo]})`)
+    const dentro = (rango, v) => v >= rango[0] && v <= rango[1]
+    switch (tipo) {
+      case 'cambiarConsigna': {
+        const r = RANGOS.consigna[rol]
+        if (!Number.isFinite(valor) || !dentro(r, valor)) return denegar(s, tipo, `${valor} °C`, `fuera de rango (${r[0]}–${r[1]} °C para ${ROLES[rol]})`)
+        anotar(s, tipo, `consigna ${pr.sp.toFixed(1)} → ${valor.toFixed(1)} °C`, 'OK'); pr.sp = valor; s.cambiosConsigna++; return { ok: true }
+      }
+      case 'cambiarCaudal': {
+        const r = RANGOS.caudal[rol]
+        if (!Number.isFinite(valor) || !dentro(r, valor)) return denegar(s, tipo, `${valor} L/h`, `fuera de rango (${r[0]}–${r[1]} L/h para ${ROLES[rol]})`)
+        anotar(s, tipo, `caudal ${Math.round(pr.flujoSP)} → ${Math.round(valor)} L/h`, 'OK'); pr.flujoSP = valor; return { ok: true }
+      }
+      case 'cambiarModo': {
+        if (valor !== 'AUTO' && valor !== 'MAN') return denegar(s, tipo, String(valor), 'modo inválido')
+        if (valor === 'MAN') pr.salidaManual = pr.u // transferencia sin salto
+        else pr.I = pr.u - pr.Kp * (pr.sp - pr.T)
+        anotar(s, tipo, `modo ${pr.modo} → ${valor}`, 'OK'); pr.modo = valor; return { ok: true }
+      }
+      case 'manualValvula': {
+        if (pr.modo !== 'MAN') return denegar(s, tipo, `${valor} %`, 'el lazo está en AUTO')
+        if (!Number.isFinite(valor) || valor < 0 || valor > 100) return denegar(s, tipo, `${valor} %`, 'fuera de rango (0–100 %)')
+        anotar(s, tipo, `válvula de vapor ${pr.salidaManual.toFixed(0)} → ${valor.toFixed(0)} %`, 'OK'); pr.salidaManual = valor; return { ok: true }
+      }
+      case 'editarPID': {
+        const { Kp, Ti } = valor ?? {}
+        if (!(Kp > 0 && Kp <= 20 && Ti >= 5 && Ti <= 600)) return denegar(s, tipo, JSON.stringify(valor), 'parámetros fuera de rango (Kp 0–20, Ti 5–600 s)')
+        anotar(s, tipo, `Kp ${pr.Kp} → ${Kp} · Ti ${pr.Ti} → ${Ti} s`, 'OK'); pr.Kp = Kp; pr.Ti = Ti; return { ok: true }
+      }
+      case 'reconocer': {
+        const al = valor === 'todas' ? s.alarmas.filter((a) => a.estado === 'ACTIVA_NR' || a.estado === 'RTN_NR') : s.alarmas.filter((a) => a.tag === valor)
+        for (const a of al) { if (a.estado === 'ACTIVA_NR') a.estado = 'ACTIVA_R'; else if (a.estado === 'RTN_NR') a.estado = 'NORMAL' }
+        anotar(s, tipo, valor === 'todas' ? `${al.length} alarma(s)` : String(valor), 'OK'); return { ok: true }
+      }
+      default: return denegar(s, tipo, texto(valor), 'acción desconocida')
+    }
+  }
+  // Consultas con control de acceso (también quedan en la bitácora cuando se niegan)
+  function consultarAuditoria(s) {
+    if (!s.sesion) return denegar(s, 'verAuditoria', '', 'sesión requerida')
+    if (!puede(s.sesion.rol, 'verAuditoria')) return denegar(s, 'verAuditoria', '', `permiso insuficiente (requiere ${REQUIERE.verAuditoria})`)
+    return { ok: true, registros: s.audit }
+  }
+  function exportarCsv(s, que = 'auditoria') {
+    if (!s.sesion) return denegar(s, 'exportar', que, 'sesión requerida')
+    if (!puede(s.sesion.rol, 'exportar')) return denegar(s, 'exportar', que, `permiso insuficiente (requiere ${REQUIERE.exportar})`)
+    anotar(s, 'exportar', `CSV de ${que}`, 'OK')
+    const filas = que === 'auditoria' ? [['n', 't_s', 'usuario', 'rol', 'accion', 'detalle', 'resultado', 'hash'], ...s.audit.map((r) => [r.n, r.t, r.usuario, r.rol, r.accion, r.detalle, r.resultado, r.hash])]
+      : [['t_s', 'temperatura_C', 'consigna_C', 'salida_pct', 'caudal_Lh', 'fdv'], ...s.hist.map((h) => [h.t, h.T.toFixed(2), h.sp.toFixed(1), h.u.toFixed(1), Math.round(h.F), h.fdv])]
+    return { ok: true, csv: filas.map((f) => f.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n') }
+  }
+
+  function tick(s) {
+    pasoProceso(s.proc, s.t)
+    evaluarAlarmas(s)
+    const p = s.proc
+    s.hist.push({ t: s.t, T: p.T, sp: p.sp, u: p.u, F: p.F, fdv: p.fdv })
+    if (s.hist.length > MAX_HIST) s.hist.shift()
+    s.t += 1
+  }
+  function correr(s, seg) { for (let i = 0; i < seg; i++) tick(s); return s }
+
+  // Reduce una serie a ≤ n puntos (promedio por tramo, conserva mínimo y máximo para no esconder picos)
+  function reducir(hist, desde, n) {
+    const datos = hist.filter((h) => h.t >= desde)
+    if (datos.length <= n) return datos.map((h) => ({ ...h, min: h.T, max: h.T }))
+    const paso = datos.length / n, out = []
+    for (let i = 0; i < n; i++) {
+      const tr = datos.slice(Math.floor(i * paso), Math.floor((i + 1) * paso)); if (!tr.length) continue
+      const prom = (k) => tr.reduce((a, x) => a + x[k], 0) / tr.length
+      out.push({ t: tr[0].t, T: prom('T'), sp: prom('sp'), u: prom('u'), F: prom('F'), fdv: tr.some((x) => x.fdv === 'DESVIO') ? 'DESVIO' : 'AVANCE', min: Math.min(...tr.map((x) => x.T)), max: Math.max(...tr.map((x) => x.T)) })
+    }
+    return out
+  }
+  function reporteTurno(s) {
+    const p = s.proc, total = p.litrosOk + p.litrosDesv
+    return {
+      segundos: s.t, litrosConformes: p.litrosOk, litrosDesviados: p.litrosDesv, pctConforme: total ? (p.litrosOk / total) * 100 : 0,
+      pctEnEspecificacion: s.t ? (p.tEspec / s.t) * 100 : 0, desvios: p.desvios, cambiosConsigna: s.cambiosConsigna, intentosDenegados: s.denegados,
+      alarmas: s.eventosAlarma.length, registrosAuditoria: s.audit.length,
+    }
+  }
+
+  return { ROLES, PERMISOS, RANGOS, P, puede, crearScada, entrar, salir, accion, consultarAuditoria, exportarCsv, tick, correr, reducir, reporteTurno, verificarAuditoria, fnv }
+})
+
+
+</script>
+<script>
+'use strict'
+const S = ScadaCore, $ = (id) => document.getElementById(id)
+const sc = S.crearScada(); let vel = 1, pausa = false, rango = 1800, ultimo = performance.now(), acc = 0, audAbierta = false, manipulado = false
+S.correr(sc, 300) // calentamiento: el histórico arranca con 5 min de datos
+
+const mmss = (t) => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`
+function toast(ok, msg) { const t = $('toast'); t.className = ok ? 'ok' : 'no'; t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => (t.style.display = 'none'), 3500) }
+function ejecutar(tipo, valor, etiqueta) {
+  const r = S.accion(sc, tipo, valor)
+  toast(r.ok, r.ok ? `✔ ${etiqueta}` : `✖ Denegado: ${r.motivo}`); render(); return r
+}
+
+// ---- Sesión ---------------------------------------------------------------------------------------------
+function dibujarSesion() {
+  const s = sc.sesion
+  $('ses').innerHTML = s
+    ? `<span class="chip on">${S.ROLES[s.rol]} · ${s.usuario}</span><button id="bSalir" class="mini">Salir</button>`
+    : `<span class="chip">sin sesión</span>${Object.entries(S.ROLES).map(([r, n]) => `<button class="mini" data-rol="${r}">Entrar como ${n}</button>`).join('')}`
+  $('ses').querySelectorAll('[data-rol]').forEach((b) => (b.onclick = () => { S.entrar(sc, b.dataset.rol); audAbierta = false; render() }))
+  if ($('bSalir')) $('bSalir').onclick = () => { S.salir(sc); audAbierta = false; render() }
+}
+
+// ---- Controles ------------------------------------------------------------------------------------------
+const REQ = { Sp: 'cambiarConsigna', F: 'cambiarCaudal', M: 'cambiarModo', U: 'manualValvula', P: 'editarPID' }
+const NOMBRE_REQ = { cambiarConsigna: 'Supervisor', cambiarCaudal: 'Operador', cambiarModo: 'Supervisor', manualValvula: 'Supervisor', editarPID: 'Ingeniero' }
+$('bSp').onclick = () => ejecutar('cambiarConsigna', +$('iSp').value, `consigna ${(+$('iSp').value).toFixed(1)} °C`)
+$('bF').onclick = () => ejecutar('cambiarCaudal', +$('iF').value, `caudal ${+$('iF').value} L/h`)
+$('bAuto').onclick = () => ejecutar('cambiarModo', 'AUTO', 'modo AUTO')
+$('bMan').onclick = () => ejecutar('cambiarModo', 'MAN', 'modo MAN')
+$('bU').onclick = () => ejecutar('manualValvula', +$('iU').value, `salida manual ${+$('iU').value} %`)
+$('bPid').onclick = () => ejecutar('editarPID', { Kp: +$('iKp').value, Ti: +$('iTi').value }, 'parámetros PID')
+$('bAck').onclick = () => ejecutar('reconocer', 'todas', 'alarmas reconocidas')
+for (const [id, k] of [['pFria', 'entradaFria'], ['pVapor', 'falloVapor'], ['pEns', 'ensuciamiento']]) $(id).onchange = (e) => { sc.proc.perturb[k] = e.target.checked }
+$('bPausa').onclick = () => { pausa = !pausa; $('bPausa').textContent = pausa ? 'Continuar' : 'Pausa'; $('bPausa').classList.toggle('on', pausa) }
+document.querySelectorAll('.vel').forEach((b) => (b.onclick = () => { vel = +b.dataset.v; document.querySelectorAll('.vel').forEach((x) => x.classList.toggle('on', x === b)) }))
+document.querySelectorAll('.rg').forEach((b) => (b.onclick = () => { rango = +b.dataset.s; document.querySelectorAll('.rg').forEach((x) => x.classList.toggle('on', x === b)); dibujarTend() }))
+
+// ---- Bitácora y exportación -----------------------------------------------------------------------------
+$('bAbrirAud').onclick = () => { const r = S.consultarAuditoria(sc); audAbierta = r.ok; if (!r.ok) toast(false, `✖ Denegado: ${r.motivo}`); render() }
+$('bVer').onclick = () => { const n = S.verificarAuditoria(sc.audit); $('integ').innerHTML = n ? `<b class="bad">✖ alterada: la cadena se rompe en el registro #${n}</b>` : `<b class="ok">✔ íntegra (${sc.audit.length} registros encadenados)</b>` }
+$('bManip').onclick = () => { if (sc.audit.length > 2) { sc.audit[1].detalle += ' (editado)'; manipulado = true; render(); $('integ').innerHTML = 'registro #2 alterado a mano: pulsa «Verificar integridad»' } }
+function descargar(nombre, texto) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([texto], { type: 'text/csv' })); a.download = nombre; a.click(); URL.revokeObjectURL(a.href) }
+$('bCsvA').onclick = () => { const r = S.exportarCsv(sc, 'auditoria'); toast(r.ok, r.ok ? '✔ CSV de la bitácora generado' : `✖ Denegado: ${r.motivo}`); if (r.ok) descargar('bitacora.csv', r.csv); render() }
+$('bCsvT').onclick = () => { const r = S.exportarCsv(sc, 'tendencia'); toast(r.ok, r.ok ? '✔ CSV de la tendencia generado' : `✖ Denegado: ${r.motivo}`); if (r.ok) descargar('tendencia.csv', r.csv); render() }
+
+// ---- Render ---------------------------------------------------------------------------------------------
+const prio = { 3: 'Alta', 2: 'Media', 1: 'Baja' }
+function render() {
+  const p = sc.proc, rol = sc.sesion?.rol
+  dibujarSesion()
+  $('pv').textContent = p.T.toFixed(2) + ' °C'; $('sp').textContent = p.sp.toFixed(1) + ' °C'; $('out').textContent = p.u.toFixed(0) + ' %'
+  $('pv').className = p.T >= 72 ? 'cy' : 'bad'
+  for (const [k, accion] of Object.entries(REQ)) { const ok = S.puede(rol, accion); $('r' + k).innerHTML = ok ? '' : `<span class="lock">🔒 requiere ${NOMBRE_REQ[accion]}</span> — puedes intentarlo: quedará registrado como denegado` }
+  $('bAuto').classList.toggle('on', p.modo === 'AUTO'); $('bMan').classList.toggle('on', p.modo === 'MAN')
+  // alarmas
+  const act = sc.alarmas.filter((a) => a.estado !== 'NORMAL').sort((a, b) => ({ ACTIVA_NR: 0, RTN_NR: 1, ACTIVA_R: 2 })[a.estado] - ({ ACTIVA_NR: 0, RTN_NR: 1, ACTIVA_R: 2 })[b.estado] || b.prio - a.prio)
+  const nr = act.filter((a) => a.estado === 'ACTIVA_NR'), banner = $('banner')
+  banner.className = nr.length ? 'al' : act.length ? 'rt' : ''
+  $('bTxt').innerHTML = nr.length ? `<b class="bad">⚠ ${nr.length} alarma(s) sin reconocer</b> · ${nr[0].tag} ${nr[0].desc}` : act.length ? `${act.length} alarma(s) activa(s) reconocida(s) o normalizadas` : 'Sin alarmas activas'
+  $('alm').innerHTML = act.length ? `<table><tr><th>Hora</th><th>Tag</th><th>Descripción</th><th>Prio.</th><th>Estado</th></tr>${act.map((a) => `<tr class="${a.estado === 'ACTIVA_NR' ? 'nr' : ''}"><td>${mmss(a.activa ?? 0)}</td><td>${a.tag}</td><td style="white-space:normal">${a.desc}</td><td>${prio[a.prio]}</td><td>${{ ACTIVA_NR: 'sin reconocer', ACTIVA_R: 'reconocida', RTN_NR: 'normalizada' }[a.estado]}</td></tr>`).join('')}</table>` : '<span class="note" style="padding:0">sin alarmas</span>'
+  // bitácora
+  if (audAbierta && S.puede(rol, 'verAuditoria')) {
+    $('aud').innerHTML = `<table><tr><th>#</th><th>Hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>Resultado</th><th>Hash</th></tr>${sc.audit.slice(-40).reverse().map((r) => `<tr><td>${r.n}</td><td>${mmss(r.t)}</td><td>${r.usuario}</td><td>${r.accion}</td><td class="d">${r.detalle}</td><td class="${r.resultado === 'OK' ? 'okk' : 'den'}">${r.resultado}</td><td style="color:#475569">${r.hash}</td></tr>`).join('')}</table>`
+  } else if (!audAbierta) $('aud').innerHTML = rol ? '<span class="note" style="padding:0">Pulsa «Abrir» (requiere Supervisor o Ingeniero).</span>' : '<span class="note" style="padding:0">Inicia sesión y prueba acciones permitidas y denegadas: todo queda registrado.</span>'
+  const r = S.reporteTurno(sc)
+  $('rep').innerHTML = [['Tiempo simulado', mmss(r.segundos)], ['Producto conforme', `${r.litrosConformes.toFixed(0)} L (${r.pctConforme.toFixed(1)} %)`], ['Producto desviado', `${r.litrosDesviados.toFixed(0)} L`], ['Tiempo en especificación', `${r.pctEnEspecificacion.toFixed(1)} %`], ['Desvíos de la FDV', r.desvios], ['Alarmas', r.alarmas], ['Cambios de consigna', r.cambiosConsigna], ['Intentos denegados', r.intentosDenegados]].map(([k, v]) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`).join('')
+  dibujarMimic(); dibujarTend()
+}
+
+// ---- Dibujo ---------------------------------------------------------------------------------------------
+function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '11px ui-monospace, Consolas, monospace'; return { c, w, h } }
+function dibujarMimic() {
+  const { c, w, h } = prep($('cvMimic')), p = sc.proc
+  const tub = (x1, y1, x2, y2, col = '#2b3d63', ancho = 7) => { c.strokeStyle = col; c.lineWidth = ancho; c.lineCap = 'round'; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke() }
+  const yM = h / 2 + 10, desvio = p.fdv === 'DESVIO'
+  const x = { tk: 60, pump: 160, hx: 300, hold: 470, fdv: 620, out: w - 90 }
+  tub(x.tk + 30, yM, x.hx - 40, yM); tub(x.hx + 40, yM, x.hold - 10, yM, '#22d3ee'); tub(x.hold + 130, yM, x.fdv - 14, yM, '#22d3ee')
+  tub(x.fdv, yM + 14, x.fdv, yM + 80, desvio ? '#f87171' : '#2b3d63'); tub(x.fdv, yM + 80, x.tk, yM + 80, desvio ? '#f87171' : '#2b3d63'); tub(x.tk, yM + 80, x.tk, yM + 28, desvio ? '#f87171' : '#2b3d63')
+  tub(x.fdv + 14, yM, x.out - 40, yM, desvio ? '#2b3d63' : '#34d399')
+  const caja = (cx, cy, ww, hh, rotulo, borde = '#334a73') => { c.fillStyle = '#071122'; c.strokeStyle = borde; c.lineWidth = 2; c.beginPath(); c.roundRect(cx - ww / 2, cy - hh / 2, ww, hh, 6); c.fill(); c.stroke(); c.fillStyle = '#94a3b8'; c.textAlign = 'center'; c.fillText(rotulo, cx, cy - hh / 2 - 6) }
+  caja(x.tk, yM, 60, 56, 'TK-100 producto'); c.fillStyle = 'rgba(34,211,238,.4)'; c.fillRect(x.tk - 28, yM - 4, 56, 30)
+  c.fillStyle = '#34d399'; c.beginPath(); c.arc(x.pump, yM, 16, 0, 7); c.fill(); c.fillStyle = '#02060f'; c.beginPath(); c.moveTo(x.pump - 5, yM - 8); c.lineTo(x.pump + 9, yM); c.lineTo(x.pump - 5, yM + 8); c.fill()
+  c.fillStyle = '#94a3b8'; c.fillText('P-101', x.pump, yM + 32); c.fillText(`${Math.round(p.F)} L/h`, x.pump, yM - 24)
+  caja(x.hx, yM, 80, 64, 'E-101 intercambiador', p.T < 72 ? '#f87171' : '#334a73')
+  const gcol = p.T >= 72 ? '#f59e0b' : '#f87171'; c.fillStyle = gcol; c.fillRect(x.hx - 30, yM + 10 - (p.u / 100) * 36, 60, (p.u / 100) * 36)
+  c.fillStyle = '#e2e8f0'; c.fillText(`vapor ${p.u.toFixed(0)} %`, x.hx, yM + 50)
+  caja(x.hold + 60, yM, 140, 22, `TH-101 retención ${p.hold.toFixed(1)} s`, p.hold >= 15 ? '#334a73' : '#f87171')
+  c.fillStyle = p.T >= 72 ? '#22d3ee' : '#f87171'; c.font = '600 13px ui-monospace, Consolas, monospace'; c.fillText(`TT-101 ${p.T.toFixed(2)} °C`, x.hold + 60, yM - 46); c.font = '11px ui-monospace, Consolas, monospace'
+  c.fillStyle = desvio ? '#f87171' : '#34d399'; c.beginPath(); c.moveTo(x.fdv - 12, yM - 12); c.lineTo(x.fdv + 12, yM - 12); c.lineTo(x.fdv, yM + 12); c.fill()
+  c.fillStyle = '#94a3b8'; c.fillText('FDV-101', x.fdv, yM - 20); c.fillStyle = desvio ? '#f87171' : '#34d399'; c.fillText(desvio ? 'RECIRCULA' : 'AVANCE', x.fdv, yM + 100)
+  caja(x.out, yM, 70, 36, 'a envasado', desvio ? '#334a73' : '#34d399')
+}
+function dibujarTend() {
+  const pts = S.reducir(sc.hist, sc.t - rango, 360), { c, w, h } = prep($('cvTr'))
+  if (!pts.length) return
+  const L = 40, R = 8, T = 8, B = 16, t0 = pts[0].t, t1 = pts.at(-1).t + 1
+  const x = (t) => L + ((t - t0) / (t1 - t0)) * (w - L - R)
+  const lo = Math.floor(Math.min(66, ...pts.map((q) => q.min)) - 1), hi = Math.ceil(Math.max(78, ...pts.map((q) => q.max)) + 1), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (h - T - B)
+  c.fillStyle = '#64748b'; c.strokeStyle = '#13203a'; c.textAlign = 'right'; c.lineWidth = 1
+  for (let v = Math.ceil(lo / 2) * 2; v <= hi; v += 2) { c.beginPath(); c.moveTo(L, y(v)); c.lineTo(w - R, y(v)); c.stroke(); c.fillText(v, L - 4, y(v) + 3) }
+  pts.forEach((q, i) => { if (q.fdv === 'DESVIO') { c.fillStyle = 'rgba(248,113,113,.15)'; const xa = x(q.t), xb = x(pts[i + 1]?.t ?? t1); c.fillRect(xa, T, Math.max(1.5, xb - xa), h - T - B) } })
+  c.strokeStyle = 'rgba(248,113,113,.7)'; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(L, y(72)); c.lineTo(w - R, y(72)); c.stroke(); c.setLineDash([])
+  c.fillStyle = 'rgba(34,211,238,.18)'; c.beginPath(); pts.forEach((q, i) => (i ? c.lineTo(x(q.t), y(q.max)) : c.moveTo(x(q.t), y(q.max)))); for (let i = pts.length - 1; i >= 0; i--) c.lineTo(x(pts[i].t), y(pts[i].min)); c.fill()
+  for (const [k, col] of [['sp', '#f59e0b'], ['T', '#22d3ee']]) { c.strokeStyle = col; c.lineWidth = 1.6; c.beginPath(); pts.forEach((q, i) => (i ? c.lineTo(x(q.t), y(q[k])) : c.moveTo(x(q.t), y(q[k])))); c.stroke() }
+  c.fillStyle = '#64748b'; c.textAlign = 'center'; for (let k = 0; k <= 4; k++) { const t = t0 + ((t1 - t0) * k) / 4; c.fillText(mmss(t), x(t), h - 3) }
+  const g = prep($('cvU')); const yu = (v) => 6 + (1 - v / 100) * (g.h - 22)
+  g.c.strokeStyle = '#e879f9'; g.c.lineWidth = 1.4; g.c.beginPath(); pts.forEach((q, i) => (i ? g.c.lineTo(x(q.t), yu(q.u)) : g.c.moveTo(x(q.t), yu(q.u)))); g.c.stroke()
+  g.c.fillStyle = '#64748b'; g.c.textAlign = 'right'; for (const v of [0, 50, 100]) g.c.fillText(v, L - 4, yu(v) + 3)
+}
+function bucle(ahora) {
+  const dt = Math.min(0.1, (ahora - ultimo) / 1000); ultimo = ahora
+  if (!pausa) { acc += dt * vel; let n = 0; while (acc >= 1) { S.tick(sc); acc -= 1; n++ } if (n) render() }
+  requestAnimationFrame(bucle)
+}
+render(); requestAnimationFrame(bucle)
+window.addEventListener('resize', render)
+// Avance determinista para pruebas automáticas (no depende de requestAnimationFrame).
+window.demoApi = { sc, avanzar(seg) { S.correr(sc, seg); render() } }
+</script>
+</body>
+</html>
+

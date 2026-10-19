@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.playwright-cli/
+
+# material de trabajo: no se publica
+imagenes-generadas/
+fotos mias/
+PROMPTS-IMAGENES.md
+PLAN-CYBERPUNK.md
+GUIA-EDICION.md
+instrucciones.txt
+prompt-claude-code-portfolio-azul.md

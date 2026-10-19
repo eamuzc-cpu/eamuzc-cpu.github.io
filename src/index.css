@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/600.css";
+
+@theme {
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* cyberpunk sutil: fondo casi negro, cian neón primario, magenta como acento puntual */
+  --color-void: #05060a;
+  --color-surface: #0b0e16;
+  --color-surface-raised: #121624;
+  --color-line: #1c2233;
+
+  --color-cyan: #00e5ff;
+  --color-cyan-soft: #5cf2ff;
+  --color-magenta: #ff2bd6;
+  --color-magenta-soft: #ff6be4;
+  --color-amber: #f59e0b;
+  --color-emerald: #10b981;
+  --color-danger: #ef4444;
+
+  --animate-blink: blink 1.6s steps(2, start) infinite;
+  --animate-scan: scan 3.5s linear infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-void);
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-cyan);
+  color: #020617;
+}
+
+/* subtle industrial grid backdrop, fixed and non-interactive per perf guardrails */
+.grid-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgb(0 229 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(0 229 255 / 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* mono dominante; párrafos largos en sans para legibilidad. En @layer base
+   para que una clase utilitaria (font-mono) siga pudiendo sobrescribirlo. */
+@layer base {
+  p {
+    font-family: var(--font-display);
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+  }
+}
+
+/* scanlines CRT muy tenues sobre toda la página */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.018) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+.text-glow {
+  text-shadow: 0 0 12px rgb(0 229 255 / 0.45);
+}
+
+.text-glow-magenta {
+  text-shadow: 0 0 12px rgb(255 43 214 / 0.45);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 0 1px rgb(0 229 255 / 0.35), 0 0 18px -4px rgb(0 229 255 / 0.55);
+}
+
+/* glitch: solo al cargar (una vez) y en hover. Requiere data-text con el mismo texto. */
+.glitch {
+  position: relative;
+  display: inline-block;
+}
+
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.glitch::before {
+  color: var(--color-magenta);
+  transform: translate(-2px, 0);
+}
+
+.glitch::after {
+  color: var(--color-cyan);
+  transform: translate(2px, 0);
+}
+
+.glitch::before,
+.glitch::after {
+  animation: glitch 0.6s steps(2, end) 0.4s 1;
+}
+
+.glitch:hover::before,
+.glitch:hover::after {
+  animation: glitch 0.6s steps(2, end) 1;
+}
+
+@keyframes glitch {
+  0% {
+    opacity: 0.8;
+    clip-path: inset(10% 0 60% 0);
+  }
+  25% {
+    clip-path: inset(55% 0 20% 0);
+  }
+  50% {
+    clip-path: inset(30% 0 45% 0);
+  }
+  75% {
+    clip-path: inset(75% 0 5% 0);
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
