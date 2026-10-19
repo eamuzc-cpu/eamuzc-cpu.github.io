@@ -1405,4 +1405,49 @@ export const projects = [
     },
     tools: { hardware: [], software: ['TPM', 'CMMS', 'Pareto', 'ABC', 'JavaScript', 'localStorage', 'node:test'] },
   },
+  {
+    slug: 'monitor-energia-esp32',
+    title: {
+      es: 'Monitor de energía con ESP32 y medidor: consumo, demanda, costo y anomalías (MQTT)',
+      en: 'Energy Monitor with ESP32 and Meter: Consumption, Demand, Cost and Anomalies (MQTT)',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'embedded',
+    year: 2026,
+    image: '/projects/monitor-energia-esp32.jpg',
+    demo: { src: '/demos/monitor-energia-esp32/index.html' },
+    resultBadge: { es: 'Fuga nocturna de 800 W detectada sin falsas alarmas', en: '800 W night leak detected with no false alarms' },
+    summary: {
+      es: 'Firmware de ESP32 que lee un medidor PZEM-004T y publica por MQTT, más un panel que valida el mensaje y calcula energía, demanda de 15 minutos, costo de la cuenta, alertas, anomalías de consumo y armónicos. El firmware está escrito pero aún no probado en hardware; el panel usa datos simulados.',
+      en: 'ESP32 firmware that reads a PZEM-004T meter and publishes over MQTT, plus a dashboard that validates the message and computes energy, 15-minute demand, bill cost, alerts, consumption anomalies and harmonics. The firmware is written but not yet tested on hardware; the dashboard uses simulated data.',
+    },
+    stack: ['ESP32', 'MQTT', 'PZEM-004T', 'Arduino', { es: 'Calidad de energía', en: 'Power quality' }, 'JavaScript'],
+    challenge: {
+      es: 'La electricidad es un gasto grande y casi invisible: sin medir no se sabe cuánto consume cada carga, cuánta demanda máxima se paga, si el factor de potencia es malo ni si algún equipo quedó encendido de noche.',
+      en: 'Electricity is a large, nearly invisible expense: without measuring you do not know what each load consumes, how much peak demand you pay for, whether the power factor is poor or whether some equipment was left on overnight.',
+    },
+    impact: {
+      es: 'Un medidor barato con un microcontrolador permite ver el consumo por hora, detectar fugas de energía y justificar acciones (corregir el factor de potencia, mover cargas fuera del pico) antes de que lleguen en la cuenta.',
+      en: 'A cheap meter with a microcontroller lets you see consumption by the hour, detect energy leaks and justify actions (correcting power factor, moving loads out of the peak) before they show up on the bill.',
+    },
+    solution: {
+      es: 'El firmware (Arduino, en la carpeta proyectos del repositorio) lee el PZEM-004T por UART, publica un JSON cada 2 s en planta/energia/<id>, usa última voluntad para el estado «offline», reconecta Wi-Fi y MQTT con espera creciente, tiene perro guardián y un modo simulado sin medidor; está escrito y revisado, pero no se ha probado en hardware real. El panel genera un medidor con cinco cargas (iluminación LED, compresor, resistencia con termostato, bomba con variador y equipos en espera) con variación diaria, valida el mismo mensaje (tipos, rangos y que P ≈ V·I·FP), integra la energía, calcula la demanda máxima de 15 minutos y el factor de carga, proyecta la cuenta con tarifa editable (energía, demanda y cargo fijo), dispara alertas de tensión, corriente, factor de potencia y frecuencia, y muestra el espectro de armónicos (un variador de 6 pulsos da cerca de 42 % de THD). La detección de anomalías compara la potencia suavizada con el perfil de 14 días por tramos de 15 minutos: una fuga nocturna de 800 W se detecta una sola vez y sin falsas alarmas en la operación normal, aunque en las horas de más variación exige un exceso mayor. Las 15 pruebas cubren el mensaje y su validación, la integración de energía, la demanda, el costo, las alertas, las anomalías y los armónicos.',
+      en: 'The firmware (Arduino, in the repository\'s proyectos folder) reads the PZEM-004T over UART, publishes a JSON every 2 s on planta/energia/<id>, uses a last will for the «offline» state, reconnects Wi-Fi and MQTT with growing back-off, has a watchdog and a simulated mode without a meter; it is written and reviewed but has not been tested on real hardware. The dashboard generates a meter with five loads (LED lighting, compressor, thermostat heater, pump with drive and standby equipment) with daily variation, validates the same message (types, ranges and P ≈ V·I·PF), integrates energy, computes the 15-minute maximum demand and the load factor, projects the bill with an editable tariff (energy, demand and fixed charge), raises voltage, current, power factor and frequency alerts, and shows the harmonic spectrum (a 6-pulse drive gives about 42 % THD). Anomaly detection compares smoothed power against a 14-day profile by 15-minute slots: an 800 W night leak is detected once with no false alarms in normal operation, although in the hours of highest variability it needs a larger excess. The 15 tests cover the message and its validation, energy integration, demand, cost, alerts, anomalies and harmonics.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '15' },
+      { label: { es: 'THD de un variador de 6 pulsos', en: 'THD of a 6-pulse drive' }, value: '42 %' },
+      { label: { es: 'Hardware probado', en: 'Hardware tested' }, value: { es: 'pendiente', en: 'pending' } },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Medidor PZEM', en: 'PZEM meter' }, sub: 'UART · Modbus' },
+        { label: 'ESP32', sub: { es: 'Wi-Fi · última voluntad', en: 'Wi-Fi · last will' } },
+        { label: 'MQTT', sub: 'planta/energia/<id>' },
+        { label: { es: 'Panel', en: 'Dashboard' }, sub: { es: 'kWh · demanda · alertas', en: 'kWh · demand · alerts' } },
+      ],
+      feedback: { from: 3, to: 1, label: { es: 'umbrales', en: 'thresholds' } },
+    },
+    tools: { hardware: ['ESP32', 'PZEM-004T v3'], software: ['Arduino', 'PubSubClient', 'MQTT', 'JavaScript', 'Canvas', 'node:test'] },
+  },
 ]

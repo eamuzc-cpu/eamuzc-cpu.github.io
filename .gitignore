@@ -17,3 +17,6 @@ prompt-claude-code-portfolio-azul.md
 # secretos: nunca se suben
 .env
 .env.*
+
+# configuración local del firmware (Wi-Fi y claves)
+proyectos/**/config.h

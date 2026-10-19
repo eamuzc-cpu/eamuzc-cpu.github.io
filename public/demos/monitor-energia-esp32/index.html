@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor de energía con ESP32 y medidor — consumo, demanda, costo y anomalías</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.wrap { display: grid; gap: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 22px var(--mono); margin-top: 2px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.al { border-color: var(--red); } .card.al b { color: var(--red); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .three { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 12px; }
+canvas { height: 220px; }
+.cargas label { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--txt); padding: 3px 0; } .cargas small { color: var(--mut); margin-left: auto; }
+.esc { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.frm { display: grid; grid-template-columns: 1fr 100px; gap: 6px 10px; align-items: center; margin-bottom: 6px; } .frm label { font: 12px var(--mono); color: var(--mut); }
+#msg { font: 12px/1.5 var(--mono); background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; word-break: break-all; color: #cbd5e1; } #msg i { color: var(--cyan); font-style: normal; }
+textarea { width: 100%; height: 70px; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 12px var(--mono); }
+.ok2 { color: var(--green); } .bad2 { color: var(--red); } ul.l { margin: 6px 0 0 16px; padding: 0; font: 12px var(--mono); } ul.l li { margin: 3px 0; }
+table.pin td, table.pin th { padding: 3px 8px; white-space: nowrap; }
+@media (max-width: 1000px) { .two, .three { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Monitor de energía · ESP32 + medidor</h1><span class="badge warn">datos simulados</span><span class="sp"></span>
+  <span id="reloj" style="font:12px var(--mono);color:var(--mut)"></span><button id="bPausa" class="mini">Pausa</button><button class="vel mini" data-v="1">×1</button><button class="vel mini on" data-v="60">×60</button><button class="vel mini" data-v="600">×600</button><button class="vel mini" data-v="3600">×3600</button>
+</div>
+<div class="wrap" style="padding:12px 16px">
+  <div class="cards" id="live"></div>
+  <div class="two">
+    <div class="panel"><h2>Potencia de las últimas 24 h [kW]</h2><canvas id="cvP"></canvas><div class="note" style="padding:6px 0 0">Línea ámbar: demanda máxima de 15 min del día · verde: potencia instantánea.</div></div>
+    <div class="panel"><h2>Energía diaria [kWh] — últimos 14 días y hoy</h2><canvas id="cvD"></canvas></div>
+  </div>
+  <div class="three">
+    <div class="panel cargas"><h2>Cargas de la instalación</h2><div id="cargas"></div>
+      <div class="esc"><button class="mini" id="bFuga">Agregar fuga nocturna de 800 W (22–24 h)</button><button class="mini" id="bHueco">Hueco de tensión (20 s)</button><button class="mini" id="b21">Saltar a las 21:30</button></div><div id="anom" style="margin-top:6px"></div></div>
+    <div class="panel"><h2>Armónicos de la corriente [% de la fundamental]</h2><canvas id="cvH"></canvas><div class="note" style="padding:6px 0 0" id="thdN"></div></div>
+    <div class="panel"><h2>Cuenta de electricidad (proyección)</h2>
+      <div class="frm"><label for="tE">Energía [$/kWh]</label><input id="tE" type="number" value="135"></div><div class="frm"><label for="tD">Demanda [$/kW]</label><input id="tD" type="number" value="9500"></div><div class="frm"><label for="tF">Cargo fijo [$/mes]</label><input id="tF" type="number" value="1200"></div>
+      <div id="costo"></div><div class="note" style="padding:6px 0 0">Tarifas de ejemplo editables: no corresponden a ninguna empresa distribuidora.</div></div>
+  </div>
+  <div class="two">
+    <div class="panel"><h2>Mensaje MQTT que publica el ESP32 (cada 2 s)</h2><div id="msg"></div><div id="val" class="note" style="padding:6px 0 0"></div>
+      <h2 style="margin-top:12px">Probar la validación con tu propio mensaje</h2><textarea id="prueba" spellcheck="false"></textarea><div class="row" style="margin-top:6px"><button class="mini" id="bProbar">Validar</button></div><div id="resP" style="font:12px var(--mono);margin-top:6px"></div></div>
+    <div class="panel"><h2>Conexión del hardware</h2>
+      <table class="pin"><tr><th>PZEM-004T v3</th><th>ESP32</th><th>Nota</th></tr><tr><td>TX</td><td>GPIO16 (RX2)</td><td>UART2 a 9600 baudios, Modbus-RTU</td></tr><tr><td>RX</td><td>GPIO17 (TX2)</td><td></td></tr><tr><td>5 V</td><td>5 V (VIN)</td><td>alimenta los optoacopladores del módulo</td></tr><tr><td>GND</td><td>GND</td><td></td></tr></table>
+      <ul class="l"><li>El módulo mide la <b>red de 220 V</b>: es peligroso. Instálalo en una caja cerrada, con protección y por una persona calificada; para probar sin riesgo usa la variante con pinza amperimétrica.</li><li>Publica por MQTT con <b>última voluntad</b> (estado «offline» retenido) y reconexión con espera creciente.</li><li>Sin medidor conectado, el firmware tiene un modo simulado.</li><li><b>Estado:</b> firmware escrito y revisado, <b>aún no probado en hardware real</b>; el panel de arriba usa datos simulados.</li></ul>
+      <div class="note" style="padding:8px 0 0">Código: <a href="https://github.com/eamuzc-cpu/eamuzc-cpu.github.io/tree/main/proyectos/monitor-energia-esp32" target="_blank" rel="noopener" style="color:var(--cyan)">proyectos/monitor-energia-esp32</a> (sketch de Arduino, configuración de ejemplo y esquema). Este mismo mensaje lo consume el pipeline MQTT → Telegraf → InfluxDB → Grafana.</div></div>
+  </div>
+</div>
+<div class="note">Medidor simulado con cargas realistas (iluminación LED, compresor, resistencia con termostato, bomba con variador y equipos en espera): los números son de práctica, no mediciones de una instalación real.</div>
+
+<script>
+﻿// Monitor de energía eléctrica (didáctico): generador de un medidor con cargas realistas (iluminación, motor,
+// resistencia con termostato, variador), mensaje MQTT con su validación (el mismo esquema que publica el firmware del
+// ESP32), energía y demanda de 15 min, costo de la cuenta, alertas, detección de anomalías contra el perfil horario
+// y armónicos (THD). El MISMO archivo corre en las pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.EnergiaCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const LIMITES = { v: [80, 300], i: [0, 100], p: [0, 25000], pf: [0, 1], f: [45, 65], e: [0, 1e7] }
+  const CAMPOS = ['id', 'ts', 'v', 'i', 'p', 'pf', 'f', 'e']
+  const redondear = (x, d = 2) => Math.round(x * 10 ** d) / 10 ** d
+  function prng(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+
+  // ---- Mensaje MQTT (mismo esquema que el firmware) ---------------------------------------------------------------------
+  const topico = (id) => `planta/energia/${id}`
+  function formatoMensaje(l) {
+    return JSON.stringify({ id: l.id, ts: Math.round(l.ts), v: redondear(l.v), i: redondear(l.i), p: redondear(l.p, 1), pf: redondear(l.pf), f: redondear(l.f), e: redondear(l.e, 3) })
+  }
+  function parseMensaje(texto) {
+    let o; const errores = []
+    try { o = JSON.parse(texto) } catch { return { ok: false, errores: ['no es JSON válido'] } }
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return { ok: false, errores: ['el mensaje debe ser un objeto JSON'] }
+    for (const k of CAMPOS) if (!(k in o)) errores.push(`falta el campo «${k}»`)
+    if ('id' in o && !/^[A-Za-z0-9_-]{1,32}$/.test(String(o.id))) errores.push('id inválido (letras, números, - y _)')
+    if ('ts' in o && !(Number.isInteger(o.ts) && o.ts > 1.5e9)) errores.push('ts debe ser un entero Unix en segundos')
+    for (const [k, [a, b]] of Object.entries(LIMITES)) if (k in o) { if (typeof o[k] !== 'number' || !Number.isFinite(o[k])) errores.push(`«${k}» debe ser un número`); else if (o[k] < a || o[k] > b) errores.push(`«${k}» fuera de rango (${a} a ${b})`) }
+    if (errores.length) return { ok: false, errores }
+    return { ok: true, lectura: o, errores: [], plausible: plausible(o) }
+  }
+  // P ≈ V·I·FP (en monofásico); por debajo de 5 W el ruido del medidor domina
+  const plausible = (l) => l.p < 5 || Math.abs(l.p - l.v * l.i * l.pf) / Math.max(l.p, 1) < 0.08
+
+  // ---- Armónicos --------------------------------------------------------------------------------------------------------------
+  const ESPECTROS = {
+    resistiva: { 1: 1, 3: 0.01, 5: 0.005 },
+    motor: { 1: 1, 3: 0.03, 5: 0.04, 7: 0.02 },
+    iluminacion: { 1: 1, 3: 0.25, 5: 0.15, 7: 0.08, 9: 0.04 },
+    variador: { 1: 1, 5: 0.35, 7: 0.2, 11: 0.09, 13: 0.06 },
+  }
+  const thd = (esp) => Math.sqrt(Object.entries(esp).filter(([h]) => +h > 1).reduce((a, [, x]) => a + x * x, 0)) / (esp[1] ?? 1)
+
+  // ---- Cargas y medidor simulado ----------------------------------------------------------------------------------------------
+  const CARGAS_BASE = [
+    { id: 'iluminacion', nombre: 'Iluminación LED', tipo: 'iluminacion', w: 900, pf: 0.9, horario: [6, 22] },
+    { id: 'compresor', nombre: 'Compresor de aire', tipo: 'motor', w: 3200, pf: 0.82, ciclo: { periodo: 600, duty: 0.55 }, horario: [5, 23] },
+    { id: 'calefactor', nombre: 'Resistencia con termostato', tipo: 'resistiva', w: 2000, pf: 1, ciclo: { periodo: 900, duty: 0.4 }, horario: [0, 24] },
+    { id: 'bomba', nombre: 'Bomba con variador', tipo: 'variador', w: 1500, pf: 0.7, horario: [7, 19] },
+    { id: 'standby', nombre: 'Equipos en espera (PLC, fuentes)', tipo: 'resistiva', w: 160, pf: 0.8, horario: [0, 24] },
+  ]
+  // Cada día los ciclos de compresor y termostato varían un poco (producción distinta): sin esto todos los días serían idénticos
+  const factorDia = (semilla, dia) => { const r = prng(semilla * 7919 + dia * 104729); return { compresor: 0.88 + 0.24 * r(), calefactor: 0.9 + 0.2 * r() } }
+  const activa = (c, t, fase, fd = {}) => {
+    const hora = ((t % 86400) / 3600), [h1, h2] = c.horario ?? [0, 24]
+    if (!(hora >= h1 && hora < h2)) return false
+    return c.ciclo ? ((t + fase) % c.ciclo.periodo) < c.ciclo.periodo * Math.min(1, c.ciclo.duty * (fd[c.id] ?? 1)) : true
+  }
+  function crearMedidor({ id = 'medidor1', semilla = 11, cargas = CARGAS_BASE, extra = [] } = {}) {
+    const r = prng(semilla), fases = Object.fromEntries([...cargas, ...extra].map((c) => [c.id, Math.floor(r() * 900)]))
+    return { id, semilla, cargas: [...cargas, ...extra], fases, apagadas: new Set(), e0: 1200 }
+  }
+  // Lectura instantánea determinista para el segundo t (t = segundos desde las 00:00 del día 0)
+  function leer(m, t, opciones = {}) {
+    const rn = prng(m.semilla * 100003 + Math.floor(t)), ruido = () => rn() - 0.5
+    let P = 0, Q = 0, I2 = 0, Ih2 = 0
+    const fd = factorDia(m.semilla, Math.floor(t / 86400))
+    for (const c of m.cargas) {
+      if (m.apagadas.has(c.id) || !activa(c, t, m.fases[c.id] ?? 0, fd)) continue
+      const p = c.w * (1 + 0.02 * ruido()) * (c.tipo === 'variador' ? 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(t / 1800)) : 1)
+      P += p; Q += p * Math.tan(Math.acos(c.pf))
+    }
+    const S = Math.hypot(P, Q), sag = opciones.hueco ? 0.78 : 1
+    const v = (230 + 3.2 * Math.sin((2 * Math.PI * t) / 5400) + 1.2 * ruido()) * sag, i = S ? S / v : 0.0, pf = S ? P / S : 1
+    for (const c of m.cargas) if (!m.apagadas.has(c.id) && activa(c, t, m.fases[c.id] ?? 0, fd)) { const ic = c.w / (230 * c.pf); I2 += ic * ic; const th = thd(ESPECTROS[c.tipo] ?? ESPECTROS.resistiva); Ih2 += (ic * th) ** 2 }
+    return { id: m.id, ts: 1760000000 + Math.floor(t), v, i, p: P, pf, f: 50 + 0.04 * ruido(), e: m.e0, q: Q, s: S, thdI: I2 ? Math.sqrt(Ih2 / I2) : 0 }
+  }
+  // Espectro de armónicos de la corriente total en el segundo t (cada armónico como fracción de la fundamental)
+  function espectroTotal(m, t) {
+    const fd = factorDia(m.semilla, Math.floor(t / 86400)), h2 = {}
+    let I2 = 0
+    for (const c of m.cargas) {
+      if (m.apagadas.has(c.id) || !activa(c, t, m.fases[c.id] ?? 0, fd)) continue
+      const ic = c.w / (230 * c.pf); I2 += ic * ic
+      for (const [h, x] of Object.entries(ESPECTROS[c.tipo] ?? ESPECTROS.resistiva)) if (+h > 1) h2[h] = (h2[h] ?? 0) + (ic * x) ** 2
+    }
+    const out = {}; for (const h of Object.keys(h2)) out[h] = I2 ? Math.sqrt(h2[h] / I2) : 0
+    return out
+  }
+  // Serie de potencia cada `paso` s durante `dias` días, para los históricos
+  function serie(m, dias, paso = 60) {
+    const out = []
+    for (let t = 0; t < dias * 86400; t += paso) out.push({ t, p: leer(m, t).p })
+    return out
+  }
+
+  // ---- Energía y demanda --------------------------------------------------------------------------------------------------------
+  function crearAcumulador() { return { kwh: 0, t: 0, ventana: 0, wV: 0, demandas: [], pico: 0 } }
+  function acumular(a, p, dt) {
+    a.kwh += (p * dt) / 3.6e6; a.t += dt; a.ventana += dt; a.wV += p * dt
+    if (a.ventana >= 900 - 1e-9) { const kw = a.wV / a.ventana / 1000; a.demandas.push(kw); a.pico = Math.max(a.pico, kw); a.ventana = 0; a.wV = 0 }
+    return a
+  }
+  const factorCarga = (a) => (a.pico > 0 ? a.kwh / (a.t / 3600) / a.pico : 0)
+  function resumenDiario(m, dias, paso = 60) {
+    const out = []
+    for (let d = 0; d < dias; d++) {
+      const a = crearAcumulador()
+      for (let t = d * 86400; t < (d + 1) * 86400; t += paso) acumular(a, leer(m, t).p, paso)
+      out.push({ dia: d, kwh: a.kwh, pico: a.pico, factorCarga: factorCarga(a) })
+    }
+    return out
+  }
+  const TARIFA_BASE = { energia: 135, demanda: 9500, fijo: 1200 } // CLP por kWh, por kW de demanda máxima y cargo fijo mensual (supuestos)
+  function costoMes({ kwhDia, picoKW }, tarifa = TARIFA_BASE, dias = 30) {
+    const energia = kwhDia * dias * tarifa.energia, demanda = picoKW * tarifa.demanda
+    return { energia, demanda, fijo: tarifa.fijo, total: energia + demanda + tarifa.fijo }
+  }
+
+  // ---- Alertas -------------------------------------------------------------------------------------------------------------------
+  function alertas(l, cfg = {}) {
+    const c = { vMin: 207, vMax: 253, iMax: 45, pfMin: 0.85, pMinPF: 200, df: 1, ...cfg }, a = []
+    if (l.v < c.vMin) a.push({ id: 'TENSION_BAJA', msg: `tensión baja: ${redondear(l.v, 1)} V (mínimo ${c.vMin} V)` })
+    if (l.v > c.vMax) a.push({ id: 'TENSION_ALTA', msg: `tensión alta: ${redondear(l.v, 1)} V (máximo ${c.vMax} V)` })
+    if (l.i > c.iMax) a.push({ id: 'SOBRECORRIENTE', msg: `corriente alta: ${redondear(l.i, 1)} A (límite ${c.iMax} A)` })
+    if (l.p > c.pMinPF && l.pf < c.pfMin) a.push({ id: 'FP_BAJO', msg: `factor de potencia bajo: ${redondear(l.pf)} (mínimo ${c.pfMin})` })
+    if (Math.abs(l.f - 50) > c.df) a.push({ id: 'FRECUENCIA', msg: `frecuencia fuera de rango: ${redondear(l.f)} Hz` })
+    return a
+  }
+  const estadoConexion = (ultimoTs, ahoraTs, timeout = 10) => (ahoraTs - ultimoTs > timeout ? 'sin datos' : 'en línea')
+
+  // ---- Anomalías contra el perfil horario --------------------------------------------------------------------------------------
+  // Promedio móvil causal de n muestras: quita el ciclo de encendido y apagado de compresores y termostatos antes de comparar
+  function suavizar(hist, n) { const q = [], out = []; let s = 0; for (const x of hist) { q.push(x.p); s += x.p; if (q.length > n) s -= q.shift(); out.push({ t: x.t, p: s / q.length }) } return out }
+  const TRAMO = 900 // s: el perfil de referencia tiene un valor por cada tramo de 15 min del día
+  function perfilHorario(histOriginal, { suave = 15 } = {}) {
+    const hist = suavizar(histOriginal, suave), acc = Array.from({ length: 86400 / TRAMO }, () => ({ n: 0, s: 0, s2: 0 }))
+    for (const { t, p } of hist) { const k = Math.floor((t % 86400) / TRAMO); acc[k].n++; acc[k].s += p; acc[k].s2 += p * p }
+    return acc.map((x) => { const m = x.n ? x.s / x.n : 0; return { media: m, desv: Math.max(Math.sqrt(Math.max(0, x.s2 / Math.max(x.n, 1) - m * m)), 100) } })
+  }
+  // Eventos donde la potencia supera `z` desviaciones del perfil de esa hora por al menos `minMin` minutos seguidos
+  function detectarAnomalias(histOriginal, perfil, { z = 3, minMin = 10, suave = 15 } = {}) {
+    const hist = suavizar(histOriginal, suave), ev = []; let ini = null, suma = 0, n = 0
+    const cierra = (fin) => { if (ini != null && (fin - ini) / 60 >= minMin) ev.push({ desde: ini, hasta: fin, exceso: suma / n }); ini = null; suma = 0; n = 0 } // exceso = promedio sobre el perfil
+    for (const { t, p } of hist) {
+      const pr = perfil[Math.floor((t % 86400) / TRAMO)], dev = (p - pr.media) / pr.desv
+      if (dev > z) { if (ini == null) ini = t; suma += p - pr.media; n++ } else cierra(t)
+    }
+    cierra(hist.at(-1)?.t ?? 0)
+    return ev
+  }
+
+  return { LIMITES, CAMPOS, CARGAS_BASE, ESPECTROS, TARIFA_BASE, topico, formatoMensaje, parseMensaje, plausible, thd, crearMedidor, leer, espectroTotal, serie, crearAcumulador, acumular, factorCarga, resumenDiario, costoMes, alertas, estadoConexion, perfilHorario, detectarAnomalias, redondear }
+})
+
+
+</script>
+<script>
+'use strict'
+const E = EnergiaCore, $ = (id) => document.getElementById(id)
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const f = (n, d = 1) => Number(n).toLocaleString('es-CL', { maximumFractionDigits: d, minimumFractionDigits: d })
+const hm = (s) => `${String(Math.floor((s % 86400) / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`
+const CLP = (n) => '$' + Math.round(n).toLocaleString('es-CL')
+const DIAS_HIST = 14
+let m = E.crearMedidor({ semilla: 11 }), vel = 60, pausa = false, ultimo = performance.now(), acc = 0
+let t = DIAS_HIST * 86400 + 8 * 3600, hueco = 0, hist = [], hoy = [], minutoAnt = -1, acumHoy = E.crearAcumulador(), previos = [], perfil = null, alertasLog = [], alertasAct = new Set(), anomalias = [], fugaActiva = false
+
+function iniciar() {
+  hist = E.serie(m, DIAS_HIST, 60); perfil = E.perfilHorario(hist); previos = E.resumenDiario(m, DIAS_HIST, 300)
+  rehacerHoy()
+}
+function rehacerHoy() { // reconstruye lo que va del día vivo hasta el instante t
+  hoy = []; acumHoy = E.crearAcumulador(); const t0 = DIAS_HIST * 86400
+  for (let s = t0; s < t; s += 60) { const p = E.leer(m, s).p; hoy.push({ t: s, p }); E.acumular(acumHoy, p, 60) }
+  minutoAnt = Math.floor(t / 60)
+}
+iniciar()
+
+// ---- cargas y botones --------------------------------------------------------------------------------------------------------
+function dibujarCargas() { $('cargas').innerHTML = m.cargas.map((c) => `<label><input type="checkbox" data-c="${c.id}" ${m.apagadas.has(c.id) ? '' : 'checked'}> ${c.nombre}<small>${f(c.w, 0)} W · FP ${c.pf}</small></label>`).join(''); $('cargas').querySelectorAll('input').forEach((i) => (i.onchange = () => { i.checked ? m.apagadas.delete(i.dataset.c) : m.apagadas.add(i.dataset.c); rehacerHoy(); render() })) }
+$('bFuga').onclick = () => { if (!fugaActiva) { m.cargas.push({ id: 'fuga', nombre: 'Fuga nocturna (equipo olvidado)', tipo: 'resistiva', w: 800, pf: 1, horario: [22, 24] }); m.fases.fuga = 0; fugaActiva = true; dibujarCargas(); rehacerHoy(); render() } }
+$('bHueco').onclick = () => { hueco = 20 }
+$('b21').onclick = () => { const dia = DIAS_HIST * 86400, nuevo = dia + 21.5 * 3600; if (nuevo > t) { t = nuevo; rehacerHoy(); render() } }
+$('bPausa').onclick = () => { pausa = !pausa; $('bPausa').textContent = pausa ? 'Continuar' : 'Pausa'; $('bPausa').classList.toggle('on', pausa) }
+document.querySelectorAll('.vel').forEach((b) => (b.onclick = () => { vel = +b.dataset.v; document.querySelectorAll('.vel').forEach((x) => x.classList.toggle('on', x === b)) }))
+;['tE', 'tD', 'tF'].forEach((id) => $(id).addEventListener('input', renderCosto))
+
+// ---- avance de la simulación --------------------------------------------------------------------------------------------------
+function paso() {
+  const l = E.leer(m, t, { hueco: hueco > 0 }); if (hueco > 0) hueco--
+  const min = Math.floor(t / 60)
+  if (min !== minutoAnt) { minutoAnt = min; hoy.push({ t: min * 60, p: l.p }); E.acumular(acumHoy, l.p, 60); if (min % 5 === 0) revisarAnomalias() }
+  const al = E.alertas(l), ids = new Set(al.map((a) => a.id))
+  for (const a of al) if (!alertasAct.has(a.id)) alertasLog.unshift({ t, msg: a.msg })
+  alertasAct = ids; alertasLog.length = Math.min(alertasLog.length, 8)
+  t += 1; return { l, al }
+}
+function revisarAnomalias() { anomalias = hoy.length > 30 ? E.detectarAnomalias(hoy, perfil) : [] }
+let ultima = { l: E.leer(m, t), al: [] }
+
+// ---- dibujo ---------------------------------------------------------------------------------------------------------------------
+function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+function ejes(c, w, h, L, T, R, B, ymax, pasoY, fmt = (v) => v) { c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'; c.lineWidth = 1; for (let v = 0; v <= ymax + 1e-9; v += pasoY) { const y = T + (1 - v / ymax) * (h - T - B); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText(fmt(v), L - 4, y + 3) } }
+function dibujarPotencia() {
+  const { c, w, h } = prep($('cvP')), fin = t, ini = fin - 86400, L = 40, R = 8, T = 8, B = 20
+  const hist24 = []; for (let s = Math.floor(ini / 300) * 300; s < DIAS_HIST * 86400; s += 300) hist24.push({ t: s, p: E.leer(m, s).p }); const serie = [...hist24.filter((x) => x.t >= ini), ...hoy.filter((x) => x.t >= ini)]
+  const ymax = Math.max(8, Math.ceil(Math.max(...serie.map((x) => x.p / 1000), 1))), X = (s) => L + ((s - ini) / 86400) * (w - L - R), Y = (kw) => T + (1 - kw / ymax) * (h - T - B)
+  ejes(c, w, h, L, T, R, B, ymax, ymax > 8 ? 4 : 2, (v) => v)
+  c.fillStyle = '#64748b'; c.textAlign = 'center'; for (let k = 0; k <= 6; k++) { const s = ini + (k / 6) * 86400, hh = Math.floor((s % 86400) / 3600); c.fillText(String(hh).padStart(2, '0') + ':00', X(s), h - 5) }
+  c.strokeStyle = '#34d399'; c.lineWidth = 1.4; c.beginPath(); serie.forEach((q, i) => (i ? c.lineTo(X(q.t), Y(q.p / 1000)) : c.moveTo(X(q.t), Y(q.p / 1000)))); c.stroke()
+  const pico = acumHoy.pico; if (pico > 0) { c.strokeStyle = '#f59e0b'; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(L, Y(pico)); c.lineTo(w - R, Y(pico)); c.stroke(); c.setLineDash([]); c.fillStyle = '#f59e0b'; c.textAlign = 'left'; c.fillText(`demanda máx. ${f(pico)} kW`, L + 6, Y(pico) - 4) }
+  for (const a of anomalias) { c.fillStyle = 'rgba(248,113,113,.2)'; const x1 = Math.max(L, X(a.desde)), x2 = X(a.hasta); c.fillRect(x1, T, Math.max(2, x2 - x1), h - T - B) }
+}
+function dibujarDias() {
+  const { c, w, h } = prep($('cvD')), datos = [...previos.map((d) => d.kwh), acumHoy.kwh], L = 40, R = 8, T = 10, B = 20, ymax = Math.ceil(Math.max(...datos) / 20) * 20, bw = (w - L - R) / datos.length
+  ejes(c, w, h, L, T, R, B, ymax, ymax / 4)
+  const prom = previos.slice(-7).reduce((a, d) => a + d.kwh, 0) / 7
+  datos.forEach((v, i) => { const x = L + i * bw + 3, y = T + (1 - v / ymax) * (h - T - B), hoyB = i === datos.length - 1; c.fillStyle = hoyB ? '#22d3ee' : '#38bdf8'; c.globalAlpha = hoyB ? 1 : 0.7; c.fillRect(x, y, bw - 6, h - B - y); c.globalAlpha = 1; c.fillStyle = '#94a3b8'; c.textAlign = 'center'; c.fillText(hoyB ? 'hoy' : i - datos.length + 1, x + (bw - 6) / 2, h - 5) })
+  c.strokeStyle = '#f59e0b'; c.setLineDash([5, 4]); const yp = T + (1 - prom / ymax) * (h - T - B); c.beginPath(); c.moveTo(L, yp); c.lineTo(w - R, yp); c.stroke(); c.setLineDash([]); c.fillStyle = '#f59e0b'; c.textAlign = 'left'; c.fillText(`promedio 7 d: ${f(prom)} kWh`, L + 6, yp - 4)
+}
+function dibujarArmonicos() {
+  const { c, w, h } = prep($('cvH')), esp = E.espectroTotal(m, t), hs = [3, 5, 7, 9, 11, 13], L = 38, R = 8, T = 10, B = 22, ymax = 40, bw = (w - L - R) / hs.length
+  ejes(c, w, h, L, T, R, B, ymax, 10, (v) => v + '%')
+  c.strokeStyle = '#f59e0b'; c.setLineDash([5, 4]); const y8 = T + (1 - 8 / ymax) * (h - T - B); c.beginPath(); c.moveTo(L, y8); c.lineTo(w - R, y8); c.stroke(); c.setLineDash([]); c.fillStyle = '#f59e0b'; c.textAlign = 'right'; c.fillText('ref. 8 %', w - R - 2, y8 - 3)
+  hs.forEach((hh, i) => { const v = (esp[hh] ?? 0) * 100, x = L + i * bw + 6, y = T + (1 - Math.min(v, ymax) / ymax) * (h - T - B); c.fillStyle = v > 8 ? '#f87171' : '#22d3ee'; c.fillRect(x, y, bw - 12, h - B - y); c.fillStyle = '#cbd5e1'; c.textAlign = 'center'; c.fillText('H' + hh, x + (bw - 12) / 2, h - 7); if (v > 0.5) c.fillText(f(v, 0), x + (bw - 12) / 2, y - 3) })
+  $('thdN').textContent = `THD de la corriente: ${f(ultima.l.thdI * 100)} %. La referencia de 5–12 % (IEEE 519) depende de la relación entre la corriente de cortocircuito y la de carga.`
+}
+function renderCosto() {
+  const kwhDia = previos.slice(-7).reduce((a, d) => a + d.kwh, 0) / 7, pico = Math.max(...previos.slice(-7).map((d) => d.pico), acumHoy.pico)
+  const c = E.costoMes({ kwhDia, picoKW: pico }, { energia: +$('tE').value || 0, demanda: +$('tD').value || 0, fijo: +$('tF').value || 0 })
+  $('costo').innerHTML = `<table><tr><td>Energía (${f(kwhDia * 30, 0)} kWh/mes)</td><td>${CLP(c.energia)}</td></tr><tr><td>Demanda (${f(pico)} kW)</td><td>${CLP(c.demanda)}</td></tr><tr><td>Cargo fijo</td><td>${CLP(c.fijo)}</td></tr><tr><td><b>Total mensual</b></td><td><b>${CLP(c.total)}</b></td></tr></table><div class="note" style="padding:4px 0 0">Factor de carga de hoy: ${f(E.factorCarga(acumHoy) * 100, 0)} %</div>`
+}
+function render() {
+  const l = ultima.l, hh = Math.floor((t % 86400) / 3600), mm = Math.floor((t % 3600) / 60), ss = Math.floor(t % 60)
+  $('reloj').textContent = `día ${Math.floor(t / 86400) - DIAS_HIST + 1} · ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+  const alr = (id) => (ultima.al.some((a) => a.id.startsWith(id)) ? ' al' : '')
+  $('live').innerHTML = `<div class="card${alr('TENSION')}"><span>Tensión</span><b>${f(l.v)} V</b><small>${E.estadoConexion(t - 1, t)}</small></div><div class="card${alr('SOBRE')}"><span>Corriente</span><b>${f(l.i, 2)} A</b><small>potencia aparente ${f(l.s / 1000)} kVA</small></div><div class="card"><span>Potencia activa</span><b class="cy">${f(l.p / 1000, 2)} kW</b><small>reactiva ${f(l.q / 1000, 2)} kvar</small></div><div class="card${alr('FP')}"><span>Factor de potencia</span><b>${f(l.pf, 2)}</b><small>umbral de alerta 0,85</small></div><div class="card${alr('FREC')}"><span>Frecuencia</span><b>${f(l.f, 2)} Hz</b><small>THD de corriente ${f(l.thdI * 100, 0)} %</small></div><div class="card"><span>Energía de hoy</span><b>${f(acumHoy.kwh)} kWh</b><small>${E.TARIFA_BASE ? '' : ''}acumulado del medidor ${f(m.e0 + previos.reduce((a, d) => a + d.kwh, 0) + acumHoy.kwh, 0)} kWh</small></div>`
+  const msg = E.formatoMensaje({ ...l, e: m.e0 + previos.reduce((a, d) => a + d.kwh, 0) + acumHoy.kwh })
+  $('msg').innerHTML = `<i>${E.topico(m.id)}</i><br>${esc(msg)}`
+  const r = E.parseMensaje(msg); $('val').innerHTML = r.ok ? `<span class="ok2">✔ mensaje válido</span>${r.plausible ? ' · <span class="ok2">P ≈ V·I·FP consistente</span>' : ' · <span class="bad2">P no concuerda con V·I·FP</span>'}` : `<span class="bad2">✖ ${esc(r.errores.join('; '))}</span>`
+  const log = alertasLog.map((a) => `<li class="bad2">${String(Math.floor((a.t % 86400) / 3600)).padStart(2, '0')}:${String(Math.floor((a.t % 3600) / 60)).padStart(2, '0')} · ${esc(a.msg)}</li>`).join('')
+  $('anom').innerHTML = (anomalias.length ? anomalias.map((a) => `<div class="bad2" style="font:12px var(--mono)">⚠ Anomalía de consumo: +${f(a.exceso / 1000, 2)} kW sobre lo habitual entre las ${hm(a.desde)} y las ${hm(a.hasta)}</div>`).join('') : '<div class="note" style="padding:0">Sin anomalías de consumo frente al perfil de los 14 días anteriores.</div>') + (log ? `<ul class="l">${log}</ul>` : '')
+  dibujarPotencia(); dibujarDias(); dibujarArmonicos(); renderCosto()
+}
+$('prueba').value = '{"id":"medidor1","ts":1760000000,"v":229.8,"i":3.42,"p":742.1,"pf":0.95,"f":50.01,"e":123.456}'
+$('bProbar').onclick = () => { const r = E.parseMensaje($('prueba').value); $('resP').innerHTML = r.ok ? `<span class="ok2">✔ válido</span>${r.plausible ? '' : ' · <span class="bad2">pero P no concuerda con V·I·FP</span>'}` : `<span class="bad2">✖ ${r.errores.map(esc).join('<br>✖ ')}</span>` }
+dibujarCargas(); render()
+function bucle(ahora) {
+  const dt = Math.min(100, ahora - ultimo) / 1000; ultimo = ahora
+  if (!pausa) { acc += dt * vel; let n = 0; while (acc >= 1 && n < 8000) { ultima = paso(); acc -= 1; n++ } if (n) render() }
+  requestAnimationFrame(bucle)
+}
+requestAnimationFrame(bucle); window.addEventListener('resize', render)
+window.demoApi = { E, m: () => m, t: () => t, avanzar(seg) { for (let i = 0; i < seg; i++) ultima = paso(); render() }, irA(h) { t = DIAS_HIST * 86400 + h * 3600; rehacerHoy(); render() }, ultima: () => ultima, anomalias: () => anomalias }
+</script>
+</body>
+</html>
