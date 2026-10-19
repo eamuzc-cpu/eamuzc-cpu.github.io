@@ -1180,4 +1180,49 @@ export const projects = [
     },
     tools: { hardware: [], software: ['IEC 60364-5-52', { es: 'Curvas de disparo B/C/D', en: 'B/C/D trip curves' }, 'JavaScript', 'Canvas', 'node:test'] },
   },
+  {
+    slug: 'variador-vdf-motor',
+    title: {
+      es: 'Variador de frecuencia con motor de inducción: control V/f, rampas, regeneración y fallas',
+      en: 'Variable Frequency Drive with an Induction Motor: V/f Control, Ramps, Regeneration and Faults',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/variador-vdf-motor.jpg',
+    demo: { src: '/demos/variador-vdf-motor/index.html' },
+    resultBadge: { es: 'Bus limitado a 750 V con resistencia de frenado', en: 'DC bus held at 750 V with a braking resistor' },
+    summary: {
+      es: 'Simulador de un variador con control escalar V/f sobre un motor de 5,5 kW: rampas, boost, cargas de par constante o cuadrática con inercia, curva par–velocidad en vivo, bus de continua con regeneración y fallas con enclavamiento (sobrecorriente, sobrecarga térmica, sobretensión y subtensión).',
+      en: 'Simulator of a drive with scalar V/f control on a 5.5 kW motor: ramps, boost, constant or quadratic torque loads with inertia, live torque–speed curve, DC bus with regeneration and latched faults (overcurrent, thermal overload, overvoltage and undervoltage).',
+    },
+    stack: [{ es: 'Control V/f', en: 'V/f control' }, { es: 'Motor de inducción', en: 'Induction motor' }, { es: 'Bus de continua', en: 'DC bus' }, 'JavaScript'],
+    challenge: {
+      es: 'Un variador no solo cambia la velocidad: a baja frecuencia el motor pierde flujo y par, al frenar una carga con inercia el motor regenera y puede sobrecargar el bus de continua, y una sobrecarga mantenida lo calienta aunque la corriente parezca «normal».',
+      en: 'A drive does more than change speed: at low frequency the motor loses flux and torque, braking an inertial load makes the motor regenerate and can overload the DC bus, and a sustained overload heats it even when the current looks «normal».',
+    },
+    impact: {
+      es: 'En una línea de envasado o de extrusión, un paro por sobretensión (F-OV) o sobrecarga (F-OL) detiene la producción: saber por qué ocurre y qué parámetro lo evita es la diferencia entre reiniciar a ciegas y resolver la causa.',
+      en: 'On a packaging or extrusion line, a trip on overvoltage (F-OV) or overload (F-OL) stops production: knowing why it happens and which parameter prevents it is the difference between blindly restarting and fixing the cause.',
+    },
+    solution: {
+      es: 'Se modeló un motor de 5,5 kW, 380 V, 4 polos con par proporcional al deslizamiento y al flujo² (par máximo de 2,5 veces el nominal), flujo reducido a baja frecuencia por la caída en el estator, corriente magnetizante más corriente de par, memoria térmica de 150 % durante 60 s, bus de continua con la energía almacenada, regeneración, resistencia de frenado y descarga durante un hueco de red. Las pruebas verifican 1500 rpm sin carga y 1450 rpm con carga nominal (corriente y par nominales), la rampa lineal, que un ventilador a la mitad de velocidad consume 13,5 % de la potencia (≈ 1/8), un balance de energía con error menor a 2 %, la sobrecarga del 150 % que dispara F-OL a los 58 s, y la sobretensión: con 1,5 kg·m² de inercia y rampa de 3 s el bus llega a 815 V y dispara F-OV, mientras que con resistencia de frenado queda en 750 V. También se prueba que un hueco de red de 0,3 s lo aguanta el bus sin carga y dispara F-UV con carga nominal, y que una falla enclava hasta reiniciar con el bus y el motor en condiciones. La demo trae seis escenarios guiados y muestra la curva par–velocidad del motor contra la carga en tiempo real.',
+      en: 'A 5.5 kW, 380 V, 4-pole motor was modeled with torque proportional to slip and flux² (maximum torque 2.5 times rated), flux reduced at low frequency by the stator drop, magnetizing plus torque current, a 150 % for 60 s thermal memory, and a DC bus with stored energy, regeneration, braking resistor and discharge during a mains sag. The tests verify 1500 rpm unloaded and 1450 rpm at rated load (rated current and torque), the linear ramp, that a fan at half speed draws 13.5 % of the power (≈ 1/8), an energy balance with error below 2 %, the 150 % overload that trips F-OL at 58 s, and overvoltage: with 1.5 kg·m² of inertia and a 3 s ramp the bus reaches 815 V and trips F-OV, while with a braking resistor it stays at 750 V. They also check that a 0.3 s mains sag is ridden through by the bus when unloaded and trips F-UV at rated load, and that a fault latches until reset with the bus and motor within limits. The demo includes six guided scenarios and shows the motor torque–speed curve against the load in real time.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '17' },
+      { label: { es: 'Bus con inercia alta: sin frenado vs. con frenado', en: 'High-inertia bus: no braking vs. braking' }, value: '815 V vs 750 V' },
+      { label: { es: 'Potencia de un ventilador a media velocidad', en: 'Fan power at half speed' }, value: '13,5 %' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Referencia', en: 'Reference' }, sub: { es: 'Hz · rampas', en: 'Hz · ramps' } },
+        { label: 'V/f', sub: { es: 'boost · flujo', en: 'boost · flux' } },
+        { label: { es: 'Motor y carga', en: 'Motor and load' }, sub: { es: 'par · inercia', en: 'torque · inertia' } },
+        { label: { es: 'Bus y protecciones', en: 'Bus and protections' }, sub: 'OC · OL · OV · UV' },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'limitadores', en: 'limiters' } },
+    },
+    tools: { hardware: [], software: [{ es: 'Control escalar V/f', en: 'Scalar V/f control' }, { es: 'Modelo de motor de inducción', en: 'Induction motor model' }, 'JavaScript', 'Canvas', 'node:test'] },
+  },
 ]

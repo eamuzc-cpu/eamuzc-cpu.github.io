@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variador de frecuencia (VFD) con motor de inducción — control V/f, rampas y fallas</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.layout { grid-template-columns: 310px minmax(0, 1fr) 320px; align-items: start; }
+.col { display: grid; gap: 12px; min-width: 0; }
+.mini { padding: 4px 9px; font-size: 11px; }
+.estado { font: 600 12px var(--mono); padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); }
+.estado.MARCHA { color: var(--green); border-color: rgba(52, 211, 153, .6); } .estado.PARANDO, .estado.LIBRE { color: var(--amber); border-color: rgba(245, 158, 11, .6); }
+.estado.FALLA { color: var(--red); border-color: var(--red); animation: pulso 1s infinite; } @keyframes pulso { 50% { background: rgba(248, 113, 113, .2); } }
+#banner { margin: 12px 16px 0; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); font: 12.5px var(--mono); color: var(--mut); min-height: 36px; }
+#banner.f { border-color: var(--red); background: rgba(248, 113, 113, .1); color: var(--red); }
+.btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+.btns button { padding: 9px 6px; }
+.go { border-color: rgba(52, 211, 153, .6); color: var(--green); }
+.frm { display: grid; grid-template-columns: 1fr 96px; gap: 6px 8px; align-items: center; margin-bottom: 4px; }
+.frm label, .chk { font: 12px var(--mono); color: var(--mut); } .frm input, .frm select { width: 100%; }
+.chk { display: flex; gap: 6px; align-items: center; margin: 5px 0; }
+.sub { font: 600 10.5px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: #64748b; margin: 10px 0 5px; }
+.cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; }
+.card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; }
+.card b { display: block; font: 600 19px var(--mono); margin-top: 1px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.bar { height: 6px; background: #0a1426; border-radius: 4px; overflow: hidden; margin-top: 4px; } .bar i { display: block; height: 100%; background: var(--green); transition: width .15s; }
+canvas { background: #030a1a; }
+#cvTn { height: 250px; } .st { height: 74px; margin-bottom: 6px; } #cvVf { height: 150px; }
+.lbl { font: 10.5px var(--mono); color: var(--mut); margin: 2px 0 2px; }
+#log { max-height: 250px; overflow: auto; font: 11.5px var(--mono); } #log div { padding: 3px 0; border-bottom: 1px solid #0f1a2e; color: var(--mut); } #log .falla { color: var(--red); } #log .aviso { color: var(--amber); }
+.esc { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 1250px) { .layout { grid-template-columns: 300px minmax(0, 1fr); } .layout > .col:last-child { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); } }
+@media (max-width: 800px) { .layout { grid-template-columns: 1fr; } .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Variador de frecuencia · motor de inducción 5,5 kW</h1>
+  <span class="badge warn">simulación didáctica</span><span class="sp"></span>
+  <span id="estado" class="estado">LISTO</span>
+  <button id="bPausa" class="mini">Pausa</button><button class="vel mini on" data-v="1">×1</button><button class="vel mini" data-v="5">×5</button><button class="vel mini" data-v="20">×20</button>
+</div>
+<div id="banner">Elige un escenario o pulsa «Adelante». El motor parte con 50 % de la carga nominal.</div>
+
+<div class="wrap layout">
+  <div class="col">
+    <div class="panel">
+      <h2>Panel del variador</h2>
+      <div class="btns"><button id="bAdel" class="go">▶ Adelante</button><button id="bRev" class="go">◀ Reversa</button><button id="bParar">■ Parar (rampa)</button><button id="bLibre">⏻ Paro libre</button></div>
+      <button id="bReset" style="width:100%">↺ Reiniciar falla</button>
+      <div class="sub">Referencia y rampas</div>
+      <div class="frm"><label for="iF">Frecuencia [Hz]</label><input id="iF" type="number" min="0" max="60" step="1" value="50"></div>
+      <input id="rF" type="range" min="0" max="60" step="0.5" value="50" aria-label="Frecuencia de referencia">
+      <div class="frm"><label for="iTa">Aceleración [s]</label><input id="iTa" type="number" min="0.5" max="60" step="0.5" value="5"></div>
+      <div class="frm"><label for="iTd">Desaceleración [s]</label><input id="iTd" type="number" min="0.5" max="60" step="0.5" value="5"></div>
+      <div class="sub">Curva V/f</div>
+      <div class="frm"><label for="sCurva">Tipo</label><select id="sCurva"><option value="lineal">Lineal (par constante)</option><option value="cuadratica">Cuadrática (bomba/ventilador)</option></select></div>
+      <div class="frm"><label for="iBoost">Boost a 0 Hz [%]</label><input id="iBoost" type="number" min="0" max="15" step="0.5" value="3"></div>
+      <div class="sub">Protecciones del variador</div>
+      <label class="chk"><input id="cIlim" type="checkbox" checked> Limitador de corriente (150 %)</label>
+      <label class="chk"><input id="cVdc" type="checkbox"> Controlador de sobretensión del bus</label>
+      <label class="chk"><input id="cFreno" type="checkbox"> Resistencia de frenado (60 Ω)</label>
+    </div>
+    <div class="panel">
+      <h2>Carga mecánica</h2>
+      <div class="frm"><label for="sCarga">Tipo</label><select id="sCarga"><option value="cte">Par constante (correa)</option><option value="cuad">Cuadrática (ventilador)</option></select></div>
+      <div class="frm"><label for="iCarga">Par a 1450 rpm [% Tn]</label><input id="iCarga" type="number" min="0" max="200" step="5" value="50"></div>
+      <div class="frm"><label for="iJc">Inercia de la carga [kg·m²]</label><input id="iJc" type="number" min="0" max="5" step="0.1" value="0.2"></div>
+      <div class="sub">Perturbación</div>
+      <div class="esc"><button class="mini" id="bHueco1">Hueco de red 0,3 s</button><button class="mini" id="bHueco2">Hueco de red 2 s</button></div>
+    </div>
+    <div class="panel">
+      <h2>Escenarios</h2>
+      <div class="esc" id="esc"></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <div class="cards">
+        <div class="card"><span>Frecuencia</span><b id="rF2" class="cy">0,0 Hz</b><small id="rV"></small></div>
+        <div class="card"><span>Velocidad</span><b id="rN">0 rpm</b><small id="rNs"></small></div>
+        <div class="card"><span>Corriente</span><b id="rI" class="warn">0,0 A</b><small id="rIp"></small></div>
+        <div class="card"><span>Par</span><b id="rT">0 N·m</b><small id="rTp"></small></div>
+        <div class="card"><span>Bus de continua</span><b id="rVdc">513 V</b><small>OV 800 V · UV 350 V</small></div>
+        <div class="card"><span>Térmica del motor</span><b id="rE">0 %</b><div class="bar"><i id="rEb" style="width:0"></i></div></div>
+        <div class="card"><span>Flujo relativo</span><b id="rPhi">—</b><small>baja con el boost insuficiente</small></div>
+        <div class="card"><span>Potencia mecánica</span><b id="rP">0,0 kW</b><small id="rPp"></small></div>
+      </div>
+    </div>
+    <div class="panel"><h2>Par–velocidad: motor a la frecuencia actual vs. carga</h2><canvas id="cvTn"></canvas>
+      <div class="note" style="padding:6px 0 0"><span class="cy">━</span> par del motor (tensión y frecuencia actuales) · <span class="warn">━</span> par de la carga · el punto de trabajo es el cruce · par máximo ≈ 2,5 × Tn × flujo²</div></div>
+    <div class="panel"><h2>Registro de los últimos 60 s</h2>
+      <div class="lbl">Velocidad [rpm]</div><canvas id="stN" class="st"></canvas>
+      <div class="lbl">Corriente [% de In] — líneas: 100 % y 150 % (límite)</div><canvas id="stI" class="st"></canvas>
+      <div class="lbl">Bus de continua [V] — líneas: UV 350 V · OV 800 V</div><canvas id="stV" class="st"></canvas></div>
+  </div>
+
+  <div class="col">
+    <div class="panel"><h2>Curva V/f</h2><canvas id="cvVf"></canvas><div class="note" style="padding:6px 0 0">Sobre 50 Hz la tensión queda en 380 V y el flujo baja (debilitamiento de campo).</div></div>
+    <div class="panel"><h2>Eventos</h2><div id="log"></div></div>
+    <div class="panel"><h2>Placa del motor</h2>
+      <div class="kv"><span>Potencia</span><b>5,5 kW</b></div><div class="kv"><span>Tensión / frecuencia</span><b>380 V · 50 Hz</b></div><div class="kv"><span>Polos / velocidad</span><b>4 · 1450 rpm</b></div>
+      <div class="kv"><span>Corriente nominal</span><b id="pIn"></b></div><div class="kv"><span>Par nominal</span><b id="pTn"></b></div><div class="kv"><span>Inercia del rotor</span><b>0,05 kg·m²</b></div></div>
+  </div>
+</div>
+<div class="note">Modelo escalar simplificado (par proporcional al deslizamiento y al flujo², bus de continua con energía almacenada, memoria térmica 150 % · 60 s). Sirve para entender el comportamiento, no para dimensionar un variador real.</div>
+
+<script>
+﻿// Variador de frecuencia (VFD) con control escalar V/f sobre un motor de inducción de 5,5 kW (didáctico):
+// rampas, curva V/f con boost, modelo de par lineal en deslizamiento con flujo reducido a baja frecuencia,
+// carga de par constante o cuadrática con inercia, corriente, memoria térmica del motor, bus de continua con
+// regeneración y resistencia de frenado, limitador de corriente y fallas con enclavamiento (OC, OL, OV, UV).
+// El MISMO archivo corre en las pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.VfdCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const MOTOR = { Pn: 5500, Vn: 380, fn: 50, polos: 4, nn: 1450, cosfi: 0.85, eta: 0.88, Jm: 0.05 }
+  const pares = MOTOR.polos / 2
+  const In = MOTOR.Pn / (Math.sqrt(3) * MOTOR.Vn * MOTOR.cosfi * MOTOR.eta)
+  const wn = (2 * Math.PI * MOTOR.nn) / 60
+  const Tn = MOTOR.Pn / wn
+  const deltaN = MOTOR.fn - (MOTOR.nn * pares) / 60 // deslizamiento nominal en Hz (1,667)
+  const ImN = 0.45 * In, ItN = Math.sqrt(In * In - ImN * ImN)
+  const BUS = { C: 1e-3, Vov: 800, Vuv: 350, Vfreno: 750, Rfreno: 60, Rs: 0.05 }
+  const E_DISPARO = 75 // In²·s: 150 % de In durante 60 s
+  const LIM = { ocInst: 2.2 } // disparo instantáneo por sobrecorriente (× In)
+
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x))
+  const sgn = Math.sign
+  const redondear = (x, d = 2) => Math.round(x * 10 ** d) / 10 ** d
+  const wnom = (Vdc) => 0.5 * BUS.C * Vdc * Vdc
+
+  const PARAMS_BASE = { ta: 5, td: 5, boost: 0.03, curva: 'lineal', ilim: 1.5, ctlIlim: true, ctlVdc: false, freno: false, cargaTipo: 'cte', cargaPct: 0.5, Jc: 0.2, fref: 50 }
+
+  function crear(p = {}) {
+    const params = { ...PARAMS_BASE, ...p }
+    const Vdc0 = 1.35 * MOTOR.Vn
+    return {
+      t: 0, estado: 'LISTO', falla: null, params, cmd: { run: false, dir: 1, libre: false },
+      f: 0, w: 0, n: 0, V: 0, phi: 0, I: 0, Tem: 0, TL: 0, E: 0, Vdc: Vdc0, W: wnom(Vdc0), mains: 1, sagHasta: 0,
+      eventos: [], hist: [], energia: { motor: 0, carga: 0 }, _acum: 0, maxI: 0, maxVdc: Vdc0,
+    }
+  }
+
+  const salidaActiva = (s) => s.estado === 'MARCHA' || s.estado === 'PARANDO'
+  const evento = (s, texto, tipo = 'info') => s.eventos.push({ t: redondear(s.t, 1), texto, tipo })
+  function disparar(s, codigo, desc) {
+    if (s.estado === 'FALLA') return
+    s.estado = 'FALLA'; s.falla = { codigo, desc, t: s.t }; s.cmd.run = false
+    evento(s, `${codigo}: ${desc}`, 'falla')
+  }
+
+  // ---- Comandos ---------------------------------------------------------------------------------------------
+  function comando(s, tipo, valor) {
+    if (tipo === 'marcha') {
+      if (s.estado === 'FALLA') { evento(s, 'marcha rechazada: hay una falla activa, requiere reinicio', 'aviso'); return { ok: false, motivo: 'falla activa' } }
+      s.cmd.run = true; s.cmd.dir = valor === -1 ? -1 : 1; s.cmd.libre = false
+      if (s.estado === 'LIBRE' && Math.abs(s.n) > 30) { evento(s, 'marcha rechazada: el motor aún gira libre (esperar o parar)', 'aviso'); s.cmd.run = false; return { ok: false, motivo: 'motor girando libre' } }
+      s.estado = 'MARCHA'; evento(s, `marcha ${s.cmd.dir === 1 ? 'adelante' : 'reversa'}`); return { ok: true }
+    }
+    if (tipo === 'parar') { if (s.estado === 'MARCHA') { s.estado = 'PARANDO'; s.cmd.run = false; evento(s, 'parada con rampa') } return { ok: true } }
+    if (tipo === 'libre') { if (s.estado === 'MARCHA' || s.estado === 'PARANDO') { s.estado = 'LIBRE'; s.cmd.run = false; evento(s, 'parada libre (por inercia)') } return { ok: true } }
+    if (tipo === 'reiniciar') {
+      if (s.estado !== 'FALLA') return { ok: false, motivo: 'no hay falla' }
+      if (s.cmd.run) return { ok: false, motivo: 'quitar la orden de marcha' }
+      if (s.Vdc > BUS.Vov * 0.92 || s.Vdc < BUS.Vuv * 1.15) { evento(s, 'reinicio rechazado: el bus aún está fuera de rango', 'aviso'); return { ok: false, motivo: 'bus de continua fuera de rango' } }
+      if (s.E > E_DISPARO * 0.5) { evento(s, 'reinicio rechazado: el motor aún está caliente', 'aviso'); return { ok: false, motivo: 'motor caliente' } }
+      evento(s, `reinicio de ${s.falla.codigo}`); s.falla = null; s.estado = Math.abs(s.n) > 30 ? 'LIBRE' : 'LISTO'; return { ok: true }
+    }
+    if (tipo === 'hueco') { s.sagHasta = s.t + valor; evento(s, `hueco de tensión de red por ${valor} s`, 'aviso'); return { ok: true } }
+    return { ok: false, motivo: 'comando desconocido' }
+  }
+
+  // ---- Paso de simulación --------------------------------------------------------------------------------------
+  function curvaVf(p, f) {
+    const x = Math.min(1, Math.abs(f) / MOTOR.fn), Vb = p.boost * MOTOR.Vn
+    return Math.min(MOTOR.Vn, Vb + (MOTOR.Vn - Vb) * (p.curva === 'cuadratica' ? x * x : x))
+  }
+  // Flujo relativo: tensión menos la caída en el estator, dividido por la frecuencia relativa. La caída se estima con la corriente que pide
+  // la carga (no con la corriente medida): así el flujo no realimenta a la corriente y el lazo no oscila.
+  const corrienteEstimada = (Tcarga) => Math.hypot(0.45, (ItN / In) * Math.abs(Tcarga) / Tn) // en p.u. de In
+  const flujo = (V, f, Ipu) => clamp(((V / MOTOR.Vn) - BUS.Rs * Ipu) / (1 - BUS.Rs) / Math.max(Math.abs(f) / MOTOR.fn, 0.02), 0, 1.15)
+  function parMotor(f, fr, phi) {
+    const Tmax = 2.5 * Tn * phi * phi
+    return clamp((Tn * phi * phi * (f - fr)) / deltaN, -Tmax, Tmax)
+  }
+  function parCarga(p, n) {
+    if (p.cargaTipo === 'cuad') return p.cargaPct * Tn * (n / MOTOR.nn) * Math.abs(n / MOTOR.nn) + 0.01 * Tn * Math.tanh(n / 30)
+    return p.cargaPct * Tn * Math.tanh(n / 30) + 0.01 * Tn * Math.tanh(n / 30)
+  }
+
+  function tick(s, dt = 0.01) {
+    const p = s.params, Jt = MOTOR.Jm + p.Jc
+    // red y bus
+    const sag = s.t < s.sagHasta
+    s.mains = sag ? 0.5 : 1
+    const Vdc0 = 1.35 * MOTOR.Vn * s.mains, Wn = wnom(Vdc0)
+    // frecuencia de salida
+    if (salidaActiva(s)) {
+      const objetivo = s.estado === 'MARCHA' ? s.cmd.dir * clamp(p.fref, 0, 60) : 0
+      const hacia0 = Math.abs(objetivo) < Math.abs(s.f) || sgn(objetivo) !== sgn(s.f) && s.f !== 0
+      const tasa = MOTOR.fn / (hacia0 ? p.td : p.ta)
+      let df = clamp(objetivo - s.f, -tasa * dt, tasa * dt)
+      if (!hacia0 && p.ctlIlim && s.I > p.ilim * In) df = 0 // limitador de corriente: congela la rampa de aceleración
+      if (hacia0 && p.ctlVdc && s.Vdc > 0.93 * BUS.Vov) { // controlador de Vdc: sigue al rotor (par ≈ 0, sin regeneración) hasta que el bus baje
+        const frRotor = (s.n * pares) / 60; df = Math.abs(frRotor) > Math.abs(s.f) && sgn(frRotor) === sgn(s.f || frRotor) ? clamp(frRotor - s.f, -tasa * dt * 4, tasa * dt * 4) : 0
+      }
+      s.f += df
+      if (s.estado === 'PARANDO' && Math.abs(s.f) < 0.05 && Math.abs(s.n) < 20) { s.f = 0; s.estado = 'LISTO'; evento(s, 'motor detenido') }
+    } else s.f = 0
+    const activa = salidaActiva(s)
+    s.V = activa ? curvaVf(p, s.f) : 0
+    s.phi = activa ? flujo(s.V, s.f, corrienteEstimada(s.TL)) : 0
+    const fr = (s.n * pares) / 60
+    s.Tem = activa ? parMotor(s.f, fr, s.phi) : 0
+    s.TL = parCarga(p, s.n)
+    const alfa = (s.Tem - s.TL) / Jt
+    s.energia.motor += s.Tem * s.w * dt; s.energia.carga += s.TL * s.w * dt
+    s.w += alfa * dt; s.n = (s.w * 60) / (2 * Math.PI)
+    // corriente
+    if (activa) {
+      const Im = ImN * s.phi, It = Math.min(4 * In, (ItN * Math.abs(s.Tem)) / (Tn * Math.max(s.phi, 0.3)))
+      s.I = Math.hypot(Im, It)
+    } else s.I = 0
+    s.maxI = Math.max(s.maxI, s.I)
+    // memoria térmica del motor
+    const x = (s.I / In) ** 2
+    s.E = x > 1 ? s.E + (x - 1) * dt : Math.max(0, s.E - (1 - x) * 0.5 * dt)
+    // bus de continua: regeneración, resistencia de frenado, descarga durante un hueco de tensión
+    const Preg = Math.max(0, -s.Tem * s.w) * 0.85
+    s.W += Preg * dt
+    if (sag) s.W -= (Math.max(0, s.Tem * s.w) / 0.85 + 150) * dt
+    else if (s.W < Wn) s.W += (Wn - s.W) * (dt / 0.2)
+    if (s.W > Wn) {
+      s.W -= ((s.W - Wn) / 4) * dt
+      if (p.freno && Math.sqrt((2 * s.W) / BUS.C) > BUS.Vfreno) s.W -= (((2 * s.W) / BUS.C) / BUS.Rfreno) * dt
+    }
+    s.W = Math.max(s.W, 1)
+    s.Vdc = Math.sqrt((2 * s.W) / BUS.C); s.maxVdc = Math.max(s.maxVdc, s.Vdc)
+    // protecciones
+    if (activa || s.estado === 'LIBRE') {
+      if (s.Vdc >= BUS.Vov) disparar(s, 'F-OV', 'sobretensión del bus de continua (regeneración)')
+      else if (s.Vdc <= BUS.Vuv) disparar(s, 'F-UV', 'subtensión del bus de continua')
+    }
+    if (activa) {
+      if (s.I >= LIM.ocInst * In) disparar(s, 'F-OC', 'sobrecorriente instantánea')
+      else if (s.E >= E_DISPARO) disparar(s, 'F-OL', 'sobrecarga térmica del motor')
+    }
+    if (s.estado === 'LIBRE' && Math.abs(s.n) < 20) { s.estado = 'LISTO'; evento(s, 'motor detenido') }
+    s.t += dt
+    s._acum += dt
+    if (s._acum >= 0.1 - 1e-9) {
+      s._acum = 0
+      s.hist.push({ t: s.t, n: s.n, I: s.I, Vdc: s.Vdc, f: s.f, Tem: s.Tem, TL: s.TL, estado: s.estado })
+      if (s.hist.length > 1800) s.hist.shift()
+    }
+  }
+  const correr = (s, seg, dt = 0.01) => { const n = Math.round(seg / dt); for (let i = 0; i < n; i++) tick(s, dt); return s }
+
+  // Curva par–velocidad del motor a la frecuencia y tensión actuales + curva de la carga: [rpm, N·m]
+  function curvasParVelocidad(s, puntos = 60) {
+    const p = s.params, f = s.f !== 0 ? s.f : (s.cmd.run ? s.cmd.dir * p.fref : p.fref), V = curvaVf(p, f)
+    const phi = flujo(V, f, corrienteEstimada(parCarga(p, (120 * Math.abs(f)) / MOTOR.polos))), nSinc = (120 * Math.abs(f)) / MOTOR.polos
+    const rango = Math.max(nSinc * 1.1, 200), motor = [], carga = []
+    for (let i = 0; i <= puntos; i++) {
+      const n = (rango * i) / puntos * sgn(f || 1)
+      motor.push([n, parMotor(f, (n * pares) / 60, phi)]); carga.push([n, parCarga(p, n)])
+    }
+    return { motor, carga, phi, nSinc }
+  }
+
+  return { MOTOR, In, Tn, deltaN, BUS, E_DISPARO, PARAMS_BASE, crear, comando, tick, correr, curvaVf, flujo, parMotor, parCarga, curvasParVelocidad, redondear }
+})
+
+
+
+</script>
+<script>
+'use strict'
+const V = VfdCore, $ = (id) => document.getElementById(id)
+const f = (n, d = 1) => (Number.isFinite(n) ? n.toLocaleString('es-CL', { maximumFractionDigits: d, minimumFractionDigits: d }) : '—')
+let sim = V.crear(), vel = 1, pausa = false, ultimo = performance.now(), acc = 0, logN = -1
+$('pIn').textContent = f(V.In, 1) + ' A'; $('pTn').textContent = f(V.Tn, 1) + ' N·m'
+
+// ---- Entradas -> parámetros ----------------------------------------------------------------------------------------
+function aplicar() {
+  const p = sim.params
+  p.fref = +$('iF').value; p.ta = Math.max(0.5, +$('iTa').value || 5); p.td = Math.max(0.5, +$('iTd').value || 5)
+  p.curva = $('sCurva').value; p.boost = (+$('iBoost').value || 0) / 100
+  p.ctlIlim = $('cIlim').checked; p.ctlVdc = $('cVdc').checked; p.freno = $('cFreno').checked
+  p.cargaTipo = $('sCarga').value; p.cargaPct = (+$('iCarga').value || 0) / 100; p.Jc = Math.max(0, +$('iJc').value || 0)
+}
+$('rF').oninput = () => { $('iF').value = $('rF').value; aplicar() }
+$('iF').oninput = () => { $('rF').value = $('iF').value; aplicar() }
+for (const id of ['iTa', 'iTd', 'sCurva', 'iBoost', 'cIlim', 'cVdc', 'cFreno', 'sCarga', 'iCarga', 'iJc']) $(id).addEventListener('input', aplicar)
+const cmd = (t, v) => { V.comando(sim, t, v); render() }
+$('bAdel').onclick = () => cmd('marcha', 1); $('bRev').onclick = () => cmd('marcha', -1)
+$('bParar').onclick = () => cmd('parar'); $('bLibre').onclick = () => cmd('libre'); $('bReset').onclick = () => cmd('reiniciar')
+$('bHueco1').onclick = () => cmd('hueco', 0.3); $('bHueco2').onclick = () => cmd('hueco', 2)
+$('bPausa').onclick = () => { pausa = !pausa; $('bPausa').textContent = pausa ? 'Continuar' : 'Pausa'; $('bPausa').classList.toggle('on', pausa) }
+document.querySelectorAll('.vel').forEach((b) => (b.onclick = () => { vel = +b.dataset.v; document.querySelectorAll('.vel').forEach((x) => x.classList.toggle('on', x === b)) }))
+
+// ---- Escenarios ----------------------------------------------------------------------------------------------------
+const ESC = [
+  { id: 'normal', nombre: 'Arranque normal', p: { cargaPct: 0.5, Jc: 0.2, fref: 50, ta: 5, td: 5 }, run: 1, txt: 'Arranque con rampa de 5 s: la corriente sube en la aceleración y baja a ≈ 60 % de In. Prueba «Reversa» o «Parar».' },
+  { id: 'sobrecarga', nombre: 'Sobrecarga 150 %', p: { cargaPct: 1.5, Jc: 0.2, fref: 50, ta: 5, td: 5 }, run: 1, txt: 'La carga pide 150 % del par nominal: la corriente se queda sobre In y la memoria térmica dispara F-OL en ≈ 1 minuto (usa ×20).' },
+  { id: 'inercia', nombre: 'Frenado con mucha inercia', p: { cargaPct: 0.3, Jc: 1.5, fref: 50, ta: 10, td: 3, freno: false, ctlVdc: false }, run: 1, txt: 'Espera a los 50 Hz y pulsa «Parar»: con J = 1,5 kg·m² y 3 s de rampa el motor regenera y el bus sube a F-OV. Activa la resistencia de frenado o el controlador de bus y repite.' },
+  { id: 'hueco', nombre: 'Hueco de red con carga', p: { cargaPct: 1, Jc: 0.2, fref: 50, ta: 5, td: 5 }, run: 1, txt: 'Con carga nominal funcionando pulsa «Hueco de red 0,3 s»: el bus no alcanza y dispara F-UV. Repite con carga 0 %: el bus lo aguanta.' },
+  { id: 'bajo', nombre: 'Baja velocidad sin boost', p: { cargaPct: 0.8, Jc: 0.2, fref: 5, ta: 5, td: 5, boost: 0 }, run: 1, txt: 'A 5 Hz con boost 0 % el flujo cae y el par no alcanza: el motor patina. Sube el boost y compara las rpm y el flujo relativo.' },
+  { id: 'ventilador', nombre: 'Ventilador (carga cuadrática)', p: { cargaTipo: 'cuad', cargaPct: 1, Jc: 0.5, fref: 25, ta: 5, td: 5, curva: 'cuadratica', boost: 0.01 }, run: 1, txt: 'A 25 Hz (mitad de velocidad) un ventilador consume cerca de 1/8 de la potencia: mira la potencia mecánica y compara con 50 Hz.' },
+]
+function cargarEsc(e) {
+  sim = V.crear(e.p);
+  $('iF').value = $('rF').value = sim.params.fref; $('iTa').value = sim.params.ta; $('iTd').value = sim.params.td; $('sCurva').value = sim.params.curva; $('iBoost').value = +(sim.params.boost * 100).toFixed(1)
+  $('cIlim').checked = sim.params.ctlIlim; $('cVdc').checked = sim.params.ctlVdc; $('cFreno').checked = sim.params.freno
+  $('sCarga').value = sim.params.cargaTipo; $('iCarga').value = Math.round(sim.params.cargaPct * 100); $('iJc').value = sim.params.Jc
+  V.comando(sim, 'marcha', e.run); $('banner').className = ''; $('banner').textContent = e.txt; logN = -1; render()
+}
+$('esc').innerHTML = ESC.map((e) => `<button class="mini" data-e="${e.id}">${e.nombre}</button>`).join('')
+$('esc').querySelectorAll('button').forEach((b) => (b.onclick = () => cargarEsc(ESC.find((e) => e.id === b.dataset.e))))
+
+// ---- Dibujo ----------------------------------------------------------------------------------------------------------
+function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+function ejes(c, w, h, L, T, R, B, x0, x1, y0, y1, pasoX, pasoY, fmtX = (v) => v, fmtY = (v) => v) {
+  const X = (v) => L + ((v - x0) / (x1 - x0)) * (w - L - R), Y = (v) => T + (1 - (v - y0) / (y1 - y0)) * (h - T - B)
+  c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.lineWidth = 1; c.textAlign = 'right'
+  for (let v = Math.ceil(y0 / pasoY) * pasoY; v <= y1 + 1e-9; v += pasoY) { c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(w - R, Y(v)); c.stroke(); c.fillText(fmtY(v), L - 4, Y(v) + 3) }
+  c.textAlign = 'center'
+  for (let v = Math.ceil(x0 / pasoX) * pasoX; v <= x1 + 1e-9; v += pasoX) { c.beginPath(); c.moveTo(X(v), T); c.lineTo(X(v), h - B); c.stroke(); c.fillText(fmtX(v), X(v), h - 3) }
+  return { X, Y }
+}
+function dibujarTn() {
+  const { c, w, h } = prep($('cvTn')), cur = V.curvasParVelocidad(sim), sg = Math.sign(sim.f || sim.cmd.dir || 1)
+  const pts = (a) => a.map(([n, t]) => [Math.abs(n), t * sg])
+  const m = pts(cur.motor), q = pts(cur.carga), xMax = Math.max(1600, cur.nSinc * 1.1), yMax = Math.max(100, ...m.map((p) => p[1]) , ...q.map((p) => p[1])) * 1.05, yMin = Math.min(-20, ...m.map((p) => p[1]))
+  const { X, Y } = ejes(c, w, h, 46, 8, 10, 18, 0, xMax, Math.floor(yMin / 20) * 20, Math.ceil(yMax / 20) * 20, 250, 20, (v) => v, (v) => v)
+  c.strokeStyle = '#334a73'; c.beginPath(); c.moveTo(46, Y(0)); c.lineTo(w - 10, Y(0)); c.stroke()
+  for (const [arr, col] of [[m, '#22d3ee'], [q, '#f59e0b']]) { c.strokeStyle = col; c.lineWidth = 2; c.beginPath(); arr.forEach(([n, t], i) => (i ? c.lineTo(X(n), Y(t)) : c.moveTo(X(n), Y(t)))); c.stroke() }
+  c.fillStyle = '#34d399'; c.beginPath(); c.arc(X(Math.abs(sim.n)), Y(sim.Tem * sg), 5, 0, 7); c.fill()
+  c.fillStyle = '#94a3b8'; c.textAlign = 'left'; c.fillText('N·m', 6, 12); c.textAlign = 'right'; c.fillText('rpm', w - 12, h - 20)
+}
+function tira(id, clave, y0, y1, color, lineas = [], fmt = (v) => v, conv = (v) => v) {
+  const { c, w, h } = prep($(id)), H = sim.hist.filter((q) => q.t >= sim.t - 60)
+  const L = 46, T = 4, B = 4, R = 8, X = (t) => L + ((t - (sim.t - 60)) / 60) * (w - L - R), Y = (v) => T + (1 - (Math.min(y1, Math.max(y0, v)) - y0) / (y1 - y0)) * (h - T - B)
+  c.fillStyle = '#64748b'; c.textAlign = 'right'; c.strokeStyle = '#13203a'
+  for (const v of [y0, (y0 + y1) / 2, y1]) { c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(w - R, Y(v)); c.stroke(); c.fillText(fmt(v), L - 4, Y(v) + 3) }
+  for (const [v, col] of lineas) { c.strokeStyle = col; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(w - R, Y(v)); c.stroke(); c.setLineDash([]) }
+  c.strokeStyle = color; c.lineWidth = 1.6; c.beginPath(); H.forEach((q, i) => (i ? c.lineTo(X(q.t), Y(conv(q[clave]))) : c.moveTo(X(q.t), Y(conv(q[clave]))))); c.stroke()
+  c.fillStyle = 'rgba(248,113,113,.14)'; let ini = null
+  H.forEach((q, i) => { if (q.estado === 'FALLA' && ini == null) ini = X(q.t); if ((q.estado !== 'FALLA' || i === H.length - 1) && ini != null) { c.fillRect(ini, T, Math.max(2, X(q.t) - ini), h - T - B); ini = null } })
+}
+function dibujarVf() {
+  const { c, w, h } = prep($('cvVf')), p = sim.params
+  const { X, Y } = ejes(c, w, h, 40, 8, 10, 18, 0, 60, 0, 400, 10, 100)
+  c.strokeStyle = '#22d3ee'; c.lineWidth = 2; c.beginPath(); for (let ff = 0; ff <= 60; ff += 1) (ff ? c.lineTo(X(ff), Y(V.curvaVf(p, ff))) : c.moveTo(X(ff), Y(V.curvaVf(p, ff)))); c.stroke()
+  c.fillStyle = '#34d399'; c.beginPath(); c.arc(X(Math.abs(sim.f)), Y(sim.V), 5, 0, 7); c.fill()
+  c.fillStyle = '#94a3b8'; c.textAlign = 'left'; c.fillText('V', 6, 12); c.textAlign = 'right'; c.fillText('Hz', w - 12, h - 20)
+}
+
+// ---- Render ------------------------------------------------------------------------------------------------------------
+function render() {
+  const s = sim, Pm = (s.w * s.Tem) / 1000
+  $('estado').textContent = s.estado; $('estado').className = 'estado ' + s.estado
+  $('rF2').textContent = f(s.f, 1) + ' Hz'; $('rV').textContent = f(s.V, 0) + ' V a la salida'
+  $('rN').textContent = f(s.n, 0) + ' rpm'; $('rNs').textContent = 'síncrona ' + f((120 * s.f) / V.MOTOR.polos, 0) + ' rpm'
+  $('rI').textContent = f(s.I, 1) + ' A'; $('rIp').textContent = f((s.I / V.In) * 100, 0) + ' % de In'
+  $('rT').textContent = f(s.Tem, 1) + ' N·m'; $('rTp').textContent = f((s.Tem / V.Tn) * 100, 0) + ' % de Tn' + (s.Tem * s.w < -1 ? ' · regenera' : '')
+  $('rVdc').textContent = f(s.Vdc, 0) + ' V'; $('rVdc').className = s.Vdc > 760 || s.Vdc < 400 ? 'bad' : ''
+  const e = Math.min(100, (s.E / V.E_DISPARO) * 100); $('rE').textContent = f(e, 0) + ' %'; $('rEb').style.width = e + '%'; $('rEb').style.background = e > 80 ? 'var(--red)' : e > 40 ? 'var(--amber)' : 'var(--green)'
+  $('rPhi').textContent = s.estado === 'MARCHA' || s.estado === 'PARANDO' ? f(s.phi, 2) : '—'
+  $('rP').textContent = f(Pm, 2) + ' kW'; $('rPp').textContent = f((Pm / (V.MOTOR.Pn / 1000)) * 100, 0) + ' % de Pn'
+  if (s.falla) { $('banner').className = 'f'; $('banner').textContent = `${s.falla.codigo} · ${s.falla.desc}. Quita la orden de marcha y pulsa «Reiniciar falla».` }
+  else if ($('banner').className === 'f') { $('banner').className = ''; $('banner').textContent = 'Falla reiniciada.' }
+  if (s.eventos.length !== logN) { logN = s.eventos.length; $('log').innerHTML = s.eventos.slice(-14).reverse().map((q) => `<div class="${q.tipo}">${f(q.t, 1)} s · ${q.texto}</div>`).join('') || '<div>sin eventos</div>' }
+  dibujarTn(); dibujarVf()
+  tira('stN', 'n', Math.min(0, Math.floor(Math.min(...s.hist.slice(-600).map((q) => q.n), 0) / 500) * 500), 1600, '#22d3ee')
+  tira('stI', 'I', 0, 250, '#f59e0b', [[100, '#334a73'], [150, '#f87171']], (v) => v, (v) => (v / V.In) * 100)
+  tira('stV', 'Vdc', 300, 850, '#e879f9', [[350, '#f87171'], [800, '#f87171']])
+}
+function bucle(ahora) {
+  const dt = Math.min(0.1, (ahora - ultimo) / 1000); ultimo = ahora
+  if (!pausa) { acc += dt * vel; let n = 0; while (acc >= 0.01 && n < 4000) { V.tick(sim, 0.01); acc -= 0.01; n++ } if (n) render() }
+  requestAnimationFrame(bucle)
+}
+aplicar(); render(); requestAnimationFrame(bucle)
+window.addEventListener('resize', render)
+window.demoApi = { sim: () => sim, V, aplicar, cmd, avanzar(seg) { V.correr(sim, seg); render() }, cargarEsc, ESC }
+</script>
+</body>
+</html>
