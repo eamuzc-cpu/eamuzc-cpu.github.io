@@ -1360,4 +1360,49 @@ export const projects = [
     },
     tools: { hardware: [], software: [{ es: 'Eventos discretos', en: 'Discrete events' }, 'Monte Carlo', 'JavaScript', 'Canvas', 'SVG', 'node:test'] },
   },
+  {
+    slug: 'gestor-mantenimiento-tpm',
+    title: {
+      es: 'Gestor de mantenimiento (CMMS / TPM): órdenes de trabajo, plan preventivo, KPI y repuestos',
+      en: 'Maintenance Manager (CMMS / TPM): Work Orders, Preventive Plan, KPIs and Spare Parts',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/gestor-mantenimiento-tpm.jpg',
+    demo: { src: '/demos/gestor-mantenimiento-tpm/index.html' },
+    resultBadge: { es: '15 pruebas y 247 órdenes sintéticas analizadas', en: '15 tests and 247 synthetic work orders analyzed' },
+    summary: {
+      es: 'Aplicación de mantenimiento con equipos y criticidad, plan preventivo, órdenes de trabajo con ciclo de vida validado, repuestos con clasificación ABC y un tablero de KPI (MTBF, MTTR, disponibilidad, trabajo planificado, cumplimiento del plan, Pareto de causas y peores actores).',
+      en: 'Maintenance application with equipment and criticality, a preventive plan, work orders with a validated lifecycle, spare parts with ABC classification and a KPI dashboard (MTBF, MTTR, availability, planned work, plan compliance, Pareto of causes and worst actors).',
+    },
+    stack: ['TPM', 'CMMS', 'MTBF / MTTR', 'Pareto', { es: 'Criticidad', en: 'Criticality' }, 'JavaScript'],
+    challenge: {
+      es: 'El mantenimiento de una planta se gestiona con muchos datos sueltos (fallas, horas, repuestos, planes) y se decide por intuición: qué equipo es crítico, cuánto del trabajo es planificado, qué causa concentra las paradas, qué repuesto conviene tener en bodega.',
+      en: 'Plant maintenance is run on scattered data (failures, hours, spares, plans) and decided by intuition: which equipment is critical, how much of the work is planned, which cause concentrates the stops, which spare part is worth keeping in stock.',
+    },
+    impact: {
+      es: 'Con indicadores claros se pasa de apagar incendios a planificar: se ve dónde se pierden las horas de parada, se prioriza el preventivo en los equipos críticos y se compra lo que se está acabando antes de que una falla deje la línea detenida.',
+      en: 'With clear indicators you move from firefighting to planning: you see where downtime hours go, prioritize preventive work on critical equipment and buy what is running out before a failure stops the line.',
+    },
+    solution: {
+      es: 'Se construyó un CMMS que se guarda en el navegador, con datos sintéticos generados con semilla: 12 equipos, 16 planes preventivos, 14 repuestos y 247 órdenes de 180 días. La criticidad es la frecuencia de falla por la mayor consecuencia (producción, seguridad, calidad o costo) y clasifica en A, B y C con una matriz. Las órdenes siguen un ciclo abierta, asignada, en curso y cerrada que rechaza saltos de etapa, términos anteriores al inicio, paradas negativas, correctivas sin código de falla y repuestos sin stock; cerrar una preventiva reinicia la fecha de su plan. El tablero calcula MTBF, MTTR y disponibilidad por equipo, el porcentaje de trabajo planificado, el cumplimiento del plan con 2 días de tolerancia, el Pareto de causas con sus pocos vitales y el ranking de peores actores. Los repuestos se clasifican en ABC por valor de consumo y generan sugerencias de compra. Las 15 pruebas verifican las fórmulas con un caso hecho a mano (3 fallas de 60, 120 y 30 minutos en 600 horas: MTBF de 198,8 h, MTTR de 1,33 h), las reglas del ciclo de vida y la coherencia de los KPI con los datos de ejemplo.',
+      en: 'A CMMS that stores its data in the browser was built with seeded synthetic data: 12 machines, 16 preventive plans, 14 spare parts and 247 work orders over 180 days. Criticality is failure frequency times the greatest consequence (production, safety, quality or cost) and classifies into A, B and C with a matrix. Orders follow an open, assigned, in-progress and closed lifecycle that rejects skipped stages, end times before the start, negative stops, corrective orders without a failure code and spares with no stock; closing a preventive order resets its plan date. The dashboard computes MTBF, MTTR and availability per machine, the share of planned work, plan compliance with a 2-day tolerance, the Pareto of causes with its vital few and the worst-actors ranking. Spare parts are ABC-classified by consumption value and generate purchase suggestions. The 15 tests verify the formulas with a hand-made case (3 failures of 60, 120 and 30 minutes in 600 hours: MTBF 198.8 h, MTTR 1.33 h), the lifecycle rules and the coherence of the KPIs with the sample data.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '15' },
+      { label: { es: 'Órdenes de ejemplo analizadas', en: 'Sample orders analyzed' }, value: '247' },
+      { label: { es: 'Equipos · planes · repuestos', en: 'Machines · plans · spares' }, value: '12 · 16 · 14' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Equipos', en: 'Equipment' }, sub: { es: 'criticidad A·B·C', en: 'criticality A·B·C' } },
+        { label: { es: 'Plan preventivo', en: 'Preventive plan' }, sub: { es: 'vence · genera OT', en: 'due · creates WO' } },
+        { label: { es: 'Órdenes de trabajo', en: 'Work orders' }, sub: { es: 'abierta → cerrada', en: 'open → closed' } },
+        { label: 'KPI', sub: 'MTBF · MTTR · Pareto' },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'priorizar', en: 'prioritize' } },
+    },
+    tools: { hardware: [], software: ['TPM', 'CMMS', 'Pareto', 'ABC', 'JavaScript', 'localStorage', 'node:test'] },
+  },
 ]

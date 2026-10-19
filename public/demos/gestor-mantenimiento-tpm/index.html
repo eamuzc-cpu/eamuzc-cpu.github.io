@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestor de mantenimiento (CMMS / TPM) — órdenes, plan preventivo, KPI y repuestos</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; } .tabs button { padding: 8px 14px; } .tabs button.on { background: rgba(34, 211, 238, .12); }
+.wrap { display: grid; gap: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 8px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 21px var(--mono); margin-top: 2px; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } canvas { height: 250px; } .scroll { overflow-x: auto; }
+table td, table th { white-space: nowrap; } td.wrapt { white-space: normal; min-width: 200px; }
+.chip2 { font: 11px var(--mono); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); }
+.e-abierta { color: var(--amber); border-color: rgba(245, 158, 11, .5); } .e-asignada { color: var(--cyan); border-color: rgba(34, 211, 238, .5); } .e-en_curso { color: var(--mag); border-color: rgba(232, 121, 249, .5); } .e-cerrada { color: var(--green); border-color: rgba(52, 211, 153, .5); }
+.p1 { color: var(--red); font-weight: 700; } .p2 { color: var(--amber); } .p3 { color: var(--mut); } .p4 { color: #64748b; }
+.cl-A { color: var(--red); font-weight: 700; } .cl-B { color: var(--amber); font-weight: 700; } .cl-C { color: var(--green); font-weight: 700; }
+.est-vencida { color: var(--red); font-weight: 700; } .est-proxima { color: var(--amber); } .est-ok { color: var(--green); }
+.filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; } .filtros select, .filtros input { max-width: 190px; }
+.nueva { display: grid; grid-template-columns: 160px 130px 90px 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+.cierre { background: #050d1d; border: 1px solid var(--cyan); border-radius: 10px; padding: 10px 12px; margin: 8px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; align-items: end; } .cierre label { display: grid; gap: 3px; font: 11px var(--mono); color: var(--mut); } .cierre .ancho { grid-column: 1 / -1; }
+.msg { font: 12px var(--mono); margin: 6px 0; min-height: 18px; } .msg.no { color: var(--red); } .msg.si { color: var(--green); }
+.barra { height: 10px; background: #0a1426; border-radius: 4px; overflow: hidden; min-width: 120px; position: relative; } .barra i { display: block; height: 100%; } .barra u { position: absolute; top: 0; bottom: 0; width: 2px; background: #f87171; }
+#heat { display: grid; grid-template-columns: 54px repeat(5, 1fr); gap: 3px; font: 10.5px var(--mono); } #heat .c { min-height: 62px; border-radius: 6px; padding: 4px; color: #e2e8f0; border: 1px solid #1e293b; display: flex; flex-wrap: wrap; gap: 3px; align-content: flex-start; } #heat .c span { background: rgba(2, 6, 23, .7); border-radius: 4px; padding: 1px 5px; font-size: 10px; } #heat .h { color: var(--mut); display: flex; align-items: center; justify-content: center; text-align: center; }
+.sl input[type=range] { width: 90px; } .sl td { padding: 3px 6px; }
+.vista { display: none; } .vista.on { display: grid; gap: 12px; }
+@media (max-width: 900px) { .two, .nueva { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Gestor de mantenimiento · CMMS / TPM</h1><span class="badge warn">datos sintéticos</span><span class="sp"></span>
+  <span id="hoy" style="font:12px var(--mono);color:var(--mut)"></span><button id="bDia" class="mini">+1 día</button><button id="bSem" class="mini">+7 días</button>
+  <button id="bCsv" class="mini">Exportar órdenes (CSV)</button><button id="bReset" class="mini">Restablecer datos</button>
+</div>
+<div style="padding:10px 16px 0" class="tabs" id="tabs"><button data-v="tablero" class="on">Tablero</button><button data-v="ordenes">Órdenes de trabajo</button><button data-v="plan">Plan preventivo</button><button data-v="equipos">Equipos y criticidad</button><button data-v="repuestos">Repuestos</button></div>
+
+<div class="wrap" style="padding:12px 16px">
+  <!-- TABLERO -->
+  <div id="v-tablero" class="vista on">
+    <div class="filtros"><label>Ventana de análisis <select id="selV"><option value="30">30 días</option><option value="90" selected>90 días</option><option value="180">180 días</option></select></label></div>
+    <div class="cards" id="kpi"></div>
+    <div class="two"><div class="panel"><h2>Pareto de causas de parada (minutos)</h2><canvas id="cvPar"></canvas><div class="note" style="padding:6px 0 0">Las barras ámbar son los «pocos vitales»: las causas que suman el 80 % de la parada.</div></div>
+      <div class="panel"><h2>Peores actores: horas de parada por equipo</h2><canvas id="cvAct"></canvas></div></div>
+    <div class="panel scroll"><h2>MTBF, MTTR y disponibilidad por equipo</h2><div id="tMtbf"></div></div>
+  </div>
+  <!-- ÓRDENES -->
+  <div id="v-ordenes" class="vista">
+    <div class="panel"><h2>Nueva orden de trabajo</h2>
+      <div class="nueva"><select id="nEq"></select><select id="nTipo"></select><select id="nPri"><option value="1">P1 urgente</option><option value="2">P2 alta</option><option value="3" selected>P3 normal</option><option value="4">P4 baja</option></select><input id="nDesc" type="text" placeholder="¿Qué hay que hacer o qué falla?"><button id="bNueva">Crear</button></div><div id="msgN" class="msg"></div></div>
+    <div class="panel scroll"><h2>Órdenes</h2>
+      <div class="filtros"><select id="fEst"><option value="">Todos los estados</option><option value="pend">Pendientes</option><option>abierta</option><option>asignada</option><option>en_curso</option><option>cerrada</option></select><select id="fTipo"></select><select id="fEq"></select><input id="fTxt" type="text" placeholder="Buscar…"></div>
+      <div id="msgO" class="msg"></div><div id="cierre"></div><div id="tOrd"></div></div>
+  </div>
+  <!-- PLAN -->
+  <div id="v-plan" class="vista">
+    <div class="panel scroll"><h2>Plan preventivo <button id="bGenTodo" class="mini" style="float:right">Generar órdenes de los vencidos y próximos</button></h2><div id="msgP" class="msg"></div><div id="tPlan"></div></div>
+  </div>
+  <!-- EQUIPOS -->
+  <div id="v-equipos" class="vista">
+    <div class="two"><div class="panel scroll sl"><h2>Criticidad = frecuencia de falla × mayor consecuencia</h2><div id="tEq"></div></div>
+      <div class="panel"><h2>Matriz de criticidad</h2><div id="heat"></div><div class="note" style="padding:6px 0 0">Rojo: clase A (puntaje ≥ 15) · ámbar: clase B (8 a 14) · verde: clase C. La clase A recibe el plan preventivo más estricto y repuestos de reserva.</div></div></div>
+  </div>
+  <!-- REPUESTOS -->
+  <div id="v-repuestos" class="vista">
+    <div class="two"><div class="panel scroll"><h2>Repuestos (clasificación ABC por valor de consumo anual)</h2><div id="tRep"></div></div>
+      <div class="panel"><h2>Sugerencias de compra</h2><div id="tCompra"></div><div id="msgR" class="msg"></div></div></div>
+  </div>
+</div>
+<div class="note">Todos los datos (equipos, órdenes, repuestos) son sintéticos y se guardan solo en este navegador; «Restablecer datos» vuelve al ejemplo. No es el sistema de mantenimiento de una planta real.</div>
+
+<script>
+﻿// Gestor de mantenimiento didáctico (CMMS + TPM): equipos con criticidad, planes preventivos, órdenes de trabajo con
+// ciclo de vida validado, repuestos con clasificación ABC y KPI (MTBF, MTTR, disponibilidad, % preventivo, cumplimiento
+// del plan, Pareto de fallas y peores actores). Los datos de ejemplo son SINTÉTICOS, generados con semilla.
+// El MISMO archivo corre en las pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.CmmsCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const TIPOS = ['correctiva', 'preventiva', 'predictiva', 'mejora']
+  const ESTADOS = ['abierta', 'asignada', 'en_curso', 'cerrada']
+  const FALLAS = { MEC: 'Mecánica', ELE: 'Eléctrica', NEU: 'Neumática', SEN: 'Sensores', OPE: 'Operación / ajuste', LUB: 'Lubricación' }
+  const TECNICOS = ['Rodrigo', 'Camila', 'Patricio', 'Valentina']
+  const MS_DIA = 86400000
+  const dia = (s) => Math.floor(Date.parse(s.length === 10 ? `${s}T00:00:00Z` : `${s}:00Z`) / MS_DIA)
+  const minutos = (s) => Date.parse(s.length === 10 ? `${s}T00:00:00Z` : `${s}:00Z`) / 60000
+  const aFecha = (d) => new Date(d * MS_DIA).toISOString().slice(0, 10)
+  const aIso = (min) => new Date(min * 60000).toISOString().slice(0, 16)
+  const redondear = (x, d = 1) => Math.round(x * 10 ** d) / 10 ** d
+  function prng(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+
+  // ---- Criticidad: frecuencia de falla × la mayor consecuencia (producción, seguridad, calidad, costo) ------------------
+  function criticidad(eq) {
+    const consecuencia = Math.max(eq.prod, eq.seg, eq.cal, eq.costo), puntaje = eq.frec * consecuencia
+    return { puntaje, consecuencia, clase: puntaje >= 15 ? 'A' : puntaje >= 8 ? 'B' : 'C' }
+  }
+
+  // ---- Repuestos: ABC por valor de consumo anual y sugerencias de compra -------------------------------------------------
+  function clasificarABC(repuestos) {
+    const lista = repuestos.map((r) => ({ ...r, valor: r.consumoAnual * r.costo })).sort((a, b) => b.valor - a.valor || String(a.id).localeCompare(String(b.id)))
+    const total = lista.reduce((a, r) => a + r.valor, 0) || 1
+    let acum = 0
+    return lista.map((r) => { const antes = acum / total; acum += r.valor; return { ...r, acumulado: acum / total, clase: antes < 0.8 ? 'A' : antes < 0.95 ? 'B' : 'C' } })
+  }
+  const sugerenciasCompra = (repuestos) => repuestos.filter((r) => r.stock <= r.min).map((r) => ({ id: r.id, nombre: r.nombre, comprar: r.max - r.stock, costo: (r.max - r.stock) * r.costo }))
+
+  // ---- Planes preventivos ---------------------------------------------------------------------------------------------------
+  function estadoPlan(plan, hoy) {
+    const vence = dia(plan.ultima) + plan.cadaDias, restan = vence - dia(hoy)
+    return { vence: aFecha(vence), dias: restan, estado: restan < 0 ? 'vencida' : restan <= Math.max(2, Math.round(plan.cadaDias * 0.15)) ? 'proxima' : 'ok' }
+  }
+  const planesConEstado = (d) => d.planes.map((p) => ({ ...p, equipo: d.equipos.find((e) => e.id === p.equipoId)?.nombre, ...estadoPlan(p, d.hoy) }))
+
+  // ---- Órdenes de trabajo: creación y ciclo de vida validado -------------------------------------------------------------
+  function proximoId(d) { d.sigOT = (d.sigOT ?? d.ordenes.length + 1); const id = `OT-${String(d.sigOT).padStart(4, '0')}`; d.sigOT++; return id }
+  function crearOT(d, { equipoId, tipo, prioridad = 3, descripcion, planId = null }) {
+    if (!d.equipos.some((e) => e.id === equipoId)) return { ok: false, motivo: 'el equipo no existe' }
+    if (!TIPOS.includes(tipo)) return { ok: false, motivo: 'tipo de orden inválido' }
+    if (![1, 2, 3, 4].includes(prioridad)) return { ok: false, motivo: 'la prioridad va de 1 (urgente) a 4' }
+    if (!descripcion || !String(descripcion).trim()) return { ok: false, motivo: 'falta la descripción' }
+    if (planId && d.ordenes.some((o) => o.planId === planId && o.estado !== 'cerrada')) return { ok: false, motivo: 'ese plan ya tiene una orden abierta' }
+    const plan = planId ? d.planes.find((p) => p.id === planId) : null
+    const ot = { id: proximoId(d), equipoId, tipo, prioridad, estado: 'abierta', creada: `${d.hoy}T08:00`, inicio: null, fin: null, tecnico: null, descripcion: String(descripcion).trim(), codigoFalla: null, paradaMin: 0, horasHombre: 0, repuestos: [], planId, venceDia: plan ? dia(plan.ultima) + plan.cadaDias : null }
+    d.ordenes.push(ot); return { ok: true, ot }
+  }
+  function asignar(d, id, tecnico) {
+    const ot = d.ordenes.find((o) => o.id === id)
+    if (!ot) return { ok: false, motivo: 'la orden no existe' }
+    if (ot.estado !== 'abierta') return { ok: false, motivo: `solo se asigna una orden abierta (está ${ot.estado})` }
+    if (!tecnico) return { ok: false, motivo: 'falta el técnico' }
+    ot.tecnico = tecnico; ot.estado = 'asignada'; return { ok: true, ot }
+  }
+  function iniciar(d, id, cuando) {
+    const ot = d.ordenes.find((o) => o.id === id)
+    if (!ot) return { ok: false, motivo: 'la orden no existe' }
+    if (ot.estado !== 'asignada') return { ok: false, motivo: `solo se inicia una orden asignada (está ${ot.estado})` }
+    const t = cuando ?? `${d.hoy}T08:00`
+    if (minutos(t) < minutos(ot.creada)) return { ok: false, motivo: 'no se puede iniciar antes de que se creara la orden' }
+    ot.inicio = t; ot.estado = 'en_curso'; return { ok: true, ot }
+  }
+  function cerrar(d, id, { fin, paradaMin = 0, horasHombre = 0, codigoFalla = null, repuestos = [], notas = '' }) {
+    const ot = d.ordenes.find((o) => o.id === id)
+    if (!ot) return { ok: false, motivo: 'la orden no existe' }
+    if (ot.estado !== 'en_curso') return { ok: false, motivo: `solo se cierra una orden en curso (está ${ot.estado})` }
+    if (!fin || minutos(fin) < minutos(ot.inicio)) return { ok: false, motivo: 'el término no puede ser anterior al inicio' }
+    if (!(paradaMin >= 0) || !(horasHombre >= 0)) return { ok: false, motivo: 'la parada y las horas-hombre no pueden ser negativas' }
+    if (ot.tipo === 'correctiva' && !FALLAS[codigoFalla]) return { ok: false, motivo: 'una correctiva necesita el código de la falla' }
+    for (const r of repuestos) { const it = d.repuestos.find((x) => x.id === r.id); if (!it) return { ok: false, motivo: `el repuesto ${r.id} no existe` }; if (!(r.cant > 0) || it.stock < r.cant) return { ok: false, motivo: `stock insuficiente de ${it.nombre} (hay ${it.stock})` } }
+    for (const r of repuestos) d.repuestos.find((x) => x.id === r.id).stock -= r.cant
+    Object.assign(ot, { fin, paradaMin, horasHombre, codigoFalla: ot.tipo === 'correctiva' ? codigoFalla : null, repuestos: repuestos.map((r) => ({ ...r })), notas, estado: 'cerrada' })
+    if (ot.planId) { const plan = d.planes.find((p) => p.id === ot.planId); if (plan) plan.ultima = fin.slice(0, 10) }
+    return { ok: true, ot }
+  }
+
+  // ---- KPI -------------------------------------------------------------------------------------------------------------------
+  function kpis(d, { dias = 90 } = {}) {
+    const hasta = dia(d.hoy), desde = hasta - dias
+    const enVentana = (o) => o.estado === 'cerrada' && dia(o.fin) > desde && dia(o.fin) <= hasta
+    const cerradas = d.ordenes.filter(enVentana)
+    const porEquipo = d.equipos.map((e) => {
+      const corr = cerradas.filter((o) => o.equipoId === e.id && o.tipo === 'correctiva')
+      const fallas = corr.filter((o) => o.paradaMin > 0), parada = corr.reduce((a, o) => a + o.paradaMin, 0) / 60
+      const operativo = dias * e.hDia, funcionando = Math.max(operativo - parada, 0)
+      const reparo = fallas.length ? fallas.reduce((a, o) => a + (minutos(o.fin) - minutos(o.inicio)) / 60, 0) / fallas.length : null
+      return { id: e.id, nombre: e.nombre, fallas: fallas.length, paradaH: parada, mtbf: fallas.length ? funcionando / fallas.length : null, mttr: reparo, disponibilidad: operativo ? funcionando / operativo : 1, crit: criticidad(e) }
+    })
+    const hh = (f) => cerradas.filter(f).reduce((a, o) => a + o.horasHombre, 0)
+    const hhPlan = hh((o) => o.tipo === 'preventiva' || o.tipo === 'predictiva'), hhTotal = hh(() => true)
+    const conPlan = cerradas.filter((o) => o.planId && o.venceDia != null), aTiempo = conPlan.filter((o) => dia(o.fin) <= o.venceDia + 2)
+    const pend = d.ordenes.filter((o) => o.estado !== 'cerrada')
+    const vencidas = planesConEstado(d).filter((p) => p.estado === 'vencida').length
+    const paretoMap = {}
+    for (const o of cerradas.filter((x) => x.tipo === 'correctiva' && x.codigoFalla)) paretoMap[o.codigoFalla] = (paretoMap[o.codigoFalla] ?? 0) + o.paradaMin
+    const pareto = paretar(Object.entries(paretoMap).map(([k, v]) => ({ clave: k, nombre: FALLAS[k], valor: v })))
+    const total = porEquipo.reduce((a, e) => a + e.paradaH, 0)
+    const costoRepuestos = cerradas.reduce((a, o) => a + o.repuestos.reduce((s, r) => s + r.cant * (d.repuestos.find((x) => x.id === r.id)?.costo ?? 0), 0), 0)
+    return {
+      ventanaDias: dias, ordenesCerradas: cerradas.length, correctivas: cerradas.filter((o) => o.tipo === 'correctiva').length, fallas: porEquipo.reduce((a, e) => a + e.fallas, 0), paradaTotalH: total,
+      pctPlanificado: hhTotal ? hhPlan / hhTotal : 0, cumplimientoPlan: conPlan.length ? aTiempo.length / conPlan.length : null, pendientes: pend.length, edadPendientesDias: pend.length ? pend.reduce((a, o) => a + (dia(d.hoy) - dia(o.creada)), 0) / pend.length : 0,
+      planesVencidos: vencidas, porEquipo, pareto, peoresActores: [...porEquipo].sort((a, b) => b.paradaH - a.paradaH), costoRepuestos,
+      disponibilidadPlanta: porEquipo.length ? porEquipo.reduce((a, e) => a + e.disponibilidad, 0) / porEquipo.length : 1,
+    }
+  }
+  function paretar(items) {
+    const lista = [...items].sort((a, b) => b.valor - a.valor), total = lista.reduce((a, x) => a + x.valor, 0) || 1
+    let acum = 0
+    return lista.map((x) => { const antes = acum / total; acum += x.valor; return { ...x, acumulado: acum / total, vital: antes < 0.8 } })
+  }
+
+  const csv = (ordenes) => {
+    const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    return [['id', 'equipo', 'tipo', 'prioridad', 'estado', 'creada', 'inicio', 'fin', 'tecnico', 'falla', 'parada_min', 'horas_hombre', 'descripcion'].join(','), ...ordenes.map((o) => [o.id, o.equipoId, o.tipo, o.prioridad, o.estado, o.creada, o.inicio, o.fin, o.tecnico, o.codigoFalla, o.paradaMin, o.horasHombre, o.descripcion].map(q).join(','))].join('\n')
+  }
+
+  // ---- Datos de ejemplo (sintéticos) ------------------------------------------------------------------------------------------
+  const EQUIPOS = [
+    ['E01', 'Llenadora', 'Envasado', 20, 4, 5, 2, 5, 4, 220, 55], ['E02', 'Tapadora', 'Envasado', 20, 3, 4, 2, 4, 2, 300, 40], ['E03', 'Etiquetadora', 'Envasado', 20, 3, 3, 1, 3, 2, 260, 35],
+    ['E04', 'Encajonadora', 'Envasado', 20, 3, 3, 2, 2, 2, 320, 60], ['E05', 'Paletizador', 'Logística', 16, 2, 3, 3, 1, 3, 480, 90], ['E06', 'Pasteurizador HTST', 'Proceso', 22, 3, 5, 4, 5, 4, 420, 75],
+    ['E07', 'Bomba de producto', 'Proceso', 22, 3, 4, 2, 4, 2, 360, 50], ['E08', 'Compresor de aire', 'Servicios', 24, 4, 5, 3, 3, 3, 380, 120], ['E09', 'Chiller', 'Servicios', 24, 2, 4, 2, 5, 3, 520, 140],
+    ['E10', 'Generador de vapor', 'Servicios', 24, 2, 5, 5, 4, 4, 600, 150], ['E11', 'Transportador principal', 'Logística', 20, 2, 3, 1, 1, 1, 450, 45], ['E12', 'Detector de metales', 'Calidad', 20, 1, 3, 3, 5, 2, 700, 60],
+  ]
+  const PLANES = [
+    ['E01', 'Lubricar y revisar sellos de las boquillas', 14, 1.5], ['E01', 'Cambio de filtros de aire y limpieza de sensores', 30, 2], ['E02', 'Revisar embrague y torque de cierre', 30, 1.5], ['E03', 'Limpiar y alinear el cabezal de etiquetas', 14, 1],
+    ['E04', 'Lubricar cadenas y revisar correas', 30, 2], ['E05', 'Inspección de seguridad y lubricación', 60, 3], ['E06', 'Verificar sondas de temperatura y válvula de desvío', 30, 2], ['E06', 'Limpieza CIP e inspección de empaquetaduras', 90, 6],
+    ['E07', 'Revisar sello mecánico y alineación', 60, 2], ['E08', 'Cambio de aceite y filtros', 90, 3], ['E08', 'Purga de condensados y revisión de válvulas', 7, 0.5], ['E09', 'Limpieza de condensador y revisión de refrigerante', 60, 4],
+    ['E10', 'Inspección de quemador y control de nivel', 30, 3], ['E10', 'Prueba de válvulas de seguridad', 180, 4], ['E11', 'Revisión de rodamientos y tensión de la cadena', 45, 2], ['E12', 'Prueba con patrones y limpieza del cabezal', 7, 0.5],
+  ]
+  const REPUESTOS = [
+    ['R01', 'Rodamiento 6205 2RS', 14, 6, 24, 4500, 60], ['R02', 'Correa dentada 5M', 5, 3, 10, 18000, 14], ['R03', 'Sensor inductivo M12', 4, 4, 12, 22000, 30], ['R04', 'Sello mecánico bomba', 2, 2, 6, 95000, 16],
+    ['R05', 'Filtro de aire de compresor', 6, 4, 12, 28000, 24], ['R06', 'Contactor 25 A', 7, 3, 10, 21000, 16], ['R07', 'Fusible 10 A (caja de 10)', 20, 8, 30, 3500, 40], ['R08', 'Electroválvula 5/2', 3, 3, 8, 52000, 36],
+    ['R09', 'Manguera neumática 8 mm (rollo)', 8, 3, 10, 12000, 12], ['R10', 'Lubricante grado alimentario 1 L', 12, 6, 24, 9000, 70], ['R11', 'Termocupla tipo K', 2, 3, 8, 14000, 14], ['R12', 'Retén de vástago de cilindro', 25, 10, 40, 1800, 60],
+    ['R13', 'Empaquetadura de intercambiador', 3, 2, 6, 68000, 8], ['R14', 'Relé de seguridad', 2, 2, 5, 120000, 6],
+  ]
+  const TIPO_REP = { MEC: ['R01', 'R02', 'R04'], ELE: ['R06', 'R07', 'R14'], NEU: ['R08', 'R09', 'R12'], SEN: ['R03', 'R11'], OPE: [], LUB: ['R10'] }
+  const PESOS = [['MEC', 0.3], ['ELE', 0.18], ['NEU', 0.16], ['SEN', 0.2], ['OPE', 0.1], ['LUB', 0.06]]
+
+  function generarDatos(semilla = 2026, hoy = '2026-10-19') {
+    const r = prng(semilla), hoyD = dia(hoy), N = 180
+    const d = { hoy, semilla, equipos: EQUIPOS.map(([id, nombre, area, hDia, frec, prod, seg, cal, costo]) => ({ id, nombre, area, hDia, frec, prod, seg, cal, costo })), planes: [], ordenes: [], repuestos: REPUESTOS.map(([id, nombre, stock, min, max, costo, consumoAnual]) => ({ id, nombre, stock, min, max, costo, consumoAnual })), sigOT: 1 }
+    const nueva = (o) => d.ordenes.push({ id: `OT-${String(d.sigOT++).padStart(4, '0')}`, estado: 'cerrada', codigoFalla: null, paradaMin: 0, horasHombre: 0, repuestos: [], planId: null, venceDia: null, notas: '', ...o })
+    // fallas correctivas: llegadas exponenciales por equipo
+    EQUIPOS.forEach(([id, , , hDia, , , , , , mtbfH, mttrMin]) => {
+      let t = -Math.log(1 - r()) * mtbfH
+      while (t / hDia < N) {
+        const dd = hoyD - N + Math.floor(t / hDia), hora = 6 + Math.floor(r() * 14), reparo = Math.max(10, Math.round(-Math.log(1 - r()) * mttrMin))
+        let acum = 0, cod = 'MEC'; const x = r(); for (const [k, p] of PESOS) { acum += p; if (x <= acum) { cod = k; break } }
+        const creada = aIso(minutos(aFecha(dd)) + hora * 60), inicio = aIso(minutos(creada) + 20 + Math.floor(r() * 40)), fin = aIso(minutos(inicio) + reparo)
+        const rep = TIPO_REP[cod].length && r() < 0.6 ? [{ id: TIPO_REP[cod][Math.floor(r() * TIPO_REP[cod].length)], cant: 1 }] : []
+        nueva({ equipoId: id, tipo: 'correctiva', prioridad: reparo > 120 ? 1 : 2, creada, inicio, fin, tecnico: TECNICOS[Math.floor(r() * 4)], descripcion: `Falla ${FALLAS[cod].toLowerCase()} en ${id}`, codigoFalla: cod, paradaMin: Math.round(reparo * 0.9), horasHombre: redondear((reparo / 60) * (1 + Math.floor(r() * 2)), 1), repuestos: rep })
+        t += -Math.log(1 - r()) * mtbfH
+      }
+    })
+    // planes preventivos ejecutados a lo largo de la historia (la mayoría a tiempo)
+    PLANES.forEach(([equipoId, tarea, cadaDias, dur], i) => {
+      const plan = { id: `P${String(i + 1).padStart(2, '0')}`, equipoId, tarea, cadaDias, duracionH: dur, ultima: null }
+      let venceD = hoyD - N + Math.floor(r() * cadaDias)
+      while (venceD <= hoyD - 1) {
+        const tarde = r() < 0.15 ? 3 + Math.floor(r() * 8) : Math.floor(r() * 2) - 0, ejec = Math.min(hoyD - 1, venceD + tarde)
+        const creada = aIso(minutos(aFecha(venceD - 3)) + 8 * 60), inicio = aIso(minutos(aFecha(ejec)) + 8 * 60 + 30), fin = aIso(minutos(inicio) + dur * 60)
+        nueva({ equipoId, tipo: 'preventiva', prioridad: 3, creada, inicio, fin, tecnico: TECNICOS[Math.floor(r() * 4)], descripcion: tarea, horasHombre: dur, paradaMin: Math.round(dur * 20), planId: plan.id, venceDia: venceD })
+        plan.ultima = aFecha(ejec); venceD = ejec + cadaDias
+      }
+      if (!plan.ultima) plan.ultima = aFecha(hoyD - cadaDias + 3)
+      d.planes.push(plan)
+    })
+    // dos planes atrasados a propósito y órdenes abiertas actuales
+    d.planes[2].ultima = aFecha(hoyD - d.planes[2].cadaDias - 6); d.planes[9].ultima = aFecha(hoyD - d.planes[9].cadaDias - 11)
+    const abierta = (equipoId, tipo, prioridad, descripcion, estado, tecnico) => { const o = crearOT(d, { equipoId, tipo, prioridad, descripcion }).ot; o.creada = `${aFecha(hoyD - 2)}T09:00`; if (estado !== 'abierta') asignar(d, o.id, tecnico); if (estado === 'en_curso') iniciar(d, o.id, `${aFecha(hoyD - 1)}T14:00`) }
+    abierta('E03', 'correctiva', 2, 'Etiquetas desalineadas: revisar rodillo y sensor', 'en_curso', 'Camila'); abierta('E08', 'correctiva', 1, 'Fuga de aire en la línea principal', 'asignada', 'Rodrigo')
+    abierta('E06', 'predictiva', 3, 'Vibración alta en la bomba de alimentación (análisis)', 'abierta'); abierta('E11', 'mejora', 4, 'Cambiar guía lateral por una de polímero', 'abierta')
+    // consumo: ajusta el stock de algunos repuestos para tener compras sugeridas
+    d.repuestos.find((x) => x.id === 'R03').stock = 3; d.repuestos.find((x) => x.id === 'R04').stock = 1; d.repuestos.find((x) => x.id === 'R14').stock = 2
+    return d
+  }
+
+  return { TIPOS, ESTADOS, FALLAS, TECNICOS, dia, minutos, aFecha, aIso, criticidad, clasificarABC, sugerenciasCompra, estadoPlan, planesConEstado, crearOT, asignar, iniciar, cerrar, kpis, paretar, csv, generarDatos, redondear }
+})
+
+
+
+</script>
+<script>
+'use strict'
+const M = CmmsCore, $ = (id) => document.getElementById(id)
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const f = (n, d = 1) => (n == null || !Number.isFinite(n) ? '—' : Number(n).toLocaleString('es-CL', { maximumFractionDigits: d, minimumFractionDigits: d }))
+const CLP = (n) => '$' + Math.round(n).toLocaleString('es-CL')
+const CLAVE = 'cmms-demo-v1'
+let d = null, vista = 'tablero', cerrando = null, ventana = 90, memoria = null
+function guardar() { try { localStorage.setItem(CLAVE, JSON.stringify(d)) } catch { memoria = JSON.stringify(d) } }
+function cargarGuardado() { try { const s = localStorage.getItem(CLAVE) ?? memoria; if (s) { const x = JSON.parse(s); if (x && x.equipos && x.ordenes && x.repuestos) return x } } catch { /* sin almacenamiento */ } return null }
+d = cargarGuardado() ?? M.generarDatos(2026)
+
+// ---- pestañas y utilidades --------------------------------------------------------------------------------------------
+function ver(v) { vista = v; document.querySelectorAll('.vista').forEach((e) => e.classList.toggle('on', e.id === 'v-' + v)); $('tabs').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === v)); render() }
+$('tabs').querySelectorAll('button').forEach((b) => (b.onclick = () => ver(b.dataset.v)))
+const equipo = (id) => d.equipos.find((e) => e.id === id)
+const msg = (id, texto, ok) => { $(id).textContent = texto; $(id).className = 'msg ' + (ok ? 'si' : 'no') }
+function avanzarDias(n) { const t = M.dia(d.hoy) + n; d.hoy = M.aFecha(t); guardar(); render() }
+$('bDia').onclick = () => avanzarDias(1); $('bSem').onclick = () => avanzarDias(7)
+$('bReset').onclick = () => { d = M.generarDatos(2026); cerrando = null; guardar(); render() }
+$('bCsv').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([M.csv(d.ordenes)], { type: 'text/csv' })); a.download = 'ordenes-de-trabajo.csv'; a.click(); URL.revokeObjectURL(a.href) }
+$('selV').onchange = () => { ventana = +$('selV').value; render() }
+
+// ---- gráficos ---------------------------------------------------------------------------------------------------------------
+function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+function dibujarPareto(k) {
+  const { c, w, h } = prep($('cvPar')), P = k.pareto
+  if (!P.length) { c.fillStyle = '#64748b'; c.fillText('sin paradas en la ventana', 20, 30); return }
+  const L = 40, R = 38, T = 10, B = 40, max = Math.max(...P.map((p) => p.valor)), bw = (w - L - R) / P.length
+  c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+  for (let i = 0; i <= 4; i++) { const y = T + ((h - T - B) * i) / 4; c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText(Math.round(max * (1 - i / 4)), L - 4, y + 3); c.fillText(100 - i * 25 + '%', w - 4, y + 3) }
+  P.forEach((p, i) => { const x = L + i * bw + 6, ww = bw - 12, y = T + (h - T - B) * (1 - p.valor / max); c.fillStyle = p.vital ? '#f59e0b' : '#38bdf8'; c.fillRect(x, y, ww, h - B - y); c.fillStyle = '#cbd5e1'; c.textAlign = 'center'; c.fillText(p.nombre.split(' ')[0], x + ww / 2, h - B + 14); c.fillText(Math.round(p.valor), x + ww / 2, y - 4) })
+  c.strokeStyle = '#e879f9'; c.lineWidth = 2; c.beginPath(); P.forEach((p, i) => { const x = L + i * bw + bw / 2, y = T + (h - T - B) * (1 - p.acumulado); i ? c.lineTo(x, y) : c.moveTo(x, y) }); c.stroke()
+}
+function dibujarActores(k) {
+  const { c, w, h } = prep($('cvAct')), A = k.peoresActores.slice(0, 8), max = Math.max(...A.map((a) => a.paradaH), 1), fila = (h - 10) / A.length
+  A.forEach((a, i) => { const y = 6 + i * fila, ww = ((w - 190) * a.paradaH) / max; c.fillStyle = '#cbd5e1'; c.textAlign = 'right'; c.fillText(a.nombre, 138, y + fila / 2 + 3); c.fillStyle = a.crit.clase === 'A' ? '#f87171' : a.crit.clase === 'B' ? '#f59e0b' : '#34d399'; c.fillRect(146, y + 3, Math.max(2, ww), fila - 8); c.fillStyle = '#94a3b8'; c.textAlign = 'left'; c.fillText(f(a.paradaH) + ' h · clase ' + a.crit.clase, 150 + ww, y + fila / 2 + 3) })
+}
+function renderTablero() {
+  const k = M.kpis(d, { dias: ventana })
+  $('kpi').innerHTML = [['Disponibilidad promedio', f(k.disponibilidadPlanta * 100) + ' %', `${k.fallas} falla(s) en ${ventana} d`], ['Parada por fallas', f(k.paradaTotalH) + ' h', 'horas de equipos detenidos'], ['Trabajo planificado', f(k.pctPlanificado * 100, 0) + ' %', 'horas-hombre preventivas y predictivas'], ['Cumplimiento del plan', k.cumplimientoPlan == null ? '—' : f(k.cumplimientoPlan * 100, 0) + ' %', 'preventivos a tiempo (±2 días)'], ['Órdenes pendientes', k.pendientes, `edad promedio ${f(k.edadPendientesDias)} d`], ['Planes vencidos', k.planesVencidos, 'requieren orden de trabajo'], ['Costo de repuestos', CLP(k.costoRepuestos), 'consumido en la ventana']]
+    .map(([a, b, c], i) => `<div class="card"><span>${a}</span><b class="${i === 5 && b > 0 ? 'bad' : ''}">${b}</b><small>${c}</small></div>`).join('')
+  dibujarPareto(k); dibujarActores(k)
+  $('tMtbf').innerHTML = `<table><tr><th>Equipo</th><th>Clase</th><th>Fallas</th><th>Parada [h]</th><th>MTBF [h]</th><th>MTTR [h]</th><th>Disponibilidad</th><th></th></tr>${k.porEquipo.map((e) => `<tr><td>${esc(e.nombre)}</td><td class="cl-${e.crit.clase}">${e.crit.clase}</td><td>${e.fallas}</td><td>${f(e.paradaH)}</td><td>${f(e.mtbf, 0)}</td><td>${f(e.mttr, 2)}</td><td>${f(e.disponibilidad * 100, 2)} %</td><td><div class="barra"><i style="width:${Math.max(0, (e.disponibilidad - 0.9) * 1000)}%;background:${e.disponibilidad > 0.99 ? '#34d399' : e.disponibilidad > 0.97 ? '#f59e0b' : '#f87171'}"></i></div></td></tr>`).join('')}</table>`
+}
+
+// ---- órdenes -------------------------------------------------------------------------------------------------------------------
+function opciones() {
+  const eqs = d.equipos.map((e) => `<option value="${e.id}">${esc(e.nombre)}</option>`).join('')
+  if (!$('nEq').options.length) { $('nEq').innerHTML = eqs; $('nTipo').innerHTML = M.TIPOS.map((t) => `<option>${t}</option>`).join(''); $('fTipo').innerHTML = '<option value="">Todos los tipos</option>' + M.TIPOS.map((t) => `<option>${t}</option>`).join(''); $('fEq').innerHTML = '<option value="">Todos los equipos</option>' + eqs }
+}
+$('bNueva').onclick = () => { const r = M.crearOT(d, { equipoId: $('nEq').value, tipo: $('nTipo').value, prioridad: +$('nPri').value, descripcion: $('nDesc').value }); if (r.ok) { $('nDesc').value = ''; guardar() } msg('msgN', r.ok ? `Orden ${r.ot.id} creada` : '✖ ' + r.motivo, r.ok); render() }
+;['fEst', 'fTipo', 'fEq', 'fTxt'].forEach((id) => $(id).addEventListener('input', renderOrdenes))
+function accionOT(id, a, datos) {
+  let r
+  if (a === 'asignar') r = M.asignar(d, id, datos)
+  else if (a === 'iniciar') r = M.iniciar(d, id)
+  else if (a === 'cerrar') { cerrando = { id, repuestos: [] }; renderOrdenes(); return }
+  if (r) { msg('msgO', r.ok ? `${id}: ${a} ✔` : '✖ ' + r.motivo, r.ok); if (r.ok) guardar() }
+  render()
+}
+function formCierre() {
+  const ot = d.ordenes.find((o) => o.id === cerrando.id), ini = ot.inicio, fin = M.aIso(M.minutos(ini) + 60)
+  return `<div class="cierre"><div class="ancho"><b>Cerrar ${ot.id}</b> · ${esc(equipo(ot.equipoId).nombre)} · ${esc(ot.descripcion)}</div>
+    <label>Término<input type="datetime-local" id="cFin" value="${fin}"></label><label>Parada del equipo [min]<input type="number" id="cPar" min="0" value="${ot.tipo === 'correctiva' ? 45 : 0}"></label><label>Horas-hombre<input type="number" id="cHH" min="0" step="0.5" value="1"></label>
+    ${ot.tipo === 'correctiva' ? `<label>Código de falla<select id="cFalla">${Object.entries(M.FALLAS).map(([k, v]) => `<option value="${k}">${k} · ${v}</option>`).join('')}</select></label>` : ''}
+    <label>Repuesto<select id="cRep"><option value="">— ninguno —</option>${d.repuestos.map((r) => `<option value="${r.id}">${esc(r.nombre)} (stock ${r.stock})</option>`).join('')}</select></label><label>Cantidad<input type="number" id="cCant" min="1" value="1"></label>
+    <div style="display:flex;gap:6px;align-items:end"><button class="mini" id="cAdd">Agregar repuesto</button></div>
+    <div class="ancho" id="cLista">${cerrando.repuestos.map((r) => `${esc(d.repuestos.find((x) => x.id === r.id).nombre)} × ${r.cant}`).join(' · ') || 'sin repuestos'}</div>
+    <div class="ancho"><button id="cOk">Cerrar la orden</button> <button class="mini" id="cCancel">Cancelar</button></div></div>`
+}
+function renderOrdenes() {
+  opciones()
+  const est = $('fEst').value, tipo = $('fTipo').value, eq = $('fEq').value, txt = $('fTxt').value.toLowerCase()
+  const lista = d.ordenes.filter((o) => (!est || (est === 'pend' ? o.estado !== 'cerrada' : o.estado === est)) && (!tipo || o.tipo === tipo) && (!eq || o.equipoId === eq) && (!txt || `${o.id} ${o.descripcion} ${equipo(o.equipoId).nombre}`.toLowerCase().includes(txt)))
+    .sort((a, b) => (a.estado === 'cerrada') - (b.estado === 'cerrada') || a.prioridad - b.prioridad || M.minutos(b.creada) - M.minutos(a.creada))
+  const acciones = (o) => o.estado === 'abierta' ? `<select data-t="${o.id}">${M.TECNICOS.map((t) => `<option>${t}</option>`).join('')}</select> <button class="mini" data-a="asignar" data-id="${o.id}">Asignar</button>` : o.estado === 'asignada' ? `<button class="mini" data-a="iniciar" data-id="${o.id}">Iniciar</button>` : o.estado === 'en_curso' ? `<button class="mini" data-a="cerrar" data-id="${o.id}">Cerrar…</button>` : ''
+  $('cierre').innerHTML = cerrando ? formCierre() : ''
+  $('tOrd').innerHTML = `<table><tr><th>OT</th><th>Equipo</th><th>Tipo</th><th>Prior.</th><th>Estado</th><th>Técnico</th><th>Creada</th><th>Parada</th><th>Descripción</th><th></th></tr>${lista.slice(0, 80).map((o) => `<tr><td>${o.id}</td><td>${esc(equipo(o.equipoId).nombre)}</td><td>${o.tipo}</td><td class="p${o.prioridad}">P${o.prioridad}</td><td><span class="chip2 e-${o.estado}">${o.estado.replace('_', ' ')}</span></td><td>${esc(o.tecnico ?? '—')}</td><td>${o.creada.slice(0, 10)}</td><td>${o.estado === 'cerrada' ? o.paradaMin + ' min' : '—'}</td><td class="wrapt">${esc(o.descripcion)}${o.codigoFalla ? ` <span class="chip2">${o.codigoFalla}</span>` : ''}</td><td>${acciones(o)}</td></tr>`).join('')}</table>${lista.length > 80 ? `<div class="note">Mostrando 80 de ${lista.length}. Usa los filtros.</div>` : ''}`
+  $('tOrd').querySelectorAll('[data-a]').forEach((b) => (b.onclick = () => accionOT(b.dataset.id, b.dataset.a, b.dataset.a === 'asignar' ? $('tOrd').querySelector(`[data-t="${b.dataset.id}"]`).value : null)))
+  if (cerrando) {
+    $('cAdd').onclick = () => { const id = $('cRep').value, cant = +$('cCant').value; if (id && cant > 0) { cerrando.repuestos.push({ id, cant }); renderOrdenes() } }
+    $('cCancel').onclick = () => { cerrando = null; renderOrdenes() }
+    $('cOk').onclick = () => { const r = M.cerrar(d, cerrando.id, { fin: $('cFin').value, paradaMin: +$('cPar').value, horasHombre: +$('cHH').value, codigoFalla: $('cFalla') ? $('cFalla').value : null, repuestos: cerrando.repuestos }); msg('msgO', r.ok ? `${cerrando.id} cerrada ✔` : '✖ ' + r.motivo, r.ok); if (r.ok) { cerrando = null; guardar() } render() }
+  }
+}
+
+// ---- plan preventivo ---------------------------------------------------------------------------------------------------------
+function generarOT(p) { return M.crearOT(d, { equipoId: p.equipoId, tipo: 'preventiva', prioridad: p.estado === 'vencida' ? 2 : 3, descripcion: p.tarea, planId: p.id }) }
+function renderPlan() {
+  const P = M.planesConEstado(d).sort((a, b) => a.dias - b.dias)
+  $('tPlan').innerHTML = `<table><tr><th>Plan</th><th>Equipo</th><th>Tarea</th><th>Cada</th><th>Última</th><th>Vence</th><th>Días</th><th>Estado</th><th></th></tr>${P.map((p) => { const abierta = d.ordenes.some((o) => o.planId === p.id && o.estado !== 'cerrada'); return `<tr><td>${p.id}</td><td>${esc(p.equipo)}</td><td class="wrapt">${esc(p.tarea)}</td><td>${p.cadaDias} d</td><td>${p.ultima}</td><td>${p.vence}</td><td>${p.dias}</td><td class="est-${p.estado}">${p.estado}</td><td>${abierta ? '<span class="chip2 e-abierta">con orden</span>' : `<button class="mini" data-p="${p.id}">Generar orden</button>`}</td></tr>` }).join('')}</table>`
+  $('tPlan').querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => { const r = generarOT(P.find((p) => p.id === b.dataset.p)); msg('msgP', r.ok ? `Orden ${r.ot.id} generada desde el plan` : '✖ ' + r.motivo, r.ok); if (r.ok) guardar(); render() }))
+}
+$('bGenTodo').onclick = () => { let n = 0; for (const p of M.planesConEstado(d).filter((x) => x.estado !== 'ok')) if (generarOT(p).ok) n++; if (n) guardar(); msg('msgP', n ? `${n} orden(es) preventiva(s) generada(s)` : 'No había planes vencidos o próximos sin orden', n > 0); render() }
+
+// ---- equipos y criticidad ----------------------------------------------------------------------------------------------------------
+const CAMPOS = [['frec', 'Frecuencia'], ['prod', 'Producción'], ['seg', 'Seguridad'], ['cal', 'Calidad'], ['costo', 'Costo']]
+function renderEquipos() {
+  const lista = d.equipos.map((e) => ({ e, c: M.criticidad(e) })).sort((a, b) => b.c.puntaje - a.c.puntaje)
+  $('tEq').innerHTML = `<table><tr><th>Equipo</th>${CAMPOS.map(([, n]) => `<th>${n}</th>`).join('')}<th>Puntaje</th><th>Clase</th></tr>${lista.map(({ e, c }) => `<tr><td>${esc(e.nombre)}</td>${CAMPOS.map(([k]) => `<td><input type="range" min="1" max="5" step="1" value="${e[k]}" data-e="${e.id}" data-k="${k}" aria-label="${k} de ${esc(e.nombre)}"> ${e[k]}</td>`).join('')}<td>${c.puntaje}</td><td class="cl-${c.clase}">${c.clase}</td></tr>`).join('')}</table>`
+  $('tEq').querySelectorAll('input[type=range]').forEach((r) => (r.oninput = () => { equipo(r.dataset.e)[r.dataset.k] = +r.value; guardar(); renderEquipos() }))
+  let h = '<div class="h"></div>' + [1, 2, 3, 4, 5].map((n) => `<div class="h">frec. ${n}</div>`).join('')
+  for (let cons = 5; cons >= 1; cons--) {
+    h += `<div class="h">cons. ${cons}</div>`
+    for (let fr = 1; fr <= 5; fr++) { const p = fr * cons, col = p >= 15 ? 'rgba(248,113,113,.28)' : p >= 8 ? 'rgba(245,158,11,.22)' : 'rgba(52,211,153,.14)'; h += `<div class="c" style="background:${col}">${lista.filter(({ c, e }) => c.consecuencia === cons && e.frec === fr).map(({ e }) => `<span>${esc(e.nombre.split(' ')[0])}</span>`).join('')}</div>` }
+  }
+  $('heat').innerHTML = h
+}
+
+// ---- repuestos ---------------------------------------------------------------------------------------------------------------------
+function renderRepuestos() {
+  const abc = M.clasificarABC(d.repuestos)
+  $('tRep').innerHTML = `<table><tr><th>Repuesto</th><th>Clase</th><th>Valor anual</th><th>Acum.</th><th>Stock (mín · máx)</th><th></th></tr>${abc.map((r) => `<tr><td>${esc(r.nombre)}</td><td class="cl-${r.clase === 'A' ? 'A' : r.clase === 'B' ? 'B' : 'C'}">${r.clase}</td><td>${CLP(r.valor)}</td><td>${f(r.acumulado * 100, 0)} %</td><td>${r.stock} <small>(${r.min} · ${r.max})</small></td><td><div class="barra"><i style="width:${Math.min(100, (r.stock / r.max) * 100)}%;background:${r.stock <= r.min ? '#f87171' : '#34d399'}"></i><u style="left:${(r.min / r.max) * 100}%"></u></div></td></tr>`).join('')}</table>`
+  const C = M.sugerenciasCompra(d.repuestos)
+  $('tCompra').innerHTML = C.length ? `<table><tr><th>Repuesto</th><th>Comprar</th><th>Costo</th></tr>${C.map((x) => `<tr><td>${esc(x.nombre)}</td><td>${x.comprar}</td><td>${CLP(x.costo)}</td></tr>`).join('')}<tr><td><b>Total</b></td><td></td><td><b>${CLP(C.reduce((a, x) => a + x.costo, 0))}</b></td></tr></table><div class="row" style="margin-top:8px"><button id="bRecibir">Recibir la compra (repone hasta el máximo)</button></div>` : '<span class="note" style="padding:0">Ningún repuesto está en su mínimo.</span>'
+  if (C.length) $('bRecibir').onclick = () => { for (const x of C) { const r = d.repuestos.find((y) => y.id === x.id); r.stock = r.max } guardar(); msg('msgR', 'Compra recibida: stocks repuestos al máximo', true); render() }
+}
+
+function render() {
+  $('hoy').textContent = 'hoy: ' + d.hoy
+  if (vista === 'tablero') renderTablero(); else if (vista === 'ordenes') renderOrdenes(); else if (vista === 'plan') renderPlan(); else if (vista === 'equipos') renderEquipos(); else renderRepuestos()
+}
+ver('tablero'); window.addEventListener('resize', () => vista === 'tablero' && renderTablero())
+window.demoApi = { d: () => d, M, ver, render, reset() { d = M.generarDatos(2026); cerrando = null; guardar(); render() }, accionOT, generarOT }
+</script>
+</body>
+</html>
