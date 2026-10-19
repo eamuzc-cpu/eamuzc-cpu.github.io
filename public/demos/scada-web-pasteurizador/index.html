@@ -65,11 +65,14 @@ body::after {
 #cvMimic { height: 270px; } #cvTr { height: 190px; } #cvU { height: 80px; margin-top: 6px; }
 .fp { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 .fp .c { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; }
-.fp .c b { display: block; font: 600 22px var(--mono); } .fp .c span { font: 10px var(--mono); color: var(--mut); text-transform: uppercase; }
+.fp .c b { display: block; font: 600 18px var(--mono); white-space: nowrap; } .fp .c span { font: 10px var(--mono); color: var(--mut); text-transform: uppercase; }
 .ctl { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; align-items: center; margin-bottom: 8px; font: 12px var(--mono); }
 .ctl .req { color: #64748b; font-size: 10.5px; grid-column: 1 / -1; margin-top: -4px; }
 .ctl input[type=number] { width: 100%; }
 .lock { color: var(--amber); }
+.ctl.bloq > :not(.req) { opacity: .45; } button.bloq { opacity: .5; }
+.perm td, .perm th { padding: 2px 6px; font-size: 11px; text-align: center; white-space: nowrap; } .perm td:first-child, .perm th:first-child { text-align: left; color: var(--mut); }
+.perm .cur { background: rgba(34, 211, 238, .1); } .perm th.cur { color: var(--cyan); } .perm .si { color: var(--green); } .perm .no { color: #475569; }
 #toast { position: fixed; right: 16px; bottom: 16px; max-width: 420px; padding: 10px 14px; border-radius: 10px; font: 12px var(--mono); display: none; z-index: 20; border: 1px solid; background: #0b1220; }
 #toast.ok { border-color: var(--green); color: var(--green); } #toast.no { border-color: var(--red); color: var(--red); }
 .low { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; }
@@ -115,6 +118,7 @@ tr.nr td { animation: parp 1s infinite; } @keyframes parp { 50% { background: rg
   </div>
 
   <div class="col">
+    <div class="panel"><h2>Permisos por rol (tu rol resaltado)</h2><div id="perm" class="perm"></div></div>
     <div class="panel">
       <h2>TIC-101 · temperatura de pasteurización</h2>
       <div class="fp"><div class="c"><span>PV</span><b id="pv" class="cy">—</b></div><div class="c"><span>SP</span><b id="sp" class="warn">—</b></div><div class="c"><span>Salida</span><b id="out">—</b></div></div>
@@ -362,13 +366,25 @@ function ejecutar(tipo, valor, etiqueta) {
 }
 
 // ---- Sesión ---------------------------------------------------------------------------------------------
+// La barra de sesión y la matriz solo se redibujan al cambiar de rol: si se rehicieran en cada tick, los botones
+// se reemplazarían cada segundo y algunos clics se perderían.
+let rolPintado = null
 function dibujarSesion() {
   const s = sc.sesion
-  $('ses').innerHTML = s
-    ? `<span class="chip on">${S.ROLES[s.rol]} · ${s.usuario}</span><button id="bSalir" class="mini">Salir</button>`
-    : `<span class="chip">sin sesión</span>${Object.entries(S.ROLES).map(([r, n]) => `<button class="mini" data-rol="${r}">Entrar como ${n}</button>`).join('')}`
-  $('ses').querySelectorAll('[data-rol]').forEach((b) => (b.onclick = () => { S.entrar(sc, b.dataset.rol); audAbierta = false; render() }))
+  $('ses').innerHTML = `<span class="chip${s ? ' on' : ''}">${s ? 'sesión: ' + S.ROLES[s.rol] : 'sin sesión · elige un rol'}</span>${Object.entries(S.ROLES).map(([r, n]) => `<button class="mini${s?.rol === r ? ' on' : ''}" data-rol="${r}">${n}</button>`).join('')}${s ? '<button id="bSalir" class="mini">Salir</button>' : ''}`
+  $('ses').querySelectorAll('[data-rol]').forEach((b) => (b.onclick = () => {
+    if (sc.sesion?.rol === b.dataset.rol) return
+    if (sc.sesion) S.salir(sc) // el cambio de rol queda en la bitácora como cierre + ingreso
+    S.entrar(sc, b.dataset.rol); audAbierta = false; toast(true, `✔ Sesión como ${S.ROLES[b.dataset.rol]}`); render()
+  }))
   if ($('bSalir')) $('bSalir').onclick = () => { S.salir(sc); audAbierta = false; render() }
+}
+const ACC = [['reconocer', 'Reconocer alarmas'], ['cambiarCaudal', 'Cambiar caudal'], ['cambiarConsigna', 'Cambiar consigna'], ['cambiarModo', 'Modo AUTO / MAN'], ['manualValvula', 'Válvula manual'], ['editarPID', 'Editar Kp / Ti'], ['verAuditoria', 'Ver bitácora'], ['exportar', 'Exportar CSV']]
+function dibujarPermisos() {
+  const rol = sc.sesion?.rol, roles = Object.entries(S.ROLES), cur = (r) => (r === rol ? 'cur ' : '')
+  const filas = ACC.map(([a, n]) => `<tr><td>${n}</td>${roles.map(([r]) => { const ok = S.puede(r, a); return `<td class="${cur(r)}${ok ? 'si' : 'no'}">${ok ? '✔' : '—'}</td>` }).join('')}</tr>`)
+    .concat([['consigna', 'Rango consigna °C'], ['caudal', 'Rango caudal L/h']].map(([k, n]) => `<tr><td>${n}</td>${roles.map(([r]) => { const g = S.RANGOS[k][r]; return `<td class="${cur(r)}${g ? 'si' : 'no'}">${g ? g[0] + '–' + g[1] : '—'}</td>` }).join('')}</tr>`))
+  $('perm').innerHTML = `<table><tr><th>Acción</th>${roles.map(([r, n]) => `<th class="${rol === r ? 'cur' : ''}">${n}</th>`).join('')}</tr>${filas.join('')}</table>`
 }
 
 // ---- Controles ------------------------------------------------------------------------------------------
@@ -398,10 +414,15 @@ $('bCsvT').onclick = () => { const r = S.exportarCsv(sc, 'tendencia'); toast(r.o
 const prio = { 3: 'Alta', 2: 'Media', 1: 'Baja' }
 function render() {
   const p = sc.proc, rol = sc.sesion?.rol
-  dibujarSesion()
+  if (rolPintado !== (rol ?? '')) { rolPintado = rol ?? ''; dibujarSesion(); dibujarPermisos() }
   $('pv').textContent = p.T.toFixed(2) + ' °C'; $('sp').textContent = p.sp.toFixed(1) + ' °C'; $('out').textContent = p.u.toFixed(0) + ' %'
   $('pv').className = p.T >= 72 ? 'cy' : 'bad'
-  for (const [k, accion] of Object.entries(REQ)) { const ok = S.puede(rol, accion); $('r' + k).innerHTML = ok ? '' : `<span class="lock">🔒 requiere ${NOMBRE_REQ[accion]}</span> — puedes intentarlo: quedará registrado como denegado` }
+  for (const [k, accion] of Object.entries(REQ)) {
+    const ok = S.puede(rol, accion), caja = $('r' + k)
+    caja.parentElement.classList.toggle('bloq', !ok)
+    caja.innerHTML = ok ? '<span class="ok">✔ permitido para tu rol</span>' : `<span class="lock">🔒 requiere ${NOMBRE_REQ[accion]}</span> — ${rol ? `tu rol es ${S.ROLES[rol]}` : 'sin sesión'}; puedes intentarlo: quedará registrado como denegado`
+  }
+  for (const [id, accion] of [['bAck', 'reconocer'], ['bAbrirAud', 'verAuditoria'], ['bCsvA', 'exportar'], ['bCsvT', 'exportar']]) $(id).classList.toggle('bloq', !S.puede(rol, accion))
   $('bAuto').classList.toggle('on', p.modo === 'AUTO'); $('bMan').classList.toggle('on', p.modo === 'MAN')
   // alarmas
   const act = sc.alarmas.filter((a) => a.estado !== 'NORMAL').sort((a, b) => ({ ACTIVA_NR: 0, RTN_NR: 1, ACTIVA_R: 2 })[a.estado] - ({ ACTIVA_NR: 0, RTN_NR: 1, ACTIVA_R: 2 })[b.estado] || b.prio - a.prio)
@@ -438,7 +459,7 @@ function dibujarMimic() {
   caja(x.hold + 60, yM, 140, 22, `TH-101 retención ${p.hold.toFixed(1)} s`, p.hold >= 15 ? '#334a73' : '#f87171')
   c.fillStyle = p.T >= 72 ? '#22d3ee' : '#f87171'; c.font = '600 13px ui-monospace, Consolas, monospace'; c.fillText(`TT-101 ${p.T.toFixed(2)} °C`, x.hold + 60, yM - 46); c.font = '11px ui-monospace, Consolas, monospace'
   c.fillStyle = desvio ? '#f87171' : '#34d399'; c.beginPath(); c.moveTo(x.fdv - 12, yM - 12); c.lineTo(x.fdv + 12, yM - 12); c.lineTo(x.fdv, yM + 12); c.fill()
-  c.fillStyle = '#94a3b8'; c.fillText('FDV-101', x.fdv, yM - 20); c.fillStyle = desvio ? '#f87171' : '#34d399'; c.fillText(desvio ? 'RECIRCULA' : 'AVANCE', x.fdv, yM + 100)
+  c.fillStyle = '#94a3b8'; c.fillText('FDV-101', x.fdv, yM - 32); c.fillStyle = desvio ? '#f87171' : '#34d399'; c.fillText(desvio ? 'RECIRCULA' : 'AVANCE', x.fdv, yM + 100)
   caja(x.out, yM, 70, 36, 'a envasado', desvio ? '#334a73' : '#34d399')
 }
 function dibujarTend() {
