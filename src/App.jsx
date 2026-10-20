@@ -17,14 +17,15 @@ export default function App() {
 
   // Al cambiar de vista: página de proyecto arriba; portada hacia su ancla (#proyectos…) o a donde estaba.
   useEffect(() => {
+    // behavior 'instant': el html tiene scroll suave y un salto largo se vería como un viaje por toda la página.
     if (slug) {
-      window.scrollTo(0, 0)
+      window.scrollTo({ top: 0, behavior: 'instant' })
       return
     }
     const id = decodeURIComponent(window.location.hash.slice(1))
     const target = id && document.getElementById(id)
-    if (target) target.scrollIntoView()
-    else window.scrollTo(0, savedHomeY())
+    if (target) target.scrollIntoView({ behavior: 'instant' })
+    else window.scrollTo({ top: savedHomeY(), behavior: 'instant' })
   }, [slug])
 
   return (
