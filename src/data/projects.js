@@ -1541,48 +1541,712 @@ export const projects = [
     tools: { hardware: ['STM32G474RE', 'BSC050N04LSG', 'UCC27282', 'INA240'], software: ['C (LL)', 'Python (scipy)', 'JavaScript', 'Canvas', 'node:test'] },
   },
   {
-    slug: 'laboratorio-14-simuladores',
+    slug: 'pendulo-invertido-pid-lqr',
     title: {
-      es: 'Laboratorio de 14 simuladores de ingeniería: control, señales, visión, RF, lógica digital y robótica',
-      en: 'Engineering Lab: 14 Interactive Simulators for Control, Signals, Vision, RF, Digital Logic and Robotics',
+      es: 'Péndulo invertido sobre carro: control PID frente a LQR con física no lineal',
+      en: 'Inverted Pendulum on a Cart: PID vs LQR Control on Nonlinear Physics',
     },
     client: { es: 'Proyecto personal', en: 'Personal project' },
     category: 'automation',
     year: 2026,
-    image: '/projects/laboratorio-14-simuladores.jpg',
-    demo: { src: '/demos/laboratorio-14-simuladores/index.html' },
-    resultBadge: { es: '14 simuladores, 180 pruebas y 6 correcciones al documento de origen', en: '14 simulators, 180 tests and 6 corrections to the source document' },
-    summary: {
-      es: 'Catorce simuladores interactivos en JavaScript puro, sin librerías, escritos a partir de un documento de especificación: péndulo invertido (PID frente a LQR), sintonizador de Bode y Nyquist, brazo robótico de 4 GDL, convertidor DC-DC, espectrograma FFT, comandos de voz con MFCC, gemelo digital IoT, SCADA con alarmas ISA-18.2, filtros de imagen, distorsión de lente, visor Gerber, lógica digital, carta de Smith y planificación de rutas.',
-      en: 'Fourteen interactive simulators in plain JavaScript, with no libraries, written from a specification document: inverted pendulum (PID vs LQR), Bode and Nyquist tuner, 4-DOF robot arm, DC-DC converter, FFT spectrogram, MFCC voice commands, IoT digital twin, SCADA with ISA-18.2 alarms, image filters, lens distortion, Gerber viewer, digital logic, Smith chart and path planning.',
+    image: '/projects/pendulo-invertido-pid-lqr.jpg',
+    demo: { src: '/demos/pendulo-invertido-pid-lqr/index.html' },
+    resultBadge: {
+      es: 'LQR y PID recuperan hasta 0,9 rad con 30 N; el LQR se desvía menos ante un empujón',
+      en: 'LQR and PID recover up to 0.9 rad with 30 N; LQR deviates less after a push',
     },
-    stack: ['JavaScript', 'Canvas 2D', 'node:test', { es: 'Teoría de control', en: 'Control theory' }, { es: 'Procesamiento de señales', en: 'Signal processing' }, { es: 'Radiofrecuencia', en: 'RF' }],
+    summary: {
+      es: 'Un carro con un péndulo invertido cae en menos de 1,5 s si nadie lo controla. Aquí lo estabilizan un PID de ángulo con PD de posición y un LQR cuya ganancia sale de resolver la ecuación de Riccati, a 100 Hz sobre una física no lineal integrada con RK4 a 500 Hz. Se puede empujar, agregar ruido al sensor, limitar la fuerza y medir la región de atracción.',
+      en: 'A cart with an inverted pendulum falls in under 1.5 s if nobody controls it. Here a PID on the angle with a PD on position and an LQR whose gain comes from solving the Riccati equation stabilize it, at 100 Hz on nonlinear physics integrated with RK4 at 500 Hz. You can push it, add sensor noise, limit the force and measure the region of attraction.',
+    },
+    stack: ['JavaScript', 'Canvas 2D', { es: 'Control LQR', en: 'LQR control' }, 'PID', 'RK4', 'node:test'],
     challenge: {
-      es: 'Un documento con ecuaciones y fragmentos de código no demuestra que el sistema funcione: para entenderlo hay que ejecutarlo, moverle los parámetros, romperlo y ver por qué. Con catorce temas distintos, la dificultad es que cada núcleo sea correcto y se pueda comprobar.',
-      en: 'A document with equations and code fragments does not prove the system works: to understand it you have to run it, move its parameters, break it and see why. With fourteen different topics, the difficulty is making every core correct and checkable.',
+      es: 'Un péndulo invertido es inestable y de fase no mínima: para recuperar la vertical el carro tiene que alejarse primero. Un control digital con retención de orden cero, ruido en el sensor y fuerza limitada puede perderlo con facilidad.',
+      en: 'An inverted pendulum is unstable and non-minimum phase: to recover the vertical the cart has to move away first. A digital controller with zero-order hold, sensor noise and limited force can easily lose it.',
     },
     impact: {
-      es: 'Pasar de la especificación al código encontró seis puntos del documento que estaban mal o incompletos, y dejó catorce herramientas de práctica que se abren en el navegador sin instalar nada.',
-      en: 'Going from the specification to code found six points in the document that were wrong or incomplete, and left fourteen practice tools that open in the browser with nothing to install.',
+      es: 'Comparar dos controles sobre el mismo modelo muestra qué ofrece cada uno: el LQR sale de una optimización y se desvía menos; el PID es más simple pero necesita el lazo de posición o el carro se escapa de la pista.',
+      en: 'Comparing two controllers on the same model shows what each one offers: the LQR comes from an optimization and deviates less; the PID is simpler but needs the position loop or the cart runs off the track.',
     },
     solution: {
-      es: 'Cada simulador tiene su núcleo en JavaScript puro, probado con node:test (180 pruebas), y una interfaz en Canvas. 1) Péndulo: física no lineal con RK4 a 500 Hz, control a 100 Hz, LQR por Riccati y PID; la prueba de energía confirma el modelo. 2) Bode/Nyquist: polos y ceros arrastrables, márgenes, lazo cerrado y escalón por exponencial de matriz. 3) Brazo de 4 GDL: Denavit-Hartenberg y cinemática inversa DLS (≥ 99 % de 300 destinos a menos de 0,5 mm). 4) DC-DC: buck y boost con parásitos, CCM/DCM y balance de energía a 1 %. 5) Espectrograma: FFT radix-2 verificada contra la DFT y ventana Blackman-Harris (lóbulos < −90 dB). 6) Comandos de voz: MFCC como en el informe (49 × 10) con un clasificador softmax entrenado con sonidos sintéticos. 7) Gemelo IoT: filtro complementario, térmico RC y telemetría binaria 6 veces más corta que JSON. 8) SCADA: dos estanques, cascada con y sin anti-windup y alarmas ISA-18.2. 9) Filtros de imagen: BT.709, Sobel, Gauss y Canny. 10) Lente: modelo de Brown-Conrady, corrección con tabla inversa y calibración por mínimos cuadrados. 11) Gerber: analizador RS-274X con regiones y arcos y vista de capas. 12) Lógica: simulador por eventos de 4 valores con setup y hold. 13) RF: carta de Smith, red en L verificada y microstrip. 14) Rutas: A*, RRT y Pure Pursuit con replanificación. Seis correcciones al documento: la tabla de Γ de la carga 25 + j25 (116,6° y 6,99 dB, no 126,8° y 6,93 dB); los vecinos diagonales de la supresión de no-máximos de Canny; el jacobiano mal dimensionado en la IK; el analizador Gerber con escala fija de 10⁵; el «anti-windup» que solo satura la salida; y la resolución de 23,4 Hz con 11,6 ms que mezcla 48 y 44,1 kHz. Límites: no usa Three.js, WebGL ni Web Audio; la red DS-CNN del informe no está (el clasificador de voz es mucho más simple y se entrena con sonidos sintéticos, no con voz humana); no hay hardware ni protocolos reales; todo es simulado.',
-      en: 'Each simulator has its core in plain JavaScript, tested with node:test (180 tests), and a Canvas interface. 1) Pendulum: nonlinear physics with RK4 at 500 Hz, 100 Hz control, LQR via Riccati and PID; an energy test confirms the model. 2) Bode/Nyquist: draggable poles and zeros, margins, closed loop and step response by matrix exponential. 3) 4-DOF arm: Denavit-Hartenberg and DLS inverse kinematics (≥ 99 % of 300 targets within 0.5 mm). 4) DC-DC: buck and boost with parasitics, CCM/DCM and a 1 % energy balance. 5) Spectrogram: radix-2 FFT verified against the DFT and a Blackman-Harris window (sidelobes < −90 dB). 6) Voice commands: MFCC as in the report (49 × 10) with a softmax classifier trained on synthetic sounds. 7) IoT twin: complementary filter, RC thermal model and binary telemetry 6 times shorter than JSON. 8) SCADA: two tanks, cascade control with and without anti-windup and ISA-18.2 alarms. 9) Image filters: BT.709, Sobel, Gauss and Canny. 10) Lens: Brown-Conrady model, inverse-table correction and least-squares calibration. 11) Gerber: RS-274X parser with regions and arcs and a layer view. 12) Logic: 4-value event-driven simulator with setup and hold. 13) RF: Smith chart, a verified L-match and microstrip. 14) Paths: A*, RRT and Pure Pursuit with replanning. Six corrections to the document: the reflection-coefficient table row for 25 + j25 (116.6° and 6.99 dB, not 126.8° and 6.93 dB); the diagonal neighbours of the Canny non-maximum suppression; the wrongly dimensioned Jacobian in the IK; the Gerber parser with a fixed 10⁵ scale; the «anti-windup» that only saturates the output; and the 23.4 Hz resolution with 11.6 ms that mixes 48 and 44.1 kHz. Limits: it does not use Three.js, WebGL or Web Audio; the report\'s DS-CNN is not there (the voice classifier is much simpler and is trained on synthetic sounds, not human speech); there is no hardware or real protocol; everything is simulated.',
+      es: 'Modelo de Euler-Lagrange del informe (carro de 1 kg, péndulo de 0,1 kg a 0,5 m), RK4 a 500 Hz y control a 100 Hz con retención de orden cero. Una prueba de energía (deriva < 1e-7 en 10 s) confirma que las ecuaciones del informe son coherentes. El LQR resuelve la ecuación de Riccati integrándola hasta el régimen (residuo ≈ 1e-11; K = [−10,0; −12,5; −82,3; −19,7]). Ambos controles recuperan hasta 0,9 rad con 30 N y fallan con 1,2 rad; ante un empujón de 10 N con ruido de 0,002 rad el ángulo máximo es de 0,029 rad con LQR y 0,044 rad con PID. Sin el lazo de posición, el PID estabiliza el ángulo pero el carro se desliza y sale de la pista. Hay región de atracción calculada en vivo, ruido, empujones y límite de fuerza ajustable. Las ganancias del PID, las matrices Q y R, los 30 N y la pista de ±2,5 m son elecciones mías: el informe no las da. Simulado: sin hardware ni prototipo.',
+      en: 'Euler-Lagrange model from the report (1 kg cart, 0.1 kg pendulum at 0.5 m), RK4 at 500 Hz and 100 Hz control with zero-order hold. An energy test (drift < 1e-7 over 10 s) confirms the report\'s equations are consistent. The LQR solves the Riccati equation by integrating it to steady state (residual ≈ 1e-11; K = [−10.0, −12.5, −82.3, −19.7]). Both controllers recover up to 0.9 rad with 30 N and fail at 1.2 rad; after a 10 N push with 0.002 rad noise the peak angle is 0.029 rad with LQR and 0.044 rad with PID. Without the position loop the PID holds the angle but the cart drifts off the track. There is a live region-of-attraction calculation, noise, pushes and an adjustable force limit. The PID gains, the Q and R matrices, the 30 N and the ±2.5 m track are my choices: the report does not give them. Simulated: no hardware or prototype.',
     },
     metrics: [
-      { label: { es: 'Simuladores', en: 'Simulators' }, value: '14' },
-      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '180' },
-      { label: { es: 'Correcciones al documento de origen', en: 'Corrections to the source document' }, value: '6' },
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '14' },
+      { label: { es: 'Ángulo inicial recuperable', en: 'Recoverable initial angle' }, value: '0,9 rad' },
+      { label: { es: 'Residuo de la ecuación de Riccati', en: 'Riccati equation residual' }, value: '≈ 1e-11' },
     ],
     diagram: {
       nodes: [
-        { label: { es: 'Especificación', en: 'Specification' }, sub: { es: 'ecuaciones y código', en: 'equations and code' } },
-        { label: { es: 'Núcleo en JS', en: 'JS core' }, sub: { es: 'sin librerías', en: 'no libraries' } },
-        { label: { es: 'Pruebas', en: 'Tests' }, sub: 'node:test' },
-        { label: { es: 'Simulador', en: 'Simulator' }, sub: 'Canvas 2D' },
+        { label: { es: 'Sensor', en: 'Sensor' }, sub: 'θ, x · ruido' },
+        { label: { es: 'Control', en: 'Controller' }, sub: 'LQR / PID · 100 Hz' },
+        { label: { es: 'Actuador', en: 'Actuator' }, sub: { es: 'fuerza ≤ 30 N', en: 'force ≤ 30 N' } },
+        { label: { es: 'Física', en: 'Physics' }, sub: 'RK4 · 500 Hz' },
       ],
-      feedback: { from: 2, to: 0, label: { es: 'correcciones', en: 'corrections' } },
+      feedback: { from: 3, to: 0, label: { es: 'estado', en: 'state' } },
     },
-    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test', 'Python (scipy, solo como referencia)'] },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'sintonizador-bode-nyquist',
+    title: {
+      es: 'Sintonizador de Bode y Nyquist en tiempo real con polos y ceros arrastrables',
+      en: 'Real-Time Bode and Nyquist Tuner with Draggable Poles and Zeros',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/sintonizador-bode-nyquist.jpg',
+    demo: { src: '/demos/sintonizador-bode-nyquist/index.html' },
+    resultBadge: {
+      es: 'Márgenes de ganancia y de fase iguales a la solución analítica',
+      en: 'Gain and phase margins equal to the analytic solution',
+    },
+    summary: {
+      es: 'Arrastra polos y ceros en el plano s y mira al instante el diagrama de Bode (500 puntos entre 10⁻² y 10⁵ rad/s), el de Nyquist, los márgenes de ganancia y de fase, los polos del lazo cerrado y la respuesta al escalón.',
+      en: 'Drag poles and zeros on the s-plane and instantly see the Bode plot (500 points between 10⁻² and 10⁵ rad/s), the Nyquist plot, gain and phase margins, closed-loop poles and the step response.',
+    },
+    stack: ['JavaScript', 'Canvas 2D', { es: 'Teoría de control', en: 'Control theory' }, 'Bode', 'Nyquist', 'node:test'],
+    challenge: {
+      es: 'Sintonizar un lazo a ojo es un ejercicio de prueba y error. Para entender márgenes y estabilidad hay que ver cómo cada polo y cada cero cambia la curva, y que el resultado sea exacto, no aproximado.',
+      en: 'Tuning a loop by eye is trial and error. To understand margins and stability you have to see how each pole and zero changes the curve, and the result has to be exact, not approximate.',
+    },
+    impact: {
+      es: 'Una herramienta de práctica para ver al instante qué le pasa a la estabilidad al mover un polo o al subir la ganancia, con la respuesta al escalón calculada de forma exacta.',
+      en: 'A practice tool to see immediately what happens to stability when a pole moves or the gain goes up, with the step response computed exactly.',
+    },
+    solution: {
+      es: 'Sistema en forma cero-polo-ganancia como en el informe, con polos y ceros reales o complejos conjugados que se arrastran con el ratón, ejemplos listos (lazo clásico, segundo orden, PID, adelanto y un cero en el semiplano derecho) y realimentación unitaria opcional. La respuesta en frecuencia evalúa el producto de factores; la fase se desenrolla partiendo de su rama natural; los márgenes se buscan por cruces de 0 dB y de −180°. Las raíces salen de Durand-Kerner y el escalón de la exponencial de una matriz en forma canónica controlable (exacto, sin paso de integración). Se verifica contra soluciones analíticas: para K/[s(s+1)(s+2)] el margen de ganancia es 20·log10(6/K) en ω = √2 (15,56 dB con K = 1) y con K = 6 los polos cerrados quedan en ±j√2; el segundo orden con ζ = 0,5 da un sobreimpulso de 16,3 %; el cero en el semiplano derecho produce subimpulso. 11 pruebas. El informe habla de «transformada Z inversa implícita»: aquí se usa la exponencial de matriz, que es exacta. Simulado: sin hardware ni prototipo.',
+      en: 'Zero-pole-gain system as in the report, with real or complex-conjugate poles and zeros dragged with the mouse, ready examples (classic loop, second order, PID, lead and a right-half-plane zero) and optional unity feedback. The frequency response evaluates the product of factors; the phase is unwrapped starting from its natural branch; margins are found from 0 dB and −180° crossings. Roots come from Durand-Kerner and the step response from the matrix exponential of a controllable canonical form (exact, no integration step). It is verified against analytic solutions: for K/[s(s+1)(s+2)] the gain margin is 20·log10(6/K) at ω = √2 (15.56 dB with K = 1) and with K = 6 the closed-loop poles sit at ±j√2; a second order with ζ = 0.5 gives a 16.3 % overshoot; the right-half-plane zero produces undershoot. 11 tests. The report speaks of an «implicit inverse Z-transform»: here the matrix exponential is used, which is exact. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '11' },
+      { label: { es: 'Puntos por barrido', en: 'Points per sweep' }, value: '500' },
+      { label: { es: 'Margen de ganancia verificado (K = 1)', en: 'Verified gain margin (K = 1)' }, value: '15,56 dB' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Polos y ceros', en: 'Poles and zeros' }, sub: { es: 'plano s', en: 's-plane' } },
+        { label: { es: 'Respuesta en frecuencia', en: 'Frequency response' }, sub: '500 pts' },
+        { label: { es: 'Márgenes', en: 'Margins' }, sub: 'GM · PM' },
+        { label: { es: 'Lazo cerrado', en: 'Closed loop' }, sub: { es: 'escalón exacto', en: 'exact step' } },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'ajuste', en: 'tuning' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'brazo-robotico-4gdl',
+    title: {
+      es: 'Brazo robótico de 4 GDL: cinemática directa e inversa con Denavit-Hartenberg',
+      en: '4-DOF Robot Arm: Forward and Inverse Kinematics with Denavit-Hartenberg',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/brazo-robotico-4gdl.jpg',
+    demo: { src: '/demos/brazo-robotico-4gdl/index.html' },
+    resultBadge: {
+      es: 'Cinemática inversa: ≥ 99 % de 300 destinos a menos de 0,5 mm',
+      en: 'Inverse kinematics: ≥ 99 % of 300 targets within 0.5 mm',
+    },
+    summary: {
+      es: 'Manipulador articulado de cuatro grados de libertad con la tabla Denavit-Hartenberg del informe. En modo directo se mueven las articulaciones; en modo inverso se fija un punto del espacio y el brazo lo alcanza con mínimos cuadrados amortiguados, con o sin cabeceo fijo de la herramienta. Hay vista lateral, vista superior y el espacio de trabajo.',
+      en: 'Four-degree-of-freedom articulated manipulator with the report\'s Denavit-Hartenberg table. In forward mode the joints are moved; in inverse mode a point in space is fixed and the arm reaches it with damped least squares, with or without a fixed tool pitch. There are side and top views and the workspace.',
+    },
+    stack: ['JavaScript', 'Canvas 2D', 'Denavit-Hartenberg', 'DLS', { es: 'Robótica', en: 'Robotics' }, 'node:test'],
+    challenge: {
+      es: 'Con cuatro articulaciones y tres condiciones de posición sobra un grado de libertad, y cerca de la singularidad (brazo estirado) el jacobiano pierde rango y los métodos ingenuos dan saltos enormes o se quedan en mínimos locales.',
+      en: 'With four joints and three position conditions one degree of freedom is left over, and near the singularity (arm stretched) the Jacobian loses rank and naive methods jump wildly or get stuck in local minima.',
+    },
+    impact: {
+      es: 'Muestra cómo se llega a un punto, qué pasa en los límites articulares y fuera del alcance, y deja una cinemática inversa robusta y probada.',
+      en: 'It shows how a point is reached, what happens at joint limits and out of reach, and leaves a robust, tested inverse kinematics.',
+    },
+    solution: {
+      es: 'Cinemática directa con las matrices D-H del informe (d1 = 0,20 m; a2 = 0,40; a3 = 0,30; a4 = 0,15; α1 = π/2), verificada contra la fórmula plana cerrada en 500 configuraciones aleatorias y con rotaciones ortonormales. El jacobiano de posición analítico (3×4) coincide con las diferencias finitas. La cinemática inversa usa DLS con paso limitado a 0,3 rad, límites articulares, base alineada con el destino y reintentos con otras posturas de codo (incluida «hacia atrás»): de 300 destinos alcanzables aleatorios, ≥ 99 % queda a menos de 0,5 mm; un destino fuera de alcance se aproxima sin diverger. Opcionalmente fija el cabeceo (q2+q3+q4). El código del informe arma el jacobiano como 4×3 y lo usa como 3×4, con una inversión de 3×3 sobre una matriz de 4×4: aquí las dimensiones son las correctas. Los límites articulares son míos. 11 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Forward kinematics with the report\'s D-H matrices (d1 = 0.20 m; a2 = 0.40; a3 = 0.30; a4 = 0.15; α1 = π/2), verified against the closed planar formula on 500 random configurations and with orthonormal rotations. The analytic position Jacobian (3×4) matches finite differences. Inverse kinematics uses DLS with step limited to 0.3 rad, joint limits, base aligned to the target and retries with other elbow postures (including «backwards»): out of 300 random reachable targets, ≥ 99 % land within 0.5 mm; an out-of-reach target is approached without diverging. It can optionally fix the pitch (q2+q3+q4). The report\'s code builds the Jacobian as 4×3 and uses it as 3×4, with a 3×3 inversion on a 4×4 matrix: here the dimensions are correct. The joint limits are mine. 11 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '11' },
+      { label: { es: 'Destinos alcanzados (300 al azar)', en: 'Targets reached (300 random)' }, value: '≥ 99 %' },
+      { label: { es: 'Alcance máximo', en: 'Maximum reach' }, value: '0,85 m' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Objetivo', en: 'Target' }, sub: 'x, y, z' },
+        { label: 'DLS', sub: { es: 'jacobiano 3×4', en: '3×4 Jacobian' } },
+        { label: { es: 'Articulaciones', en: 'Joints' }, sub: 'q1…q4 · límites' },
+        { label: { es: 'Cinemática directa', en: 'Forward kinematics' }, sub: 'D-H' },
+      ],
+      feedback: { from: 3, to: 1, label: { es: 'error', en: 'error' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'simulador-convertidor-dcdc',
+    title: {
+      es: 'Convertidor DC-DC buck y boost con osciloscopio, parásitos y modos CCM/DCM',
+      en: 'Buck and Boost DC-DC Converter with Oscilloscope, Parasitics and CCM/DCM Modes',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'embedded',
+    year: 2026,
+    image: '/projects/simulador-convertidor-dcdc.jpg',
+    demo: { src: '/demos/simulador-convertidor-dcdc/index.html' },
+    resultBadge: {
+      es: 'Balance de energía a menos de 1 % y fórmulas ideales a menos de 2 %',
+      en: 'Energy balance within 1 % and ideal formulas within 2 %',
+    },
+    summary: {
+      es: 'Simulación de un convertidor reductor o elevador de lazo abierto con resistencia del inductor, RDS(on), ESR y caída del diodo, con 200 puntos por periodo de conmutación. Se ve cómo pasa de conducción continua a discontinua, el rizado, la eficiencia, el arranque y el balance de pérdidas.',
+      en: 'Simulation of an open-loop buck or boost converter with inductor resistance, RDS(on), ESR and diode drop, with 200 points per switching period. You see the transition from continuous to discontinuous conduction, the ripple, efficiency, start-up and the loss budget.',
+    },
+    stack: [{ es: 'Electrónica de potencia', en: 'Power electronics' }, 'RK4', 'CCM / DCM', 'JavaScript', 'Canvas 2D', 'node:test'],
+    challenge: {
+      es: 'Los parásitos y el modo de conducción cambian por completo la tensión de salida: con carga ligera un buck deja de seguir Vout = D·Vin. Hace falta un modelo que lo muestre y que se pueda comprobar contra la teoría.',
+      en: 'Parasitics and conduction mode completely change the output voltage: at light load a buck stops following Vout = D·Vin. A model is needed that shows it and can be checked against theory.',
+    },
+    impact: {
+      es: 'Sirve para ver por qué un convertidor real entrega menos que el ideal, cuánto pierde cada elemento y dónde está la frontera entre los dos modos.',
+      en: 'It shows why a real converter delivers less than the ideal, how much each element loses and where the boundary between the two modes lies.',
+    },
+    solution: {
+      es: 'Ecuaciones del informe para el buck (L = 100 µH, DCR = 45 mΩ, C = 220 µF, ESR = 15 mΩ, 100 kHz, RDS(on) = 25 mΩ) y el mismo motor para el boost, con RK4 y las fases ON y OFF subdivididas por separado para que el ciclo sea exacto. El informe integra con Euler explícito. Se verifica con Vout = D·Vin y Vin/(1 − D) en CCM, el rizado de corriente y de tensión, la frontera CCM/DCM (L crítica) y la tensión en DCM, todo a menos de 2 %, y con un balance de energía: la potencia de entrada menos la de salida coincide con las pérdidas contabilizadas (DCR, RDS, diodo, ESR) a menos de 1 %. El caso por defecto (12 V → 5 V, D = 0,42) entrega 4,70 V con 93,2 % de eficiencia frente a 5,04 V del ideal; en carga ligera pasa a DCM. Modelo de lazo abierto sin tiempos muertos, sin capacidades parásitas ni saturación del inductor. El diodo (0,5 V) es mío. 11 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Report equations for the buck (L = 100 µH, DCR = 45 mΩ, C = 220 µF, ESR = 15 mΩ, 100 kHz, RDS(on) = 25 mΩ) and the same engine for the boost, with RK4 and the ON and OFF phases subdivided separately so the duty cycle is exact. The report integrates with explicit Euler. It is verified with Vout = D·Vin and Vin/(1 − D) in CCM, the current and voltage ripple, the CCM/DCM boundary (critical L) and the DCM voltage, all within 2 %, and with an energy balance: input power minus output power matches the accounted losses (DCR, RDS, diode, ESR) within 1 %. The default case (12 V → 5 V, D = 0.42) delivers 4.70 V at 93.2 % efficiency versus 5.04 V ideal; at light load it moves to DCM. Open-loop model with no dead times, no parasitic capacitances and no inductor saturation. The diode (0.5 V) is mine. 11 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '11' },
+      { label: { es: 'Error del balance de energía', en: 'Energy balance error' }, value: '< 1 %' },
+      { label: { es: 'Error frente a las fórmulas ideales', en: 'Error versus ideal formulas' }, value: '< 2 %' },
+    ],
+    diagram: {
+      nodes: [
+        { label: 'Vin · D', sub: { es: 'ciclo de trabajo', en: 'duty cycle' } },
+        { label: { es: 'Interruptor + diodo', en: 'Switch + diode' }, sub: 'ON / OFF' },
+        { label: 'L · C', sub: { es: 'con parásitos', en: 'with parasitics' } },
+        { label: { es: 'Carga', en: 'Load' }, sub: 'Vout · η' },
+      ],
+      feedback: { from: 3, to: 2, label: { es: 'corriente', en: 'current' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'espectrograma-fft-blackman-harris',
+    title: {
+      es: 'Espectrograma y analizador FFT en cascada con ventana Blackman-Harris',
+      en: 'Spectrogram and Waterfall FFT Analyzer with Blackman-Harris Window',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'instrumentation',
+    year: 2026,
+    image: '/projects/espectrograma-fft-blackman-harris.jpg',
+    demo: { src: '/demos/espectrograma-fft-blackman-harris/index.html' },
+    resultBadge: {
+      es: 'Un tono 66 dB más débil se ve con Blackman-Harris y lo tapa la ventana rectangular',
+      en: 'A tone 66 dB weaker shows with Blackman-Harris and is hidden by the rectangular window',
+    },
+    summary: {
+      es: 'Transformada de Fourier de tiempo corto (N = 2048, solape de 75 %) con una FFT radix-2 propia y ventana Blackman-Harris. Se eligen señales sintéticas (tonos, chirp, ráfaga de ruido, voz sintética) y se comparan ventanas; al pasar el ratón por el espectrograma se ve el espectro de esa trama.',
+      en: 'Short-time Fourier transform (N = 2048, 75 % overlap) with a custom radix-2 FFT and a Blackman-Harris window. Synthetic signals are chosen (tones, chirp, noise burst, synthetic voice) and windows compared; hovering the spectrogram shows that frame\'s spectrum.',
+    },
+    stack: ['FFT', 'STFT', 'Blackman-Harris', 'JavaScript', 'Canvas 2D', 'node:test'],
+    challenge: {
+      es: 'La fuga espectral de una ventana mala esconde las señales débiles junto a las fuertes. Para medir bien hay que conocer la ventana, la resolución y su rango dinámico, y que la FFT sea correcta.',
+      en: 'Spectral leakage from a poor window hides weak signals next to strong ones. To measure well you need to know the window, the resolution and its dynamic range, and the FFT must be correct.',
+    },
+    impact: {
+      es: 'Deja ver, con números, qué aporta cada ventana y qué resolución en frecuencia y en tiempo se obtiene con cada frecuencia de muestreo.',
+      en: 'It shows, with numbers, what each window offers and what frequency and time resolution each sample rate gives.',
+    },
+    solution: {
+      es: 'FFT Cooley-Tukey en sitio como en el informe, verificada contra la DFT directa a 1e-9, con el teorema de Parseval y con el nivel de 0 dBFS de un tono centrado en un bin. Con los coeficientes de Blackman-Harris del informe, todo lo que está a más de 5 bins de un tono queda por debajo de −90 dB; un tono 66 dB más débil a 20 bins se distingue con esa ventana y queda tapado con la rectangular. El espectro usa interpolación parabólica para el pico (error < 3 Hz). 465 FFT de 2048 puntos se calculan en unos 70 ms. El informe da una resolución de 23,4 Hz (que corresponde a 48 kHz) con un paso de 11,6 ms (que corresponde a 44,1 kHz): son frecuencias de muestreo distintas; con 48 kHz son 23,44 Hz y 10,67 ms, con 44,1 kHz 21,53 Hz y 11,61 ms. No usa micrófono, Web Audio ni WebGL2: las señales son sintéticas y el espectrograma se dibuja en Canvas 2D. 13 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'In-place Cooley-Tukey FFT as in the report, verified against the direct DFT to 1e-9, with Parseval\'s theorem and with the 0 dBFS level of a bin-centred tone. With the report\'s Blackman-Harris coefficients, everything more than 5 bins from a tone stays below −90 dB; a tone 66 dB weaker at 20 bins is distinguishable with that window and hidden with the rectangular one. The spectrum uses parabolic interpolation for the peak (error < 3 Hz). 465 FFTs of 2048 points take about 70 ms. The report gives a 23.4 Hz resolution (which corresponds to 48 kHz) with an 11.6 ms step (which corresponds to 44.1 kHz): those are different sample rates; at 48 kHz they are 23.44 Hz and 10.67 ms, at 44.1 kHz 21.53 Hz and 11.61 ms. It does not use a microphone, Web Audio or WebGL2: the signals are synthetic and the spectrogram is drawn on Canvas 2D. 13 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '13' },
+      { label: { es: 'Lóbulos laterales de la ventana', en: 'Window sidelobes' }, value: '< −90 dB' },
+      { label: { es: 'Resolución con 48 kHz y N = 2048', en: 'Resolution at 48 kHz, N = 2048' }, value: '23,44 Hz' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Señal', en: 'Signal' }, sub: { es: 'sintética', en: 'synthetic' } },
+        { label: { es: 'Ventana', en: 'Window' }, sub: 'Blackman-Harris' },
+        { label: 'FFT', sub: 'radix-2 · N = 2048' },
+        { label: { es: 'Espectrograma', en: 'Spectrogram' }, sub: 'dBFS · hop 512' },
+      ],
+      feedback: { from: 3, to: 1, label: { es: 'comparar ventanas', en: 'compare windows' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'comandos-de-voz-mfcc',
+    title: {
+      es: 'Reconocimiento de comandos de voz: MFCC y clasificador pequeño (TinyML)',
+      en: 'Voice Command Recognition: MFCC and a Small Classifier (TinyML)',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'ai',
+    year: 2026,
+    image: '/projects/comandos-de-voz-mfcc.jpg',
+    demo: { src: '/demos/comandos-de-voz-mfcc/index.html' },
+    resultBadge: {
+      es: '100 % con sonidos nuevos a 20 dB de ruido y 77 % a 0 dB (sonidos sintéticos)',
+      en: '100 % on new sounds at 20 dB SNR and 77 % at 0 dB (synthetic sounds)',
+    },
+    summary: {
+      es: 'El pipeline de extracción de características del informe completo (pre-énfasis, tramas de 40 ms, FFT, 40 filtros Mel, log-energías y DCT) que produce un tensor de 49 × 10, y un clasificador pequeño entrenado en la propia página que reconoce seis «comandos» sintéticos. No es voz humana ni la red DS-CNN del informe.',
+      en: 'The report\'s full feature-extraction pipeline (pre-emphasis, 40 ms frames, FFT, 40 Mel filters, log-energies and DCT) producing a 49 × 10 tensor, and a small classifier trained on the page itself that recognizes six synthetic «commands». It is neither human speech nor the report\'s DS-CNN.',
+    },
+    stack: ['MFCC', 'Mel', 'TinyML', { es: 'Clasificador softmax', en: 'Softmax classifier' }, 'JavaScript', 'node:test'],
+    challenge: {
+      es: 'Reconocer comandos en un microcontrolador exige un front-end de audio preciso y un modelo diminuto. Antes de pensar en la red hay que comprobar que las características separan bien los sonidos y cómo se degradan con el ruido.',
+      en: 'Recognizing commands on a microcontroller demands a precise audio front-end and a tiny model. Before thinking about the network you must check that the features separate sounds well and how they degrade with noise.',
+    },
+    impact: {
+      es: 'Muestra de punta a punta cómo se pasa de una forma de onda a un tensor y a una decisión, y mide la robustez al ruido.',
+      en: 'It shows end to end how a waveform becomes a tensor and a decision, and measures robustness to noise.',
+    },
+    solution: {
+      es: 'Lo del informe: escala Mel M(f) = 2595·log10(1 + f/700), banco de filtros construido como en su script de Python, pre-énfasis de 0,97, ventana de 40 ms cada 20 ms (49 tramas en 1 s a 16 kHz) y DCT-II con 10 coeficientes; cada pieza tiene su prueba (banco, ortogonalidad de la DCT, un tono de 1 kHz cae en el filtro correcto). Lo mío: el clasificador es una regresión softmax de 198 parámetros sobre 32 características (nivel, duración y la media de las MFCC en tres tramos de la zona activa) entrenada con sonidos sintéticos (barrido ascendente y descendente, doble pitido, alarma, ráfaga de ruido, silencio). Con 120 sonidos nuevos a 20 dB acierta el 100 %; con 5 dB, 100 %; con 0 dB, 77 %. NO es la DS-CNN con TensorFlow Lite for Microcontrollers del informe, no usa WebAssembly ni voz humana: con palabras reales haría falta un conjunto de datos como Speech Commands, una red convolucional entrenada con él y cuantización. 11 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'From the report: Mel scale M(f) = 2595·log10(1 + f/700), a filter bank built as in its Python script, 0.97 pre-emphasis, 40 ms windows every 20 ms (49 frames in 1 s at 16 kHz) and a 10-coefficient DCT-II; each piece has its test (bank, DCT orthogonality, a 1 kHz tone lands in the right filter). Mine: the classifier is a 198-parameter softmax regression over 32 features (level, duration and the mean MFCC in three segments of the active region) trained on synthetic sounds (rising and falling sweep, double beep, alarm, noise burst, silence). With 120 new sounds at 20 dB it scores 100 %; at 5 dB, 100 %; at 0 dB, 77 %. It is NOT the report\'s DS-CNN with TensorFlow Lite for Microcontrollers, uses no WebAssembly and no human speech: with real words you would need a data set like Speech Commands, a convolutional network trained on it and quantization. 11 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '11' },
+      { label: { es: 'Exactitud con sonidos nuevos (20 dB)', en: 'Accuracy on new sounds (20 dB)' }, value: '100 %' },
+      { label: { es: 'Exactitud con 0 dB de relación señal/ruido', en: 'Accuracy at 0 dB SNR' }, value: '77 %' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Audio', en: 'Audio' }, sub: '16 kHz · 1 s' },
+        { label: 'MFCC', sub: '49 × 10' },
+        { label: { es: 'Características', en: 'Features' }, sub: { es: '32 por sonido', en: '32 per sound' } },
+        { label: { es: 'Clasificador', en: 'Classifier' }, sub: 'softmax · 6 clases' },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'ruido', en: 'noise' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'gemelo-digital-nodo-iot',
+    title: {
+      es: 'Gemelo digital de un nodo sensor IoT: actitud, temperatura y telemetría binaria',
+      en: 'Digital Twin of an IoT Sensor Node: Attitude, Temperature and Binary Telemetry',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'embedded',
+    year: 2026,
+    image: '/projects/gemelo-digital-nodo-iot.jpg',
+    demo: { src: '/demos/gemelo-digital-nodo-iot/index.html' },
+    resultBadge: {
+      es: 'Error de pitch de 0,8° (el acelerómetro solo, 2,9°) y mensajes 6 veces más cortos que JSON',
+      en: 'Pitch error of 0.8° (accelerometer alone, 2.9°) and messages 6 times shorter than JSON',
+    },
+    summary: {
+      es: 'Una placa con IMU se mueve y su gemelo estima la actitud (pitch y roll) con un filtro complementario y la temperatura con un modelo térmico RC. Cada muestra se codifica como un mensaje binario tipo Protocol Buffers de 21 bytes (JSON equivalente: 126). La placa se dibuja en isométrico en Canvas 2D.',
+      en: 'A board with an IMU moves and its twin estimates attitude (pitch and roll) with a complementary filter and temperature with an RC thermal model. Each sample is encoded as a 21-byte Protocol Buffers-style binary message (equivalent JSON: 126). The board is drawn isometrically on Canvas 2D.',
+    },
+    stack: [
+      { es: 'Filtro complementario', en: 'Complementary filter' },
+      'IMU',
+      'IoT',
+      'Protocol Buffers',
+      'JavaScript',
+      'node:test',
+    ],
+    challenge: {
+      es: 'El giroscopio deriva y el acelerómetro es ruidoso y se confunde con las vibraciones. Además, enviar telemetría a 50 Hz en texto desperdicia ancho de banda.',
+      en: 'The gyroscope drifts and the accelerometer is noisy and confused by vibration. Also, sending 50 Hz telemetry as text wastes bandwidth.',
+    },
+    impact: {
+      es: 'Muestra por qué se mezclan los dos sensores, cuánto cuesta el sesgo del giroscopio y cuánto ahorra una codificación binaria.',
+      en: 'It shows why the two sensors are blended, what the gyroscope bias costs and how much a binary encoding saves.',
+    },
+    solution: {
+      es: 'Filtro complementario θ = α(θ + ω·dt) + (1 − α)·θ_acel con α = 0,98 a 50 Hz (constante de tiempo de 0,98 s) y térmica T = T_amb + P·Rth·(1 − e^(−t/τ)) con Rth = 45,2 K/W, Cth = 0,12 J/K (τ = 5,42 s), como en el informe. Las pruebas verifican la constante de tiempo exacta, el error por sesgo b·τ, la reducción de ruido unas 10 veces, la solución térmica a 0,3 % y un codificador de varint y zigzag escrito a mano (150 → 0x96 0x01). Con los valores por defecto el error RMS de pitch es 0,83° con el complementario, 2,9° con el acelerómetro solo y 22° con el giroscopio solo. El mensaje de 21 bytes ocupa el 17 % del JSON y a 50 Hz ahorra unos 5 kB/s. No hay Three.js, modelos GLTF, broker WebSocket/MQTT ni hardware: la IMU es sintética y los niveles de ruido y el perfil de potencia son míos. 12 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Complementary filter θ = α(θ + ω·dt) + (1 − α)·θ_acc with α = 0.98 at 50 Hz (0.98 s time constant) and thermal T = T_amb + P·Rth·(1 − e^(−t/τ)) with Rth = 45.2 K/W, Cth = 0.12 J/K (τ = 5.42 s), as in the report. The tests verify the exact time constant, the bias error b·τ, the roughly 10x noise reduction, the thermal solution within 0.3 % and a hand-written varint and zigzag encoder (150 → 0x96 0x01). With the default values the RMS pitch error is 0.83° with the complementary filter, 2.9° with the accelerometer alone and 22° with the gyroscope alone. The 21-byte message is 17 % of the JSON and at 50 Hz saves about 5 kB/s. There is no Three.js, GLTF models, WebSocket/MQTT broker or hardware: the IMU is synthetic and the noise levels and power profile are mine. 12 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '12' },
+      { label: { es: 'Mensaje binario frente a JSON', en: 'Binary message versus JSON' }, value: '21 B / 126 B' },
+      {
+        label: { es: 'Error RMS del pitch (complementario / acelerómetro)', en: 'RMS pitch error (complementary / accelerometer)' },
+        value: '0,83° / 2,9°',
+      },
+    ],
+    diagram: {
+      nodes: [
+        { label: 'IMU', sub: { es: 'acelerómetro + giroscopio', en: 'accelerometer + gyroscope' } },
+        { label: { es: 'Filtro', en: 'Filter' }, sub: 'α = 0,98' },
+        { label: { es: 'Modelo térmico', en: 'Thermal model' }, sub: 'Rth · Cth' },
+        { label: { es: 'Telemetría', en: 'Telemetry' }, sub: { es: '21 bytes · 50 Hz', en: '21 bytes · 50 Hz' } },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'muestra', en: 'sample' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'scada-dos-estanques-isa182',
+    title: {
+      es: 'SCADA de dos estanques con control en cascada y alarmas ISA-18.2',
+      en: 'Two-Tank SCADA with Cascade Control and ISA-18.2 Alarms',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/scada-dos-estanques-isa182.jpg',
+    demo: { src: '/demos/scada-dos-estanques-isa182/index.html' },
+    resultBadge: {
+      es: 'Sin anti-windup el nivel rebasa el estanque (≥ 1,95 m); con él, 1,15 m',
+      en: 'Without anti-windup the level overflows the tank (≥ 1.95 m); with it, 1.15 m',
+    },
+    summary: {
+      es: 'Dos estanques en serie que se vacían por gravedad (ley de Torricelli) con un PI maestro de nivel que le pide flujo a un PI esclavo que mueve la válvula. Una HMI animada muestra el proceso, cuatro alarmas con retardo y banda muerta siguen los estados ISA-18.2, y hay un enclavamiento por nivel muy alto y escenarios de falla para probarlos.',
+      en: 'Two tanks in series draining by gravity (Torricelli\'s law) with a master level PI that requests flow from a slave PI moving the valve. An animated HMI shows the process, four alarms with delay and deadband follow the ISA-18.2 states, and there is a high-high level interlock and fault scenarios to test them.',
+    },
+    stack: ['SCADA', 'HMI', 'ISA-18.2', { es: 'Control en cascada', en: 'Cascade control' }, 'JavaScript', 'node:test'],
+    challenge: {
+      es: 'Un control en cascada sin protección contra el windup se descontrola cuando el actuador se satura, y una mala gestión de alarmas inunda al operador de avisos.',
+      en: 'A cascade controller without windup protection runs away when the actuator saturates, and poor alarm management floods the operator with notices.',
+    },
+    impact: {
+      es: 'Hace visible la diferencia entre una integral libre y una condicional, y cómo se comporta cada estado de una alarma ISA-18.2.',
+      en: 'It makes visible the difference between a free and a conditional integral, and how each ISA-18.2 alarm state behaves.',
+    },
+    solution: {
+      es: 'Ecuaciones de Torricelli, esquema maestro-esclavo y límites de alarma del informe (HH 1,85 m, H 1,60 m, flujo bajo 5 L/min, temperatura alta 65 °C). Las alarmas tienen retardo de activación y banda muerta y los estados activa-sin-reconocer, activa-reconocida y retorno-sin-reconocer; la de flujo bajo se suprime en manual, parada y los primeros 30 s. El código del informe dice «anti-windup» pero solo satura la salida: con la bomba al 30 % la integral del esclavo crece (hasta 37 762) y al restaurarla el nivel rebasa el estanque (≥ 1,95 m); con integración condicional el pico es de 1,15 m y vuelve a 1,0 m. Se verifica el régimen de Torricelli (h2 = 1,000 m con 30 L/min), la conservación del volumen a 0,2 %, el asentamiento del escalón, el arranque sin sobresalto con las integrales precargadas, el enclavamiento y el rearme. Áreas, orificios, válvula, constantes y ganancias de los PI son míos: el informe no los da. 15 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Torricelli equations, master-slave scheme and alarm limits from the report (HH 1.85 m, H 1.60 m, low flow 5 L/min, high temperature 65 °C). The alarms have an activation delay and a deadband and the active-unacknowledged, active-acknowledged and return-unacknowledged states; the low-flow one is suppressed in manual, stopped and the first 30 s. The report\'s code says «anti-windup» but only saturates the output: with the pump at 30 % the slave integral grows (up to 37,762) and when it is restored the level overflows the tank (≥ 1.95 m); with conditional integration the peak is 1.15 m and it returns to 1.0 m. Verified: the Torricelli steady state (h2 = 1.000 m at 30 L/min), volume conservation within 0.2 %, step settling, bumpless start with preloaded integrals, the interlock and its reset. Areas, orifices, valve, constants and PI gains are mine: the report does not give them. 15 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '15' },
+      { label: { es: 'Alarmas ISA-18.2', en: 'ISA-18.2 alarms' }, value: '4' },
+      {
+        label: {
+          es: 'Pico del nivel tras perder la bomba (con / sin anti-windup)',
+          en: 'Level peak after losing the pump (with / without anti-windup)',
+        },
+        value: '1,15 m / ≥ 1,95 m',
+      },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'PI maestro', en: 'Master PI' }, sub: { es: 'nivel → flujo', en: 'level → flow' } },
+        { label: { es: 'PI esclavo', en: 'Slave PI' }, sub: { es: 'flujo → válvula', en: 'flow → valve' } },
+        { label: { es: 'Estanques', en: 'Tanks' }, sub: 'Torricelli' },
+        { label: { es: 'Alarmas', en: 'Alarms' }, sub: 'ISA-18.2' },
+      ],
+      feedback: { from: 2, to: 0, label: { es: 'nivel', en: 'level' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'SVG', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'filtros-imagen-canny',
+    title: {
+      es: 'Filtros de imagen a mano: luminancia BT.709, Gauss, Sobel y detector de bordes Canny',
+      en: 'Hand-Written Image Filters: BT.709 Luma, Gauss, Sobel and Canny Edge Detector',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'vision',
+    year: 2026,
+    image: '/projects/filtros-imagen-canny.jpg',
+    demo: { src: '/demos/filtros-imagen-canny/index.html' },
+    resultBadge: {
+      es: 'Se corrigió un error del informe en la supresión de no-máximos de Canny',
+      en: 'A report error in Canny\'s non-maximum suppression was corrected',
+    },
+    summary: {
+      es: 'Cada etapa de un detector de bordes escrita sobre arreglos planos y sin librerías de visión: luminancia BT.709, suavizado gaussiano de 5 × 5, Sobel, supresión de no-máximos e histéresis de doble umbral. Funciona con una escena sintética o con una imagen que subes (se procesa en tu navegador) y mide cada etapa.',
+      en: 'Each stage of an edge detector written on flat arrays with no vision libraries: BT.709 luma, 5 × 5 Gaussian smoothing, Sobel, non-maximum suppression and double-threshold hysteresis. It works with a synthetic scene or an image you upload (processed in your browser) and times each stage.',
+    },
+    stack: ['Canny', 'Sobel', 'BT.709', { es: 'Visión por computador', en: 'Computer vision' }, 'JavaScript', 'node:test'],
+    challenge: {
+      es: 'Los detectores de bordes parecen simples hasta que se programan: el sentido del gradiente, la supresión de no-máximos y la histéresis esconden errores que no se ven a simple vista.',
+      en: 'Edge detectors look simple until you program them: gradient direction, non-maximum suppression and hysteresis hide errors that are not visible at a glance.',
+    },
+    impact: {
+      es: 'Dejó al descubierto que el código de supresión de no-máximos del informe tiene las dos diagonales intercambiadas para su propio operador de Sobel.',
+      en: 'It exposed that the report\'s non-maximum suppression code has the two diagonals swapped for its own Sobel operator.',
+    },
+    solution: {
+      es: 'Luminancia 0,2126 R + 0,7152 G + 0,0722 B; convolución con borde replicado; Sobel con la convención del informe (Gy positivo hacia abajo); Canny con histéresis conectada en 8 vecinos. Se verifica el Sobel con escalones y rampas (4·255 = 1020 en un escalón), la reducción de ruido del gaussiano a la suma de cuadrados del núcleo, la histéresis y que sobre un rectángulo todos los bordes caen a ≤ 2 px del contorno con ≥ 95 % de cobertura. La tabla de vecinos del informe corresponde a un eje y hacia arriba: con su Sobel un borde recto a 45° queda el doble de grueso (≈ 3,9 px por fila frente a ≈ 1,9) y en una escena con curvas el contorno se fragmenta (≈ 890 píxeles de borde frente a ≈ 1300 con la versión corregida). Rendimiento medido: 2 a 4 Mpíxel/s, unos 1 a 2 fps equivalentes en 1080p en el hilo principal de JavaScript (el informe plantea 60 fps, que esta versión no alcanza; sin Web Workers ni WebGL). Sin cámara web. 11 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Luma 0.2126 R + 0.7152 G + 0.0722 B; convolution with replicated border; Sobel with the report\'s convention (Gy positive downward); Canny with 8-neighbour connected hysteresis. Sobel is verified with steps and ramps (4·255 = 1020 on a step), the Gaussian\'s noise reduction to the sum of squares of the kernel, the hysteresis, and that on a rectangle all edges fall within ≤ 2 px of the outline with ≥ 95 % coverage. The report\'s neighbour table corresponds to a y-up axis: with its Sobel a straight 45° edge comes out twice as thick (≈ 3.9 px per row versus ≈ 1.9) and on a scene with curves the outline breaks up (≈ 890 edge pixels versus ≈ 1300 with the corrected version). Measured performance: 2 to 4 Mpixel/s, about 1 to 2 fps equivalent at 1080p on the JavaScript main thread (the report proposes 60 fps, which this version does not reach; no Web Workers or WebGL). No webcam. 11 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '11' },
+      { label: { es: 'Rendimiento en JavaScript', en: 'JavaScript throughput' }, value: '2–4 Mpíxel/s' },
+      { label: { es: 'Bordes con la supresión del informe', en: 'Edges with the report\'s suppression' }, value: '−31 %' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Imagen', en: 'Image' }, sub: { es: 'RGBA', en: 'RGBA' } },
+        { label: { es: 'Suavizado', en: 'Smoothing' }, sub: 'Gauss 5×5' },
+        { label: { es: 'Gradiente', en: 'Gradient' }, sub: 'Sobel · NMS' },
+        { label: { es: 'Bordes', en: 'Edges' }, sub: { es: 'histéresis', en: 'hysteresis' } },
+      ],
+      feedback: { from: 3, to: 1, label: { es: 'umbrales', en: 'thresholds' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'distorsion-lente-calibracion',
+    title: {
+      es: 'Calibración y corrección de distorsión de lente (modelo de Brown-Conrady)',
+      en: 'Lens Distortion Calibration and Correction (Brown-Conrady Model)',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'vision',
+    year: 2026,
+    image: '/projects/distorsion-lente-calibracion.jpg',
+    demo: { src: '/demos/distorsion-lente-calibracion/index.html' },
+    resultBadge: {
+      es: 'Error de reproyección de 0,04 px al calibrar con esquinas de 0,3 px de ruido',
+      en: 'Reprojection error of 0.04 px calibrating with corners at 0.3 px noise',
+    },
+    summary: {
+      es: 'Una lente barril o almohadilla curva las rectas. Se eligen los coeficientes radiales y tangenciales, se ve el tablero de ajedrez distorsionado y se corrige con una tabla de consulta inversa y remuestreo bilineal. También se calibra: se «detectan» las esquinas con ruido, se resuelven los coeficientes por mínimos cuadrados y se mide el error de reproyección.',
+      en: 'A barrel or pincushion lens bends straight lines. You choose the radial and tangential coefficients, see the distorted checkerboard and correct it with an inverse look-up table and bilinear resampling. It also calibrates: corners are «detected» with noise, the coefficients are solved by least squares and the reprojection error measured.',
+    },
+    stack: [
+      'Brown-Conrady',
+      { es: 'Calibración de cámara', en: 'Camera calibration' },
+      { es: 'Visión por computador', en: 'Computer vision' },
+      { es: 'Mínimos cuadrados', en: 'Least squares' },
+      'JavaScript',
+      'node:test',
+    ],
+    challenge: {
+      es: 'La distorsión no tiene inversa cerrada y los coeficientes k1 y k2 se confunden entre sí si el patrón de calibración no cubre todo el campo.',
+      en: 'Distortion has no closed-form inverse and the k1 and k2 coefficients get confused with each other if the calibration pattern does not cover the whole field.',
+    },
+    impact: {
+      es: 'Muestra cuánto cubre un buen patrón de calibración y la diferencia entre un error de reproyección pequeño y coeficientes bien determinados.',
+      en: 'It shows how much a good calibration pattern must cover and the difference between a small reprojection error and well-determined coefficients.',
+    },
+    solution: {
+      es: 'Modelo del informe (k1, k2, k3 radiales; p1, p2 tangenciales), verificado con un valor calculado a mano y con la simetría radial. La inversa se resuelve con Newton (error < 1e-10 en 500 puntos). La corrección usa el mapeo inverso del shader del informe: para cada píxel corregido se calcula su posición en la imagen distorsionada y se interpola bilinealmente, en JavaScript sin WebGL; de punta a punta el tablero corregido reproduce al ideal con un error medio < 12 niveles y las filas de esquinas vuelven a ser rectas (< 0,01 px). La calibración es lineal con la matriz intrínseca y el patrón conocidos y se resuelve con ecuaciones normales: con un tablero de 13 × 9 esquinas y 0,3 px de ruido el error de reproyección es de 0,04 px. Con 9 × 6 esquinas k2 tenía una desviación de ±0,14 y con 13 × 9 baja a ±0,02. No es una calibración de cámara completa (no estima fx, fy, cx, cy ni usa varias vistas) y las esquinas se generan con el modelo, no se detectan en una foto. 11 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Report model (k1, k2, k3 radial; p1, p2 tangential), verified with a hand-computed value and radial symmetry. The inverse is solved with Newton (error < 1e-10 over 500 points). Correction uses the report\'s shader inverse mapping: for each corrected pixel its position in the distorted image is computed and bilinearly interpolated, in JavaScript without WebGL; end to end the corrected checkerboard reproduces the ideal with a mean error < 12 levels and the corner rows become straight again (< 0.01 px). Calibration is linear with known intrinsics and pattern and is solved with normal equations: with a 13 × 9 corner board and 0.3 px noise the reprojection error is 0.04 px. With 9 × 6 corners k2 had a deviation of ±0.14 and with 13 × 9 it drops to ±0.02. It is not a full camera calibration (it does not estimate fx, fy, cx, cy or use several views) and the corners are generated from the model, not detected in a photo. 11 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '11' },
+      { label: { es: 'Error de reproyección (13 × 9, 0,3 px)', en: 'Reprojection error (13 × 9, 0.3 px)' }, value: '0,04 px' },
+      { label: { es: 'Desviación de k2: 9 × 6 → 13 × 9', en: 'k2 deviation: 9 × 6 → 13 × 9' }, value: '±0,14 → ±0,02' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Tablero', en: 'Checkerboard' }, sub: { es: 'esquinas ideales', en: 'ideal corners' } },
+        { label: { es: 'Lente', en: 'Lens' }, sub: 'k1 k2 k3 p1 p2' },
+        { label: { es: 'Calibración', en: 'Calibration' }, sub: { es: 'mínimos cuadrados', en: 'least squares' } },
+        { label: { es: 'Corrección', en: 'Correction' }, sub: { es: 'LUT + bilineal', en: 'LUT + bilinear' } },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'reproyección', en: 'reprojection' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'visor-gerber-pcb',
+    title: {
+      es: 'Visor de archivos Gerber (RS-274X) con capas apiladas y analizador editable',
+      en: 'Gerber (RS-274X) File Viewer with Stacked Layers and Editable Parser',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'embedded',
+    year: 2026,
+    image: '/projects/visor-gerber-pcb.jpg',
+    demo: { src: '/demos/visor-gerber-pcb/index.html' },
+    resultBadge: {
+      es: 'Analizador de RS-274X propio: 4 capas en 1,2 ms y sin el error de escala del informe',
+      en: 'Own RS-274X parser: 4 layers in 1.2 ms and without the report\'s scale error',
+    },
+    summary: {
+      es: 'Un analizador de archivos Gerber escrito desde cero (formato numérico, unidades, aperturas, trazos, destellos, regiones y arcos) que dibuja las cuatro capas de una placa de ejemplo de 50 × 35 mm en vista plana o apilada en 3D simplificado. El texto de cada capa es editable y la vista se actualiza al instante.',
+      en: 'A Gerber file parser written from scratch (number format, units, apertures, strokes, flashes, regions and arcs) that draws the four layers of a 50 × 35 mm example board in flat view or stacked in simplified 3D. The text of each layer is editable and the view updates instantly.',
+    },
+    stack: ['Gerber RS-274X', 'PCB', { es: 'Analizador léxico', en: 'Lexical parser' }, 'JavaScript', 'Canvas 2D', 'node:test'],
+    challenge: {
+      es: 'El formato Gerber tiene coordenadas modales, formatos numéricos declarados, regiones y arcos multicuadrante: un analizador ingenuo falla en cuanto el archivo no se parece al de los ejemplos.',
+      en: 'The Gerber format has modal coordinates, declared number formats, regions and multi-quadrant arcs: a naive parser fails as soon as the file does not look like the examples.',
+    },
+    impact: {
+      es: 'Sirve para inspeccionar cómo se compone una placa por capas y deja un analizador que lee el formato que declara cada archivo.',
+      en: 'It helps inspect how a board is composed in layers and leaves a parser that reads the format each file declares.',
+    },
+    solution: {
+      es: 'Analiza %FS (formato), %MO (unidades), aperturas circulares, rectangulares y oblongas, D01/D02/D03 con coordenadas modales, regiones G36/G37 y arcos G02/G03 en modo multicuadrante (un cuarto de círculo de radio 10 queda a 10 ± 1e-9 y mide 2π·10/4 a 0,1 %). Una placa de ejemplo generada por el propio código (cabecera de 2 × 6, pasivos, LED, orificios, relleno de cobre y contorno redondeado) se analiza y cada capa coincide con lo generado (pads, trazos, longitud, regiones, arcos). Los polígonos se triangulan por recorte de orejas (la suma de áreas coincide) y la vista apilada usa una proyección isométrica con separación de capas ajustable; la máscara se dibuja con las aberturas recortadas. El analizador del informe divide siempre por 10⁵ (formato 3.5) y exige X e Y en cada línea: con el formato 4.6 de esta placa sus coordenadas salen 10 veces demasiado grandes. No soporta polaridad clara, un cuadrante (G74), macros ni polígonos (se avisa). No usa Clipper2 ni extrusión 3D real. 14 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Parses %FS (format), %MO (units), circular, rectangular and obround apertures, D01/D02/D03 with modal coordinates, G36/G37 regions and G02/G03 arcs in multi-quadrant mode (a radius-10 quarter circle sits at 10 ± 1e-9 and measures 2π·10/4 within 0.1 %). An example board generated by the code itself (2 × 6 header, passives, LED, holes, copper pour and rounded outline) is parsed and each layer matches what was generated (pads, strokes, length, regions, arcs). Polygons are triangulated by ear clipping (the area sum matches) and the stacked view uses an isometric projection with adjustable layer separation; the mask is drawn with its openings cut out. The report\'s parser always divides by 10⁵ (3.5 format) and demands X and Y on every line: with this board\'s 4.6 format its coordinates come out 10 times too large. It does not support clear polarity, single-quadrant (G74), macros or polygons (a warning is shown). It does not use Clipper2 or real 3D extrusion. 14 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '14' },
+      { label: { es: 'Análisis de las 4 capas', en: 'Parsing the 4 layers' }, value: '1,2 ms' },
+      { label: { es: 'Error de escala del analizador del informe', en: 'Scale error of the report\'s parser' }, value: '10×' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Archivo Gerber', en: 'Gerber file' }, sub: 'RS-274X' },
+        { label: { es: 'Analizador', en: 'Parser' }, sub: { es: 'formato · modal', en: 'format · modal' } },
+        { label: { es: 'Polígonos', en: 'Polygons' }, sub: { es: 'triangulación', en: 'triangulation' } },
+        { label: { es: 'Vista', en: 'View' }, sub: { es: 'plana / apilada', en: 'flat / stacked' } },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'edición', en: 'editing' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'simulador-logica-digital',
+    title: {
+      es: 'Simulador de circuitos lógicos dirigido por eventos con setup, hold y diagramas de tiempos',
+      en: 'Event-Driven Logic Circuit Simulator with Setup, Hold and Timing Diagrams',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'embedded',
+    year: 2026,
+    image: '/projects/simulador-logica-digital.jpg',
+    demo: { src: '/demos/simulador-logica-digital/index.html' },
+    resultBadge: {
+      es: 'Camino crítico del contador de 7,5 ns: a 8 ns funciona y a 7 ns aparecen violaciones de tiempo',
+      en: 'Counter critical path of 7.5 ns: it works at 8 ns and timing violations appear at 7 ns',
+    },
+    summary: {
+      es: 'Un simulador de eventos discretos con lógica de cuatro valores (0, 1, X, Z), cola de prioridad, retardo de propagación inercial y flip-flops que comprueban setup y hold. Se ven en un diagrama de tiempos un contador de 3 bits, un sumador, un latch SR, un oscilador en anillo, una violación de setup/hold y una aleta.',
+      en: 'A discrete-event simulator with four-valued logic (0, 1, X, Z), a priority queue, inertial propagation delay and flip-flops that check setup and hold. A timing diagram shows a 3-bit counter, an adder, an SR latch, a ring oscillator, a setup/hold violation and a glitch.',
+    },
+    stack: [
+      { es: 'Simulación por eventos', en: 'Event-driven simulation' },
+      { es: 'Lógica de 4 valores', en: '4-valued logic' },
+      'Setup / hold',
+      'JavaScript',
+      'Canvas 2D',
+      'node:test',
+    ],
+    challenge: {
+      es: 'Los circuitos digitales reales fallan por tiempos: un pulso demasiado corto, un dato que cambia pegado al flanco, una realimentación que oscila. Un simulador solo vale si trata bien el tiempo y los estados desconocidos.',
+      en: 'Real digital circuits fail by timing: a pulse that is too short, data changing right at the clock edge, a feedback loop that oscillates. A simulator is only worth anything if it treats time and unknown states properly.',
+    },
+    impact: {
+      es: 'Hace visible el límite de frecuencia de un circuito sincrónico y por qué las aletas y las violaciones de tiempo producen X.',
+      en: 'It makes visible a synchronous circuit\'s frequency limit and why glitches and timing violations produce X.',
+    },
+    solution: {
+      es: 'Tiempo entero en unidades de 10 ps, montículo binario real con desempate por orden de inserción (5000 eventos aleatorios salen ordenados), tablas de verdad de cuatro valores, resolución de varios excitadores, buffers de tres estados y flip-flops con setup 1,5 ns y hold 0,8 ns (1,50 ns pasa y 1,49 falla). El retardo es inercial: un pulso de 1 ns se absorbe en una compuerta de 2 ns y uno de 3 ns pasa. Los eventos del mismo instante se procesan por tandas (primero se actualizan las redes y luego se evalúan las cargas), así un latch SR simétrico oscila al soltarse S y R a la vez, como en un simulador HDL. El contador de 3 bits cuenta bien a 8 ns (camino crítico = tcq 2 + AND 2 + XOR 2 + setup 1,5 = 7,5 ns) y a 7 ns aparecen violaciones de setup. El oscilador de 3 inversores de 2 ns mide 12,00 ns de periodo. El código del informe reordena todo el arreglo de eventos en cada inserción aunque habla de «min-heap»; aquí es un montículo real. El tcq del flip-flop y los circuitos son míos. 17 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Integer time in 10 ps units, a real binary heap with insertion-order tie-breaking (5000 random events come out sorted), four-valued truth tables, resolution of several drivers, tri-state buffers and flip-flops with 1.5 ns setup and 0.8 ns hold (1.50 ns passes and 1.49 fails). The delay is inertial: a 1 ns pulse is absorbed in a 2 ns gate and a 3 ns pulse passes. Events at the same instant are processed in batches (nets are updated first, then loads evaluated), so a symmetric SR latch oscillates when S and R are released together, as in an HDL simulator. The 3-bit counter counts correctly at 8 ns (critical path = tcq 2 + AND 2 + XOR 2 + setup 1.5 = 7.5 ns) and at 7 ns setup violations appear. The 3-inverter 2 ns ring oscillator measures a 12.00 ns period. The report\'s code re-sorts the whole event array on every insertion although it speaks of a «min-heap»; here it is a real heap. The flip-flop tcq and the circuits are mine. 17 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '17' },
+      { label: { es: 'Camino crítico del contador', en: 'Counter critical path' }, value: '7,5 ns' },
+      { label: { es: 'Resolución del tiempo', en: 'Time resolution' }, value: '10 ps' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Estímulos', en: 'Stimuli' }, sub: { es: 'reloj y datos', en: 'clock and data' } },
+        { label: { es: 'Cola de eventos', en: 'Event queue' }, sub: { es: 'montículo binario', en: 'binary heap' } },
+        { label: { es: 'Compuertas y flip-flops', en: 'Gates and flip-flops' }, sub: 'tpd · setup · hold' },
+        { label: { es: 'Diagrama de tiempos', en: 'Timing diagram' }, sub: '0 1 X Z' },
+      ],
+      feedback: { from: 2, to: 1, label: { es: 'nuevos eventos', en: 'new events' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'carta-smith-rf-adaptacion',
+    title: {
+      es: 'Carta de Smith, líneas de transmisión de RF, red de adaptación en L y microstrip',
+      en: 'Smith Chart, RF Transmission Lines, L-Match Network and Microstrip',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'instrumentation',
+    year: 2026,
+    image: '/projects/carta-smith-rf-adaptacion.jpg',
+    demo: { src: '/demos/carta-smith-rf-adaptacion/index.html' },
+    resultBadge: {
+      es: 'Red en L verificada con 300 cargas aleatorias y un error corregido en la tabla del informe',
+      en: 'L-match verified on 300 random loads and one error corrected in the report\'s table',
+    },
+    summary: {
+      es: 'Se coloca una carga en la carta de Smith y se ve su coeficiente de reflexión, ROE y pérdida de retorno; al alargar la línea el punto gira por el círculo de ROE constante. Calcula la red de adaptación en L con sus dos soluciones y sintetiza una línea microstrip de la impedancia que se pida (Hammerstad-Jensen).',
+      en: 'A load is placed on the Smith chart and its reflection coefficient, VSWR and return loss are shown; lengthening the line rotates the point around the constant-VSWR circle. It computes the L-match network with both solutions and synthesizes a microstrip line of any requested impedance (Hammerstad-Jensen).',
+    },
+    stack: [
+      { es: 'Carta de Smith', en: 'Smith chart' },
+      'RF',
+      'Microstrip',
+      { es: 'Adaptación de impedancias', en: 'Impedance matching' },
+      'JavaScript',
+      'node:test',
+    ],
+    challenge: {
+      es: 'Adaptar una carga exige pasar de impedancias a admitancias y elegir entre dos soluciones; un error de signo da una red que no adapta. Y las fórmulas de microstrip son aproximaciones que hay que contrastar.',
+      en: 'Matching a load requires going from impedances to admittances and choosing between two solutions; a sign error yields a network that does not match. And the microstrip formulas are approximations that must be checked.',
+    },
+    impact: {
+      es: 'Una calculadora de RF que verifica por separado lo que diseña, y que dejó en evidencia un error numérico del documento de origen.',
+      en: 'An RF calculator that verifies what it designs separately, and that exposed a numeric error in the source document.',
+    },
+    solution: {
+      es: 'Γ = (ZL − Z0)/(ZL + Z0), ROE y pérdida de retorno como en el informe, transformación a lo largo de una línea sin pérdidas (λ/4 invierte, λ/2 repite, la carga adaptada no cambia) y círculos de resistencia y reactancia comprobados con puntos conocidos. La tabla del informe tiene un error en la fila 25 + j25 Ω: dice 126,8° y 6,93 dB y los valores correctos son 116,6° y 6,99 dB (Γ = (−25 + j25)/(75 + j25)); las otras tres filas coinciden. La red en L se diseña con admitancias y se verifica con un cálculo circuital independiente: con 300 cargas complejas aleatorias las dos soluciones dan una impedancia de entrada igual a Rs con error < 1e-6 Ω; a 100 MHz, 100 Ω → 50 Ω da 79,6 nH y 15,9 pF. El microstrip sintetiza W/h y calcula Z0 con ambas ramas de Hammerstad (50 Ω sobre FR4 de 1,6 mm y εr = 4,4: W = 3,06 mm, εeff = 3,33; síntesis y análisis coinciden a menos de 1,5 %). Sin pérdidas, espesor de cobre ni dispersión; sin zoom ni d3. 12 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Γ = (ZL − Z0)/(ZL + Z0), VSWR and return loss as in the report, transformation along a lossless line (λ/4 inverts, λ/2 repeats, a matched load does not change) and resistance and reactance circles checked against known points. The report\'s table has an error in the 25 + j25 Ω row: it says 126.8° and 6.93 dB and the correct values are 116.6° and 6.99 dB (Γ = (−25 + j25)/(75 + j25)); the other three rows match. The L-match is designed with admittances and verified with an independent circuit calculation: with 300 random complex loads both solutions give an input impedance equal to Rs with error < 1e-6 Ω; at 100 MHz, 100 Ω → 50 Ω gives 79.6 nH and 15.9 pF. The microstrip synthesizes W/h and computes Z0 with both Hammerstad branches (50 Ω on 1.6 mm FR4 with εr = 4.4: W = 3.06 mm, εeff = 3.33; synthesis and analysis agree within 1.5 %). No losses, copper thickness or dispersion; no zoom or d3. 12 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '12' },
+      { label: { es: 'Cargas con red en L verificada', en: 'Loads with a verified L-match' }, value: '300' },
+      { label: { es: 'Ancho de 50 Ω sobre FR4 de 1,6 mm', en: '50 Ω width on 1.6 mm FR4' }, value: '3,06 mm' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Carga', en: 'Load' }, sub: 'ZL = R + jX' },
+        { label: { es: 'Coeficiente de reflexión', en: 'Reflection coefficient' }, sub: 'Γ · ROE · RL' },
+        { label: { es: 'Línea', en: 'Line' }, sub: { es: 'giro por la carta', en: 'rotation on the chart' } },
+        { label: { es: 'Adaptación', en: 'Matching' }, sub: { es: 'red en L · microstrip', en: 'L-match · microstrip' } },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'Z de entrada = Z0', en: 'input Z = Z0' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
+  },
+  {
+    slug: 'planificador-rutas-autonomas',
+    title: {
+      es: 'Planificador de rutas para un vehículo autónomo: A*, RRT y Pure Pursuit',
+      en: 'Autonomous Vehicle Path Planner: A*, RRT and Pure Pursuit',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/planificador-rutas-autonomas.jpg',
+    demo: { src: '/demos/planificador-rutas-autonomas/index.html' },
+    resultBadge: {
+      es: 'A* igual de óptimo que Dijkstra en 120 mapas y 0 colisiones siguiendo la ruta',
+      en: 'A* as optimal as Dijkstra on 120 maps and 0 collisions following the route',
+    },
+    summary: {
+      es: 'Un vehículo tipo Ackermann (distancia entre ejes 2,5 m, dirección máxima 35°) va de un punto a otro de un mapa de 60 × 40 m. Se planifica con A* o RRT, se acorta la ruta por línea de vista y el vehículo la sigue con Pure Pursuit. Con un clic se mueve la meta y con Mayús + clic se pone un obstáculo: replanifica desde donde está.',
+      en: 'An Ackermann-type vehicle (2.5 m wheelbase, 35° maximum steering) goes from one point to another on a 60 × 40 m map. It is planned with A* or RRT, the route is shortened by line of sight and the vehicle follows it with Pure Pursuit. A click moves the goal and Shift + click places an obstacle: it replans from where it is.',
+    },
+    stack: ['A*', 'RRT', 'Pure Pursuit', 'Ackermann', { es: 'Robótica móvil', en: 'Mobile robotics' }, 'JavaScript', 'node:test'],
+    challenge: {
+      es: 'Un camino óptimo en una grilla no es un camino que un auto pueda seguir: tiene esquinas y no respeta el radio de giro. Y seguirlo con Pure Pursuit recorta esas esquinas y puede rozar obstáculos.',
+      en: 'An optimal path on a grid is not a path a car can follow: it has corners and does not respect the turning radius. And following it with Pure Pursuit cuts those corners and may graze obstacles.',
+    },
+    impact: {
+      es: 'Muestra la cadena completa de planificación y seguimiento y por qué hace falta un margen de seguridad, con números medidos.',
+      en: 'It shows the full planning and tracking chain and why a safety margin is needed, with measured numbers.',
+    },
+    solution: {
+      es: 'Mapa de ocupación de celdas de 0,2 m (300 × 200), obstáculos inflados, A* de 8 vecinos con heurística octil sin cortar esquinas (mismo costo que Dijkstra en 120 mapas aleatorios; 10 585 expansiones y unos 40 ms en el escenario), RRT con semilla fija, atajos por línea de vista y remuestreo. El vehículo usa la solución exacta del modelo de bicicleta (con δ constante cierra un círculo de radio L/tan δ) y Pure Pursuit con δ = atan2(2·L·sin α, Ld), Ld entre 3 y 8 m. Con los obstáculos inflados solo por el radio del vehículo (1,0 m) el vehículo recorta esquinas (error transversal de ≈ 1,1 a 1,5 m) y roza los obstáculos; con un margen de 1,2 m llega a la meta con 0 colisiones, también tras replanificar con un obstáculo nuevo. El camino de la grilla no respeta el radio mínimo de giro de 3,57 m: Pure Pursuit lo suaviza, no lo garantiza. RRT no es óptimo. «Evitación dinámica» es replanificación completa. El mapa, la velocidad y el Ld en función de la velocidad son míos. 17 pruebas. Simulado: sin hardware ni prototipo.',
+      en: 'Occupancy map of 0.2 m cells (300 × 200), inflated obstacles, 8-neighbour A* with an octile heuristic and no corner cutting (same cost as Dijkstra on 120 random maps; 10,585 expansions and about 40 ms in the scenario), RRT with a fixed seed, line-of-sight shortcuts and resampling. The vehicle uses the exact bicycle-model solution (with constant δ it closes a circle of radius L/tan δ) and Pure Pursuit with δ = atan2(2·L·sin α, Ld), Ld between 3 and 8 m. With obstacles inflated only by the vehicle radius (1.0 m) the vehicle cuts corners (cross-track error of ≈ 1.1 to 1.5 m) and grazes obstacles; with a 1.2 m margin it reaches the goal with 0 collisions, also after replanning with a new obstacle. The grid path does not respect the 3.57 m minimum turning radius: Pure Pursuit smooths it, it does not guarantee it. RRT is not optimal. «Dynamic avoidance» is full replanning. The map, the speed and Ld as a function of speed are mine. 17 tests. Simulated: no hardware or prototype.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '17' },
+      { label: { es: 'Mapas con A* igual de óptimo que Dijkstra', en: 'Maps where A* matches Dijkstra' }, value: '120' },
+      { label: { es: 'Colisiones con 1,2 m de margen', en: 'Collisions with a 1.2 m margin' }, value: '0' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Mapa', en: 'Map' }, sub: { es: 'celdas de 0,2 m', en: '0.2 m cells' } },
+        { label: { es: 'Planificador', en: 'Planner' }, sub: 'A* / RRT' },
+        { label: 'Pure Pursuit', sub: 'Ld 3–8 m' },
+        { label: { es: 'Vehículo', en: 'Vehicle' }, sub: 'Ackermann · 35°' },
+      ],
+      feedback: { from: 3, to: 1, label: { es: 'replanificar', en: 'replan' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test'] },
   },
 ]

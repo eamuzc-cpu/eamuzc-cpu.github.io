@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convertidor DC-DC buck / boost con osciloscopio — simulador interactivo</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.nav button { white-space: nowrap; display: flex; gap: 6px; align-items: baseline; } .nav button b { font: 600 10px var(--mono); color: var(--mut); } .nav button.on b { color: var(--cyan); }
+.sim { display: none; padding: 12px 16px; } .sim.on { display: block; }
+.cab h2 { margin: 0 0 4px; font: 600 17px var(--font); letter-spacing: .1px; text-transform: none; color: var(--txt); } .cab p { margin: 0 0 8px; color: #cbd5e1; font-size: 13px; line-height: 1.5; max-width: 980px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; } .g21 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 12px; } .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; } .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 19px var(--mono); margin-top: 2px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.ok3 { border-color: rgba(52, 211, 153, .6); } .card.ok3 b { color: var(--green); } .card.w3 { border-color: rgba(245, 158, 11, .6); } .card.w3 b { color: var(--amber); } .card.b3 { border-color: var(--red); } .card.b3 b { color: var(--red); }
+canvas { height: 220px; } canvas.alto { height: 320px; } canvas.medio { height: 260px; } canvas.bajo { height: 130px; } canvas.cuad { height: auto; aspect-ratio: 1 / 1; }
+.ctl { display: grid; grid-template-columns: 112px 1fr 74px; gap: 6px 10px; align-items: center; margin-bottom: 3px; font: 12px var(--mono); } .ctl label { color: var(--mut); } .ctl output { color: var(--cyan); text-align: right; }
+.row { margin-bottom: 8px; } .row select, .row input[type=number] { max-width: 100%; }
+.panel p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; } .panel ul { margin: 4px 0 6px 16px; padding: 0; font-size: 12.5px; line-height: 1.5; }
+details.notas { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); margin-top: 4px; } details.notas summary { cursor: pointer; font: 600 11px var(--mono); letter-spacing: .6px; text-transform: uppercase; color: var(--mut); } details.notas[open] summary { color: var(--cyan); margin-bottom: 6px; } details.notas li { margin: 4px 0; font-size: 12.5px; color: #cbd5e1; }
+.etq { font: 600 10px var(--mono); padding: 2px 7px; border-radius: 999px; border: 1px solid; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; } .etq.ok { color: var(--green); border-color: rgba(52, 211, 153, .6); } .etq.av { color: var(--amber); border-color: rgba(245, 158, 11, .6); } .etq.bad { color: var(--red); border-color: rgba(248, 113, 113, .6); }
+textarea { width: 100%; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px/1.4 var(--mono); }
+pre.salida { margin: 0; background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 11.5px/1.45 var(--mono); color: #cbd5e1; overflow: auto; max-height: 260px; }
+table.cmp td, table.cmp th { padding: 3px 7px; white-space: nowrap; } td.n, th.n { text-align: right; }
+.celdas { display: flex; gap: 3px; flex-wrap: wrap; } .celdas i { font: 10px var(--mono); font-style: normal; width: 34px; text-align: center; padding: 3px 0; border-radius: 4px; background: #14301f; color: var(--green); } .celdas i.no { background: #3a1a1f; color: var(--red); }
+.barra { height: 14px; background: #0b1730; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); } .barra i { display: block; height: 100%; background: var(--cyan); }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font: 11px var(--mono); color: var(--mut); margin-top: 4px; } .leyenda i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+svg text { font: 11px ui-monospace, Consolas, monospace; fill: #cbd5e1; }
+@media (max-width: 1000px) { .g2, .g21, .g3, .g4 { grid-template-columns: 1fr; } .sim { padding: 10px 10px; } .nav { padding: 6px 10px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Convertidor DC-DC buck / boost con osciloscopio</h1><span class="badge">de la especificación al código</span><span class="badge warn">todo simulado · sin hardware</span><span class="sp"></span>
+</div>
+<nav class="nav" id="nav"></nav>
+<main id="lab"></main>
+<div class="note">Simulador 4 de 14 del laboratorio de ingeniería: parte de un documento de especificación (ecuaciones, parámetros y fragmentos de código) y está escrito en JavaScript puro, sin librerías, con pruebas automáticas. Cuando algo no coincide con el informe se dice en «Notas sobre el informe y límites». Es un modelo de práctica: no reemplaza instrumentos ni hardware.</div>
+
+<script>
+/* ---- cores/dcdc.js ---- */
+;// Convertidor DC-DC buck / boost de lazo abierto con parásitos (DCR, RDS(on), ESR, caída del diodo), modos de conducción continua (CCM) y discontinua (DCM).
+// Integración RK4 con 200 puntos por periodo (las fases ON y OFF se subdividen por separado, así el ciclo D es exacto). Contabiliza las pérdidas para comprobar el
+// balance de energía. Ecuaciones del informe para el buck: ON  L·diL/dt = Vin − iL·(RDS+DCR) − vout ;  OFF  L·diL/dt = −Vf − iL·DCR − vout (si iL > 0, si no DCM).
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LabDCDC = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const PARAMS = { topologia: 'buck', Vin: 12, D: 0.5, R: 5, L: 100e-6, DCR: 45e-3, C: 220e-6, ESR: 15e-3, fsw: 100e3, RDSon: 25e-3, Vf: 0.5 }
+
+  // tensión de salida y corriente del condensador según el estado del interruptor y de la corriente del inductor
+  function salida(p, iL, vC, on) {
+    const k = 1 + p.ESR / p.R
+    if (p.topologia === 'buck') { const vout = (vC + p.ESR * iL) / k; return { vout, iC: iL - vout / p.R } }
+    if (on || iL <= 0) { const vout = vC / k; return { vout, iC: -vout / p.R } } // boost con el diodo apagado
+    const vout = (vC + p.ESR * iL) / k; return { vout, iC: iL - vout / p.R }
+  }
+  function deriv(p, iL, vC, on) {
+    const { vout, iC } = salida(p, iL, vC, on); let d
+    if (p.topologia === 'buck') d = on ? (p.Vin - iL * (p.RDSon + p.DCR) - vout) / p.L : iL > 0 ? (-p.Vf - iL * p.DCR - vout) / p.L : 0
+    else d = on ? (p.Vin - iL * (p.RDSon + p.DCR)) / p.L : iL > 0 ? (p.Vin - iL * p.DCR - p.Vf - vout) / p.L : 0
+    return [d, iC / p.C]
+  }
+  function rk4(p, iL, vC, on, dt) {
+    const a = deriv(p, iL, vC, on), b = deriv(p, iL + 0.5 * dt * a[0], vC + 0.5 * dt * a[1], on), c = deriv(p, iL + 0.5 * dt * b[0], vC + 0.5 * dt * b[1], on), d = deriv(p, iL + dt * c[0], vC + dt * c[1], on)
+    let i = iL + (dt / 6) * (a[0] + 2 * b[0] + 2 * c[0] + d[0]), v = vC + (dt / 6) * (a[1] + 2 * b[1] + 2 * c[1] + d[1])
+    if (!on && i < 0) i = 0 // el diodo bloquea: modo discontinuo
+    return [i, v]
+  }
+
+  // Simula `periodos` periodos de conmutación. Devuelve las formas de onda de los últimos `mostrar` periodos y las magnitudes del último periodo.
+  function simular(cfg, { periodos = 300, mostrar = 5, puntos = 200, estado0 = null } = {}) {
+    const p = { ...PARAMS, ...cfg }, T = 1 / p.fsw, D = Math.min(0.999, Math.max(0.001, p.D))
+    const nOn = Math.max(1, Math.round(D * puntos)), nOff = Math.max(1, puntos - nOn), dtOn = (D * T) / nOn, dtOff = ((1 - D) * T) / nOff
+    let iL = estado0 ? estado0[0] : 0, vC = estado0 ? estado0[1] : 0
+    const tray = { t: [], iLt: [], vt: [], vswt: [] }, medias = [], t0 = periodos - mostrar // formas de onda: iLt, vt, vswt (los escalares del último periodo van aparte)
+    let ultimo = null
+    for (let k = 0; k < periodos; k++) {
+      const grab = k >= t0
+      let sumV = 0, sumI = 0, minI = Infinity, maxI = -Infinity, minV = Infinity, maxV = -Infinity, eIn = 0, eOut = 0, pDcr = 0, pRds = 0, pVf = 0, pEsr = 0, tocoCero = false, t = k * T
+      for (const [on, n, dt] of [[true, nOn, dtOn], [false, nOff, dtOff]]) {
+        for (let s = 0; s < n; s++) {
+          const o = salida(p, iL, vC, on), vsw = p.topologia === 'buck' ? (on ? p.Vin - iL * p.RDSon : iL > 0 ? -p.Vf : o.vout) : on ? iL * p.RDSon : iL > 0 ? o.vout + p.Vf : p.Vin
+          if (grab) { tray.t.push(t); tray.iLt.push(iL); tray.vt.push(o.vout); tray.vswt.push(vsw) }
+          const [iL1, vC1] = rk4(p, iL, vC, on, dt), o1 = salida(p, iL1, vC1, on)
+          sumV += 0.5 * (o.vout + o1.vout) * dt; sumI += 0.5 * (iL + iL1) * dt; if (iL < minI) minI = iL; if (iL > maxI) maxI = iL; if (o.vout < minV) minV = o.vout; if (o.vout > maxV) maxV = o.vout
+          // energías del paso con la regla del trapecio (la corriente del inductor sube en rampas: el rectángulo subestima la entrada en DCM)
+          const iM = 0.5 * (iL + iL1), i2 = 0.5 * (iL * iL + iL1 * iL1)
+          eIn += p.topologia === 'buck' ? (on ? p.Vin * iM * dt : 0) : p.Vin * iM * dt; eOut += (0.5 * (o.vout * o.vout + o1.vout * o1.vout) / p.R) * dt
+          pDcr += i2 * p.DCR * dt; if (on) pRds += i2 * p.RDSon * dt; if (!on && (iL > 0 || iL1 > 0)) pVf += p.Vf * iM * dt; pEsr += 0.5 * (o.iC * o.iC + o1.iC * o1.iC) * p.ESR * dt
+          iL = iL1; vC = vC1; t += dt; if (!on && iL <= 0) tocoCero = true
+        }
+      }
+      ultimo = { vout: sumV / T, iLmedia: sumI / T, iLmin: minI, iLmax: maxI, rizadoI: maxI - minI, rizadoV: maxV - minV, Pin: eIn / T, Pout: eOut / T, Pdcr: pDcr / T, Prds: pRds / T, Pvf: pVf / T, Pesr: pEsr / T, dcm: tocoCero }
+      medias.push(ultimo.vout)
+    }
+    const Ppar = ultimo.Pdcr + ultimo.Prds + ultimo.Pvf + ultimo.Pesr
+    return { ...tray, ...ultimo, modo: ultimo.dcm ? 'DCM' : 'CCM', eficiencia: ultimo.Pin > 0 ? ultimo.Pout / ultimo.Pin : 0, Ppar, medias, estado: [iL, vC], p, D: (nOn * dtOn) / T }
+  }
+  // Simula en bloques de 50 periodos hasta que las 8 últimas medias de bloque (≥ 4 oscilaciones LC) varíen menos de 0,03 % o se agoten los periodos.
+  // (Comparar solo dos bloques consecutivos engaña: la resonancia LC cae cerca de un múltiplo del bloque y la oscilación parece estacionaria.)
+  function hastaRegimen(cfg, { max = 12000, mostrar = 5, estado0 = null } = {}) {
+    let est = estado0, total = 0, r; const bloques = []
+    while (total < max) {
+      r = simular(cfg, { periodos: 50, mostrar, estado0: est }); est = r.estado; total += 50; bloques.push(r.vout)
+      if (bloques.length >= 8) { const v = bloques.slice(-8), mx = Math.max(...v), mn = Math.min(...v); if (mx - mn < 3e-4 * Math.max(1e-3, Math.abs(r.vout))) break }
+    }
+    return { ...r, periodosSimulados: total }
+  }
+
+  // ---- fórmulas ideales para comparar --------------------------------------------------------------------------------------------------
+  function teorico(cfg) {
+    const p = { ...PARAMS, ...cfg }, T = 1 / p.fsw, D = p.D, K = (2 * p.L) / (p.R * T)
+    const Lcrit = p.topologia === 'buck' ? ((1 - D) * p.R * T) / 2 : (D * (1 - D) ** 2 * p.R * T) / 2
+    const ccm = p.L >= Lcrit
+    let vout
+    if (p.topologia === 'buck') vout = ccm ? D * p.Vin : (2 * p.Vin) / (1 + Math.sqrt(1 + (4 * K) / (D * D)))
+    else vout = ccm ? p.Vin / (1 - D) : (p.Vin * (1 + Math.sqrt(1 + (4 * D * D) / K))) / 2
+    const rizadoI = p.topologia === 'buck' ? ((p.Vin - vout) * D * T) / p.L : (p.Vin * D * T) / p.L
+    return { vout, ccm, Lcrit, rizadoI, rizadoVcap: rizadoI / (8 * p.C * p.fsw) }
+  }
+
+  return { PARAMS, simular, hastaRegimen, teorico }
+})
+
+</script>
+<script>
+/* ---- ui/comun.js ---- */
+;'use strict'
+// Utilidades compartidas de la interfaz: formato, dibujo en canvas (ejes, trazos con envolvente, mapas de calor), controles deslizantes, tarjetas,
+// registro de simuladores y navegación por pestañas con enlace directo (#id). Cada simulador se monta la primera vez que se abre y luego se
+// activa/desactiva; si define `tick(dt)` se anima solo mientras está visible.
+const LAB = (() => {
+  const f = (n, d = 1) => (Number.isFinite(n) ? Number(n).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d }) : n === Infinity ? '∞' : n === -Infinity ? '−∞' : '—')
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const $ = (s, r = document) => r.querySelector(s)
+  const mx = (a, i0 = 0, i1 = a.length) => { let m = -Infinity; for (let i = i0; i < i1; i++) if (a[i] > m) m = a[i]; return m }
+  const mn = (a, i0 = 0, i1 = a.length) => { let m = Infinity; for (let i = i0; i < i1; i++) if (a[i] < m) m = a[i]; return m }
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x))
+  const debounce = (fn, ms = 120) => { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms) } }
+
+  // ---- dibujo ----------------------------------------------------------------------------------------------------------------------------------------------------
+  function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+  function trazo(c, X, Y, xs, ys, i0, i1, color, ancho = 1.5, dash = []) {
+    c.strokeStyle = color; c.lineWidth = ancho; c.setLineDash(dash); c.beginPath(); const n = i1 - i0; if (n < 2) { c.setLineDash([]); return }
+    const px = Math.abs(X(xs[i1 - 1]) - X(xs[i0]))
+    if (n > 3 * px) { // muchas más muestras que píxeles: mínimo y máximo por columna
+      let col = null, lo = 0, hi = 0, ini = true; const cierra = () => { const x = col + 0.5; if (ini) { c.moveTo(x, Y(lo)); ini = false } else c.lineTo(x, Y(lo)); c.lineTo(x, Y(hi)) }
+      for (let i = i0; i < i1; i++) { const p = Math.round(X(xs[i])); if (p !== col) { if (col !== null) cierra(); col = p; lo = hi = ys[i] } else { if (ys[i] < lo) lo = ys[i]; if (ys[i] > hi) hi = ys[i] } } cierra()
+    } else { let abierto = false; for (let i = i0; i < i1; i++) { if (!Number.isFinite(ys[i])) { abierto = false; continue } if (!abierto) { c.moveTo(X(xs[i]), Y(ys[i])); abierto = true } else c.lineTo(X(xs[i]), Y(ys[i])) } }
+    c.stroke(); c.setLineDash([])
+  }
+  // o: { x0, x1, y0, y1, ystep, xlog, xticks, xfmt, yfmt, xlab, sinX, L, series:[{xs,ys,i0,i1,color,w,dash}], hl:[{y,color,label,dash}], vl:[{x,color,label}] }
+  function grafica(cv, o) {
+    const { c, w, h } = prep(cv), L = o.L ?? 48, R = 10, T = 8, B = o.sinX ? 6 : 20, lx0 = o.xlog ? Math.log10(o.x0) : o.x0, lx1 = o.xlog ? Math.log10(o.x1) : o.x1
+    const X = (x) => L + (((o.xlog ? Math.log10(x) : x) - lx0) / (lx1 - lx0)) * (w - L - R), Y = (y) => T + (1 - (y - o.y0) / (o.y1 - o.y0)) * (h - T - B)
+    c.lineWidth = 1; c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+    for (let v = o.y0; v <= o.y1 + 1e-9; v += o.ystep) { const y = Y(v); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText((o.yfmt ?? ((q) => f(q, 0)))(v), L - 4, y + 3) }
+    if (!o.sinX) {
+      c.textAlign = 'center'; const xt = o.xlog ? [0.01, 0.1, 1, 10, 100, 1e3, 1e4, 1e5, 1e6].filter((v) => v >= o.x0 * 0.999 && v <= o.x1 * 1.001) : o.xticks ?? []
+      for (const v of xt) { const x = X(v); if (o.xlab && x > w - R - 34) continue; c.strokeStyle = '#0f1a2e'; c.beginPath(); c.moveTo(x, T); c.lineTo(x, h - B); c.stroke(); c.fillStyle = '#64748b'; c.fillText(o.xlog ? (v >= 1e3 ? v / 1e3 + 'k' : v < 1 ? String(v).replace('.', ',') : v) : (o.xfmt ?? ((q) => f(q, 0)))(v), x, h - 5) }
+      if (o.xlab) { c.textAlign = 'right'; c.fillText(o.xlab, w - R, h - 5) }
+    }
+    c.save(); c.beginPath(); c.rect(L, T, w - L - R, h - T - B); c.clip()
+    for (const l of o.hl ?? []) { c.strokeStyle = l.color; c.setLineDash(l.dash === false ? [] : [5, 4]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(L, Y(l.y)); c.lineTo(w - R, Y(l.y)); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, L + 4, Y(l.y) - 3) } }
+    for (const l of o.vl ?? []) { c.strokeStyle = l.color; c.setLineDash([4, 3]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(X(l.x), T); c.lineTo(X(l.x), h - B); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, X(l.x) + 3, T + 10) } }
+    for (const s of o.series ?? []) trazo(c, X, Y, s.xs, s.ys, s.i0 ?? 0, s.i1 ?? s.xs.length, s.color, s.w, s.dash)
+    c.restore(); return { c, X, Y, w, h, L, R, T, B }
+  }
+  // matriz (filas × columnas) a color: M[fila][col] en 0..1 → mapa(v) = [r, g, b]. La fila 0 se dibuja ARRIBA salvo que `invertir` sea true.
+  // L y B son márgenes (px) a la izquierda y abajo para dibujar los ejes encima; devuelve el contexto y la zona de la imagen { x0, y0, ancho, alto }
+  function mapaCalor(cv, M, mapa, { invertir = false, L = 0, B = 0, T = 0 } = {}) {
+    const { c, w, h } = prep(cv), nf = M.length, nc = M[0].length, off = document.createElement('canvas'); off.width = nc; off.height = nf
+    const octx = off.getContext('2d'), img = octx.createImageData(nc, nf)
+    for (let j = 0; j < nf; j++) for (let i = 0; i < nc; i++) { const col = mapa(M[invertir ? nf - 1 - j : j][i]), k = 4 * (j * nc + i); img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = 255 }
+    octx.putImageData(img, 0, 0); c.imageSmoothingEnabled = false; c.drawImage(off, L, T, w - L, h - B - T); return { c, w, h, x0: L, y0: T, ancho: w - L, alto: h - B - T }
+  }
+  // marcas «bonitas» (1, 2, 5 × 10ⁿ) entre a y b, aproximadamente n
+  function ticks(a, b, n = 5) { const r = b - a, p = 10 ** Math.floor(Math.log10(r / n)), m = [1, 2, 5, 10].find((k) => (k * p * n) >= r) * p, out = []; for (let v = Math.ceil(a / m - 1e-9) * m; v <= b + 1e-9; v += m) out.push(+v.toFixed(10)); return out }
+  function dibujaImagen(cv, data, w, h) { // RGBA (Uint8ClampedArray) a un canvas del tamaño de la imagen, escalado por CSS
+    cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0); return c
+  }
+
+  // ---- controles ---------------------------------------------------------------------------------------------------------------------------------------------------
+  // defs: [{ id, label, min, max, step, valor, fmt, log }]; devuelve { v: {id: valor}, set(id, valor, silencio) }
+  function controles(root, defs, onChange) {
+    const v = {}, outs = {}, ins = {}
+    root.innerHTML = defs.map((d) => `<div class="ctl"><label for="${d.uid ?? 'c_' + d.id}">${d.label}</label><input id="${d.uid ?? 'c_' + d.id}" type="range" min="${d.log ? Math.log10(d.min) : d.min}" max="${d.log ? Math.log10(d.max) : d.max}" step="${d.log ? 0.01 : d.step}" value="${d.log ? Math.log10(d.valor) : d.valor}"><output></output></div>`).join('')
+    const filas = root.querySelectorAll('.ctl')
+    defs.forEach((d, i) => {
+      // en la escala logarítmica se redondea a 3 cifras: evita «219» donde se pidió 220
+      const inp = filas[i].querySelector('input'), out = filas[i].querySelector('output'), leer = () => (d.log ? +(10 ** +inp.value).toPrecision(3) : +inp.value), pinta = () => { v[d.id] = leer(); out.textContent = (d.fmt ?? ((x) => f(x, 2)))(v[d.id]) }
+      outs[d.id] = out; ins[d.id] = inp; pinta(); inp.addEventListener('input', () => { pinta(); onChange?.(d.id, v) })
+    })
+    return { v, set(id, val, silencio = false) { const d = defs.find((q) => q.id === id); ins[id].value = d.log ? Math.log10(val) : val; v[id] = val; outs[id].textContent = (d.fmt ?? ((x) => f(x, 2)))(val); if (!silencio) onChange?.(id, v) } }
+  }
+  const tarjetas = (el, items) => { el.innerHTML = items.map(([t, val, sub, cl]) => `<div class="card ${cl ?? ''}"><span>${t}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ''}</div>`).join('') }
+  const leyenda = (el, items) => { el.innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('') }
+
+  // ---- registro y navegación ----------------------------------------------------------------------------------------------------------------------------------------
+  const sims = [], montados = {}; let activo = null, t0 = performance.now()
+  const registrar = (def) => sims.push(def)
+  function abrir(id) {
+    const def = sims.find((s) => s.id === id) ?? sims[0]; if (!def) return
+    if (activo) { activo.obj?.desactivar?.(); $('#s-' + activo.def.id).classList.remove('on') }
+    let sec = $('#s-' + def.id)
+    if (!sec) {
+      sec = document.createElement('section'); sec.className = 'sim'; sec.id = 's-' + def.id
+      sec.innerHTML = `<div class="cab"><h2>${sims.length > 1 ? def.num + ' · ' : ''}${def.titulo}</h2><p>${def.resumen}</p></div><div class="cuerpo"></div>${def.notas?.length ? `<details class="notas"><summary>Notas sobre el informe y límites</summary><ul>${def.notas.map((n) => `<li>${n}</li>`).join('')}</ul></details>` : ''}`
+      sec.classList.add('on'); $('#lab').appendChild(sec); montados[def.id] = def.montar($('.cuerpo', sec)) // visible ANTES de montar: los canvas necesitan su tamaño real
+    }
+    sec.classList.add('on'); activo = { def, obj: montados[def.id] }; activo.obj?.activar?.(); activo.obj?.redibujar?.()
+    document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.id === def.id)); try { history.replaceState(null, '', '#' + def.id) } catch { /* en un iframe sandbox puede fallar */ }
+    document.querySelector(`#nav button[data-id="${def.id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }
+  function iniciar() {
+    sims.sort((a, b) => a.num - b.num)
+    $('#nav').innerHTML = sims.map((s) => `<button data-id="${s.id}" title="${esc(s.titulo)}"><b>${s.num}</b>${s.corto}</button>`).join(''); $('#nav').onclick = (e) => { const b = e.target.closest('button'); if (b) abrir(b.dataset.id) }
+    if (sims.length === 1) $('#nav').style.display = 'none' // página de un solo simulador: sin pestañas
+    abrir(decodeURIComponent(location.hash.slice(1)) || sims[0].id)
+    window.addEventListener('hashchange', () => abrir(decodeURIComponent(location.hash.slice(1))))
+    let rz = null; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => activo?.obj?.redibujar?.(), 120) })
+    const bucle = (ahora) => { const dt = Math.min(0.05, (ahora - t0) / 1000); t0 = ahora; if (!document.hidden) activo?.obj?.tick?.(dt); requestAnimationFrame(bucle) }
+    requestAnimationFrame(bucle)
+  }
+  return { f, esc, $, mx, mn, clamp, debounce, prep, trazo, grafica, mapaCalor, ticks, dibujaImagen, controles, tarjetas, leyenda, registrar, abrir, iniciar, sims, montados, get activo() { return activo } }
+})()
+
+/* ---- ui/04-dcdc.js ---- */
+;;(() => {
+  const C = LabDCDC, { f } = LAB
+  LAB.registrar({
+    id: 'dcdc', num: 4, corto: 'DC-DC', titulo: 'Convertidor DC-DC buck / boost con osciloscopio',
+    resumen: 'Simulación de un convertidor reductor o elevador de lazo abierto con sus parásitos (resistencia del inductor, RDS(on), ESR del condensador y caída del diodo), con 200 puntos por periodo de conmutación. Cambia el ciclo, la carga o el inductor y mira cómo pasa entre conducción continua (CCM) y discontinua (DCM), el rizado, la eficiencia y el arranque.',
+    notas: [
+      'Parámetros del informe para el buck: L = 100 µH, DCR = 45 mΩ, C = 220 µF, ESR = 15 mΩ, fsw = 100 kHz y RDS(on) = 25 mΩ. El diodo (0,5 V) lo elegí yo. El informe solo desarrolla el buck en sus ecuaciones; el boost usa el mismo motor con sus propias ecuaciones de estado.',
+      'El informe integra con Euler explícito; aquí se usa RK4 con 200 puntos por periodo (las fases ON y OFF se subdividen por separado, así el ciclo D es exacto). El dvC/dt del texto y el del código del informe son equivalentes; se usa la forma del código.',
+      'Se comprueba contra las fórmulas ideales: Vout = D·Vin (buck CCM), Vin/(1 − D) (boost CCM), ΔiL, ΔV = ΔiL/(8·C·fsw), la frontera CCM/DCM y la tensión en DCM, todas a menos de 2 %, y un balance de energía (entrada − salida = pérdidas contabilizadas) a menos de 1 %.',
+      'Es un modelo de lazo abierto sin conmutación real (sin tiempos muertos, sin capacidades parásitas ni saturación del inductor): sirve para entender regímenes, no para diseñar una placa.',
+    ],
+    montar(root) {
+      root.innerHTML = `<div class="g21"><div class="panel"><h2>Osciloscopio: corriente del inductor, tensión de salida y nodo de conmutación (5 periodos)</h2><canvas id="dc-i" class="medio"></canvas><canvas id="dc-v" class="medio" style="margin-top:6px"></canvas><canvas id="dc-s" class="bajo" style="margin-top:6px"></canvas><div class="leyenda" id="dc-ley"></div></div>
+        <div class="panel"><div class="row"><label>Topología&nbsp;</label><select id="dc-top"><option value="buck">Buck (reductor)</option><option value="boost">Boost (elevador)</option></select><select id="dc-pre"><option value="">Preajustes…</option><option value="buck5">Buck 12 → 5 V</option><option value="boost12">Boost 5 → 12 V</option><option value="dcm">Buck en DCM (carga ligera)</option><option value="ideal">Sin parásitos</option></select></div><div id="dc-c"></div><div class="note" id="dc-est" style="padding:4px 0 0"></div></div></div>
+        <div id="dc-cards" class="cards"></div>
+        <div class="g2"><div class="panel"><h2>Arranque: tensión media de salida por periodo (primeros 7 ms)</h2><canvas id="dc-a"></canvas></div><div class="panel"><h2>Balance de potencia en régimen</h2><div id="dc-p"></div></div></div>`
+      const q = (s) => root.querySelector(s)
+      const defs = [{ id: 'Vin', label: 'Vin', min: 3, max: 48, step: 0.5, valor: 12, fmt: (v) => f(v, 1) + ' V' }, { id: 'D', label: 'Ciclo D', min: 0.05, max: 0.95, step: 0.01, valor: 0.42, fmt: (v) => f(v, 2) }, { id: 'R', label: 'Carga R', min: 0.5, max: 300, step: 1, valor: 5, log: true, fmt: (v) => f(v, v < 10 ? 1 : 0) + ' Ω' },
+        { id: 'L', label: 'Inductor L', min: 5, max: 1000, step: 1, valor: 100, log: true, fmt: (v) => f(v, 0) + ' µH' }, { id: 'C', label: 'Condensador C', min: 10, max: 2000, step: 1, valor: 220, log: true, fmt: (v) => f(v, 0) + ' µF' }, { id: 'fsw', label: 'Frecuencia', min: 20, max: 500, step: 1, valor: 100, log: true, fmt: (v) => f(v, 0) + ' kHz' },
+        { id: 'ESR', label: 'ESR', min: 0, max: 300, step: 1, valor: 15, fmt: (v) => f(v, 0) + ' mΩ' }, { id: 'DCR', label: 'DCR del inductor', min: 0, max: 300, step: 1, valor: 45, fmt: (v) => f(v, 0) + ' mΩ' }, { id: 'RDS', label: 'RDS(on)', min: 0, max: 300, step: 1, valor: 25, fmt: (v) => f(v, 0) + ' mΩ' }]
+      const ctl = LAB.controles(q('#dc-c'), defs, () => pide())
+      const cfg = () => ({ topologia: q('#dc-top').value, Vin: ctl.v.Vin, D: ctl.v.D, R: ctl.v.R, L: ctl.v.L * 1e-6, C: ctl.v.C * 1e-6, fsw: ctl.v.fsw * 1e3, ESR: ctl.v.ESR * 1e-3, DCR: ctl.v.DCR * 1e-3, RDSon: ctl.v.RDS * 1e-3, Vf: ctl.v.ESR === -1 ? 0 : (q('#dc-pre').value === 'ideal' ? 0 : 0.5) })
+      let datos = null
+      const calcula = () => {
+        const c = cfg(), t0 = performance.now(), r = C.hastaRegimen(c), th = C.teorico(c), arr = C.simular(c, { periodos: 700, mostrar: 1 }); datos = { c, r, th, arr, ms: performance.now() - t0 }; q('#dc-est').textContent = `simulado en ${f(datos.ms, 0)} ms (${r.periodosSimulados} periodos hasta régimen)`; dibuja()
+      }
+      const pide = LAB.debounce(() => { q('#dc-est').textContent = 'calculando…'; setTimeout(calcula, 10) }, 100)
+      function dibuja() {
+        const { c, r, th, arr } = datos, T = 1 / c.fsw, t0 = r.t[0], xs = r.t.map((t) => ((t - t0) / T)), ticks = [0, 1, 2, 3, 4, 5]
+        const base = { x0: 0, x1: 5, xticks: ticks, xfmt: (v) => f(v, 0) }
+        const iMin = Math.min(0, LAB.mn(r.iLt)), iMax = LAB.mx(r.iLt) * 1.1 || 1; LAB.grafica(q('#dc-i'), { ...base, y0: iMin, y1: Math.max(iMax, iMin + 0.1), ystep: Math.max(0.05, +((iMax - iMin) / 4).toPrecision(1)), yfmt: (v) => f(v, 2), sinX: true, hl: [{ y: 0, color: '#334155', dash: false }, { y: r.iLmedia, color: '#34d399' }], series: [{ xs, ys: r.iLt, color: '#34d399', w: 1.8 }] })
+        const vm = r.vout, mg = Math.max(0.02 * vm, (LAB.mx(r.vt) - LAB.mn(r.vt)) * 1.6, 0.01); LAB.grafica(q('#dc-v'), { ...base, y0: vm - mg, y1: vm + mg, ystep: mg / 2, yfmt: (v) => f(v, 3), sinX: true, hl: [{ y: th.vout, color: '#f59e0b', label: 'ideal ' + f(th.vout, 2) + ' V' }], series: [{ xs, ys: r.vt, color: '#22d3ee', w: 1.8 }] })
+        LAB.grafica(q('#dc-s'), { ...base, y0: Math.min(-1, LAB.mn(r.vswt) - 1), y1: LAB.mx(r.vswt) + 2, ystep: Math.max(5, Math.round((LAB.mx(r.vswt) + 3) / 3 / 5) * 5), xlab: 'periodos', series: [{ xs, ys: r.vswt, color: '#e879f9', w: 1.6 }] })
+        LAB.leyenda(q('#dc-ley'), [['#34d399', 'iL (A)'], ['#22d3ee', 'Vout (V)'], ['#e879f9', 'tensión del nodo de conmutación (V)']])
+        const ms = arr.medias.map((_, k) => k * T * 1e3); LAB.grafica(q('#dc-a'), { x0: 0, x1: ms.at(-1), y0: 0, y1: Math.ceil(Math.max(...arr.medias) * 1.15), ystep: Math.max(1, Math.ceil(Math.max(...arr.medias) / 5)), xticks: LAB.ticks(0, ms.at(-1), 7), xfmt: (v) => f(v, 0), xlab: 'ms', hl: [{ y: th.vout, color: '#f59e0b', label: 'ideal' }], series: [{ xs: ms, ys: arr.medias, color: '#22d3ee', w: 1.8 }] })
+        const err = (a, b) => (Math.abs(b) > 1e-9 ? f(((a - b) / b) * 100, 1) + ' % frente al ideal' : '')
+        LAB.tarjetas(q('#dc-cards'), [['Vout medio', f(r.vout, 3) + ' V', `ideal ${f(th.vout, 3)} V (${err(r.vout, th.vout)})`, ''], ['Modo', r.modo, `L crítica ${f(th.Lcrit * 1e6, 1)} µH · L = ${f(c.L * 1e6, 0)} µH`, r.modo === 'CCM' ? 'ok3' : 'w3'], ['ΔiL pico a pico', f(r.rizadoI, 3) + ' A', `ideal ${f(th.rizadoI, 3)} A`, ''], ['ΔV pico a pico', f(r.rizadoV * 1e3, 1) + ' mV', `solo condensador ${f(th.rizadoVcap * 1e3, 1)} mV (+ ESR)`, ''], ['Eficiencia', f(r.eficiencia * 100, 1) + ' %', `Pin ${f(r.Pin, 2)} W · Pout ${f(r.Pout, 2)} W`, r.eficiencia > 0.9 ? 'ok3' : r.eficiencia > 0.75 ? 'w3' : 'b3']])
+        const filas = [['Resistencia del inductor (DCR)', r.Pdcr], ['RDS(on) del transistor', r.Prds], ['Diodo (Vf·I)', r.Pvf], ['ESR del condensador', r.Pesr]], tot = r.Ppar || 1e-12
+        q('#dc-p').innerHTML = `<table class="cmp"><tr><th>Pérdida</th><th class="n">W</th><th class="n">%</th><th style="width:40%"></th></tr>${filas.map(([n, p]) => `<tr><td>${n}</td><td class="n">${f(p, 3)}</td><td class="n">${f((p / tot) * 100, 0)}</td><td><div class="barra"><i style="width:${(p / tot) * 100}%"></i></div></td></tr>`).join('')}<tr><td><b>Total contabilizado</b></td><td class="n"><b>${f(r.Ppar, 3)}</b></td><td></td><td></td></tr><tr><td>Pin − Pout</td><td class="n">${f(r.Pin - r.Pout, 3)}</td><td class="n">${f(((r.Pin - r.Pout - r.Ppar) / r.Pin) * 100, 2)} %</td><td class="note" style="padding:0">diferencia = error del balance</td></tr></table>`
+      }
+      const preset = { buck5: { top: 'buck', Vin: 12, D: 0.42, R: 5, L: 100, C: 220, fsw: 100 }, boost12: { top: 'boost', Vin: 5, D: 0.58, R: 24, L: 100, C: 220, fsw: 100 }, dcm: { top: 'buck', Vin: 12, D: 0.5, R: 100, L: 100, C: 220, fsw: 100 }, ideal: { top: 'buck', Vin: 12, D: 0.5, R: 5, L: 100, C: 220, fsw: 100 } }
+      q('#dc-top').onchange = pide
+      q('#dc-pre').onchange = () => { const p = preset[q('#dc-pre').value]; if (!p) return; q('#dc-top').value = p.top; for (const k of ['Vin', 'D', 'R', 'L', 'C', 'fsw']) ctl.set(k, p[k], true); if (q('#dc-pre').value === 'ideal') for (const k of ['ESR', 'DCR', 'RDS']) ctl.set(k, 0, true); else { ctl.set('ESR', 15, true); ctl.set('DCR', 45, true); ctl.set('RDS', 25, true) } calcula() }
+      calcula()
+      return { redibujar: () => datos && dibuja(), api: { get datos() { return datos }, ctl, calcula } }
+    },
+  })
+})()
+
+/* ---- ui/zz-inicio.js ---- */
+;LAB.iniciar()
+window.demoApi = { LAB, abrir: LAB.abrir, sim: (id) => LAB.montados[id]?.api }
+
+</script>
+</body>
+</html>

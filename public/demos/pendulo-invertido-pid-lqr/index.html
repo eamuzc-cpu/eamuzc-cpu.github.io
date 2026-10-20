@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Péndulo invertido: PID frente a LQR — simulador interactivo</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.nav button { white-space: nowrap; display: flex; gap: 6px; align-items: baseline; } .nav button b { font: 600 10px var(--mono); color: var(--mut); } .nav button.on b { color: var(--cyan); }
+.sim { display: none; padding: 12px 16px; } .sim.on { display: block; }
+.cab h2 { margin: 0 0 4px; font: 600 17px var(--font); letter-spacing: .1px; text-transform: none; color: var(--txt); } .cab p { margin: 0 0 8px; color: #cbd5e1; font-size: 13px; line-height: 1.5; max-width: 980px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; } .g21 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 12px; } .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; } .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 19px var(--mono); margin-top: 2px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.ok3 { border-color: rgba(52, 211, 153, .6); } .card.ok3 b { color: var(--green); } .card.w3 { border-color: rgba(245, 158, 11, .6); } .card.w3 b { color: var(--amber); } .card.b3 { border-color: var(--red); } .card.b3 b { color: var(--red); }
+canvas { height: 220px; } canvas.alto { height: 320px; } canvas.medio { height: 260px; } canvas.bajo { height: 130px; } canvas.cuad { height: auto; aspect-ratio: 1 / 1; }
+.ctl { display: grid; grid-template-columns: 112px 1fr 74px; gap: 6px 10px; align-items: center; margin-bottom: 3px; font: 12px var(--mono); } .ctl label { color: var(--mut); } .ctl output { color: var(--cyan); text-align: right; }
+.row { margin-bottom: 8px; } .row select, .row input[type=number] { max-width: 100%; }
+.panel p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; } .panel ul { margin: 4px 0 6px 16px; padding: 0; font-size: 12.5px; line-height: 1.5; }
+details.notas { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); margin-top: 4px; } details.notas summary { cursor: pointer; font: 600 11px var(--mono); letter-spacing: .6px; text-transform: uppercase; color: var(--mut); } details.notas[open] summary { color: var(--cyan); margin-bottom: 6px; } details.notas li { margin: 4px 0; font-size: 12.5px; color: #cbd5e1; }
+.etq { font: 600 10px var(--mono); padding: 2px 7px; border-radius: 999px; border: 1px solid; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; } .etq.ok { color: var(--green); border-color: rgba(52, 211, 153, .6); } .etq.av { color: var(--amber); border-color: rgba(245, 158, 11, .6); } .etq.bad { color: var(--red); border-color: rgba(248, 113, 113, .6); }
+textarea { width: 100%; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px/1.4 var(--mono); }
+pre.salida { margin: 0; background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 11.5px/1.45 var(--mono); color: #cbd5e1; overflow: auto; max-height: 260px; }
+table.cmp td, table.cmp th { padding: 3px 7px; white-space: nowrap; } td.n, th.n { text-align: right; }
+.celdas { display: flex; gap: 3px; flex-wrap: wrap; } .celdas i { font: 10px var(--mono); font-style: normal; width: 34px; text-align: center; padding: 3px 0; border-radius: 4px; background: #14301f; color: var(--green); } .celdas i.no { background: #3a1a1f; color: var(--red); }
+.barra { height: 14px; background: #0b1730; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); } .barra i { display: block; height: 100%; background: var(--cyan); }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font: 11px var(--mono); color: var(--mut); margin-top: 4px; } .leyenda i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+svg text { font: 11px ui-monospace, Consolas, monospace; fill: #cbd5e1; }
+@media (max-width: 1000px) { .g2, .g21, .g3, .g4 { grid-template-columns: 1fr; } .sim { padding: 10px 10px; } .nav { padding: 6px 10px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Péndulo invertido: PID frente a LQR</h1><span class="badge">de la especificación al código</span><span class="badge warn">todo simulado · sin hardware</span><span class="sp"></span>
+</div>
+<nav class="nav" id="nav"></nav>
+<main id="lab"></main>
+<div class="note">Simulador 1 de 14 del laboratorio de ingeniería: parte de un documento de especificación (ecuaciones, parámetros y fragmentos de código) y está escrito en JavaScript puro, sin librerías, con pruebas automáticas. Cuando algo no coincide con el informe se dice en «Notas sobre el informe y límites». Es un modelo de práctica: no reemplaza instrumentos ni hardware.</div>
+
+<script>
+/* ---- cores/pendulo.js ---- */
+;// Péndulo invertido sobre carro: modelo no lineal (Euler-Lagrange, masa puntual a l del eje, como el código del informe), integración RK4 a 500 Hz,
+// control digital a 100 Hz con retención de orden cero, LQR (ecuación de Riccati resuelta por integración hasta el régimen) y PID de ángulo con PD de posición.
+// Estado: [x, dx, theta, dtheta] con theta = 0 en la vertical y theta > 0 inclinado hacia +x. El MISMO archivo corre en las pruebas y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LabPendulo = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const PARAMS = { M: 1.0, m: 0.1, l: 0.5, g: 9.81, dtFis: 0.002, dtCtl: 0.01, Fmax: 30, xLim: 2.5, thetaCae: Math.PI / 2 }
+
+  function derivadas(s, F, p) {
+    const { M, m, l, g } = p, [, dx, th, dth] = s, sn = Math.sin(th), cs = Math.cos(th), den = M + m * sn * sn
+    const ddx = (F + m * l * dth * dth * sn - m * g * sn * cs) / den
+    const ddth = ((M + m) * g * sn - F * cs - m * l * dth * dth * sn * cs) / (l * den)
+    return [dx, ddx, dth, ddth]
+  }
+  function rk4(s, F, dt, p) {
+    const k1 = derivadas(s, F, p), s1 = s.map((v, i) => v + 0.5 * dt * k1[i])
+    const k2 = derivadas(s1, F, p), s2 = s.map((v, i) => v + 0.5 * dt * k2[i])
+    const k3 = derivadas(s2, F, p), s3 = s.map((v, i) => v + dt * k3[i])
+    const k4 = derivadas(s3, F, p)
+    return s.map((v, i) => v + (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]))
+  }
+
+  // ---- matrices pequeñas ------------------------------------------------------------------------------------------------------
+  const mul = (A, B) => A.map((r) => B[0].map((_, j) => r.reduce((a, x, k) => a + x * B[k][j], 0)))
+  const tr = (A) => A[0].map((_, j) => A.map((r) => r[j]))
+  const add = (A, B, k = 1) => A.map((r, i) => r.map((x, j) => x + k * B[i][j]))
+  const esc = (A, k) => A.map((r) => r.map((x) => x * k))
+
+  // x' = A·x + B·u linealizado en theta = 0:  ddx = (F − m·g·theta)/M,  ddtheta = ((M+m)·g·theta − F)/(l·M)
+  function linealizar(p = PARAMS) {
+    const { M, m, l, g } = p
+    return { A: [[0, 1, 0, 0], [0, 0, -(m * g) / M, 0], [0, 0, 0, 1], [0, 0, ((M + m) * g) / (l * M), 0]], B: [[0], [1 / M], [0], [-1 / (l * M)]] }
+  }
+
+  // P' = AᵀP + PA − P·B·R⁻¹·Bᵀ·P + Q desde P = 0 converge a la solución estabilizante de la ARE (RK4 hasta que P' ≈ 0)
+  function riccati(A, B, Q, R, { dt = 2e-3, tmax = 400, tol = 1e-11 } = {}) {
+    const At = tr(A), BRB = esc(mul(B, tr(B)), 1 / R)
+    const f = (P) => add(add(mul(At, P), mul(P, A)), add(esc(mul(mul(P, BRB), P), -1), Q))
+    let P = Q.map((r) => r.map(() => 0))
+    for (let t = 0; t < tmax; t += dt) {
+      const k1 = f(P), k2 = f(add(P, k1, dt / 2)), k3 = f(add(P, k2, dt / 2)), k4 = f(add(P, k3, dt))
+      const dP = add(add(k1, k2, 2), add(k3, k4, 2)).map((r) => r.map((x) => (x * dt) / 6))
+      P = add(P, dP)
+      if (Math.max(...dP.flat().map(Math.abs)) < tol * dt) break
+    }
+    return P
+  }
+  const residuoRiccati = (A, B, Q, R, P) => Math.max(...add(add(add(mul(tr(A), P), mul(P, A)), esc(mul(mul(P, mul(B, tr(B))), P), -1 / R)), Q).flat().map(Math.abs))
+  function lqr(p = PARAMS, Q = [[10, 0, 0, 0], [0, 1, 0, 0], [0, 0, 100, 0], [0, 0, 0, 10]], R = 0.1) {
+    const { A, B } = linealizar(p), P = riccati(A, B, Q, R), K = esc(mul(tr(B), P), 1 / R)[0]
+    return { K, P, A, B, Q, R }
+  }
+
+  // ---- controladores (muestreados a dtCtl) --------------------------------------------------------------------------------------
+  // LQR: u = −K·(x − x_ref) con la referencia solo en la posición
+  const crearLQR = (K) => ({ nombre: 'LQR', paso: (s, ref) => -(K[0] * (s[0] - ref) + K[1] * s[1] + K[2] * s[2] + K[3] * s[3]) })
+  // PID de ángulo (con derivada por diferencia hacia atrás) + PD de posición del carro. Sin el lazo de posición el carro se escapa de la pista.
+  // En un sistema de fase no mínima la ganancia de posición lleva el MISMO signo que la de ángulo (el carro se aleja un instante para recuperar la vertical).
+  const GANANCIAS_PID = { kp: 100, ki: 5, kd: 12, kx: 10, kv: 10 }
+  function crearPID(g = GANANCIAS_PID, dt = PARAMS.dtCtl) {
+    let integ = 0, prev = null
+    return { nombre: 'PID', reset() { integ = 0; prev = null }, paso: (s, ref) => {
+      const th = s[2], d = prev === null ? 0 : (th - prev) / dt; prev = th; integ = Math.max(-0.5, Math.min(0.5, integ + th * dt))
+      return g.kp * th + g.ki * integ + g.kd * d + g.kx * (s[0] - ref) + g.kv * s[1]
+    } }
+  }
+
+  // PRNG determinista (mulberry32) y ruido gaussiano
+  function prng(semilla = 1) { let a = semilla >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+  const gauss = (r) => Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r())
+
+  // Simulación: la física corre a dtFis y el control se recalcula cada dtCtl (ZOH). Fuerza saturada en ±Fmax.
+  // cfg: { ctrl, x0, dur, refX(t), empujones:[{t, F, dur}], ruidoTheta (rad), semilla, p }
+  function simular(cfg) {
+    const p = { ...PARAMS, ...(cfg.p ?? {}) }, n = Math.round(cfg.dur / p.dtFis), cada = Math.round(p.dtCtl / p.dtFis), rnd = prng(cfg.semilla ?? 1)
+    let s = [...(cfg.x0 ?? [0, 0, 0.15, 0])], F = 0, estado = 'ok', tFin = cfg.dur
+    cfg.ctrl.reset?.()
+    const out = { t: [], x: [], th: [], F: [] }
+    for (let k = 0; k < n; k++) {
+      const t = k * p.dtFis
+      if (k % cada === 0) {
+        const med = s.slice(); if (cfg.ruidoTheta) med[2] += gauss(rnd) * cfg.ruidoTheta
+        F = Math.max(-p.Fmax, Math.min(p.Fmax, cfg.libre ? 0 : cfg.ctrl.paso(med, cfg.refX ? cfg.refX(t) : 0)))
+        out.t.push(t); out.x.push(s[0]); out.th.push(s[2]); out.F.push(F)
+      }
+      let Fx = F; for (const e of cfg.empujones ?? []) if (t >= e.t && t < e.t + e.dur) Fx += e.F
+      s = rk4(s, Fx, p.dtFis, p)
+      if (Math.abs(s[2]) > p.thetaCae) { estado = 'cae'; tFin = t; break }
+      if (Math.abs(s[0]) > p.xLim) { estado = 'sale'; tFin = t; break }
+    }
+    return { ...out, estado, tFin, final: s }
+  }
+
+  // Versión incremental para animar en tiempo real: misma física, mismo ZOH y mismos criterios de caída que `simular`, pero avanza `seg` segundos por llamada.
+  function crearTiempoReal(ctrl, { p = {}, x0 = [0, 0, 0.15, 0], ruidoTheta = 0, semilla = 1 } = {}) {
+    const P = { ...PARAMS, ...p }, cada = Math.round(P.dtCtl / P.dtFis), rnd = prng(semilla); let s = [...x0], k = 0, F = 0, estado = 'ok', empuje = null, libre = false, ruido = ruidoTheta, ref = 0
+    ctrl.reset?.()
+    return {
+      P, get s() { return s }, get t() { return k * P.dtFis }, get F() { return F }, get estado() { return estado }, get ref() { return ref }, set ref(v) { ref = v }, set ruido(v) { ruido = v }, set libre(v) { libre = v },
+      cambiarControl(c) { ctrl = c; ctrl.reset?.() }, empujar(Fn, dur) { empuje = { F: Fn, hasta: k * P.dtFis + dur } },
+      avanzar(seg) {
+        const n = Math.round(seg / P.dtFis)
+        for (let i = 0; i < n && estado === 'ok'; i++, k++) {
+          const t = k * P.dtFis
+          if (k % cada === 0) { const med = s.slice(); if (ruido) med[2] += gauss(rnd) * ruido; F = Math.max(-P.Fmax, Math.min(P.Fmax, libre ? 0 : ctrl.paso(med, ref))) }
+          s = rk4(s, F + (empuje && t < empuje.hasta ? empuje.F : 0), P.dtFis, P)
+          if (Math.abs(s[2]) > P.thetaCae) estado = 'cae'; else if (Math.abs(s[0]) > P.xLim) estado = 'sale'
+        }
+        return s
+      },
+    }
+  }
+
+  // Barrido del ángulo inicial: ¿hasta qué inclinación recupera cada controlador (con la fuerza limitada)?
+  function barridoAngulo(ctrlFabrica, angulos, { dur = 8, p } = {}) {
+    return angulos.map((a) => { const r = simular({ ctrl: ctrlFabrica(), x0: [0, 0, a, 0], dur, p }); return { a, ok: r.estado === 'ok' && Math.abs(r.final[2]) < 0.02 && Math.abs(r.final[0]) < 0.2 } })
+  }
+
+  return { PARAMS, GANANCIAS_PID, derivadas, rk4, linealizar, riccati, residuoRiccati, lqr, crearLQR, crearPID, simular, crearTiempoReal, barridoAngulo, prng, mul, tr, add }
+})
+
+</script>
+<script>
+/* ---- ui/comun.js ---- */
+;'use strict'
+// Utilidades compartidas de la interfaz: formato, dibujo en canvas (ejes, trazos con envolvente, mapas de calor), controles deslizantes, tarjetas,
+// registro de simuladores y navegación por pestañas con enlace directo (#id). Cada simulador se monta la primera vez que se abre y luego se
+// activa/desactiva; si define `tick(dt)` se anima solo mientras está visible.
+const LAB = (() => {
+  const f = (n, d = 1) => (Number.isFinite(n) ? Number(n).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d }) : n === Infinity ? '∞' : n === -Infinity ? '−∞' : '—')
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const $ = (s, r = document) => r.querySelector(s)
+  const mx = (a, i0 = 0, i1 = a.length) => { let m = -Infinity; for (let i = i0; i < i1; i++) if (a[i] > m) m = a[i]; return m }
+  const mn = (a, i0 = 0, i1 = a.length) => { let m = Infinity; for (let i = i0; i < i1; i++) if (a[i] < m) m = a[i]; return m }
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x))
+  const debounce = (fn, ms = 120) => { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms) } }
+
+  // ---- dibujo ----------------------------------------------------------------------------------------------------------------------------------------------------
+  function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+  function trazo(c, X, Y, xs, ys, i0, i1, color, ancho = 1.5, dash = []) {
+    c.strokeStyle = color; c.lineWidth = ancho; c.setLineDash(dash); c.beginPath(); const n = i1 - i0; if (n < 2) { c.setLineDash([]); return }
+    const px = Math.abs(X(xs[i1 - 1]) - X(xs[i0]))
+    if (n > 3 * px) { // muchas más muestras que píxeles: mínimo y máximo por columna
+      let col = null, lo = 0, hi = 0, ini = true; const cierra = () => { const x = col + 0.5; if (ini) { c.moveTo(x, Y(lo)); ini = false } else c.lineTo(x, Y(lo)); c.lineTo(x, Y(hi)) }
+      for (let i = i0; i < i1; i++) { const p = Math.round(X(xs[i])); if (p !== col) { if (col !== null) cierra(); col = p; lo = hi = ys[i] } else { if (ys[i] < lo) lo = ys[i]; if (ys[i] > hi) hi = ys[i] } } cierra()
+    } else { let abierto = false; for (let i = i0; i < i1; i++) { if (!Number.isFinite(ys[i])) { abierto = false; continue } if (!abierto) { c.moveTo(X(xs[i]), Y(ys[i])); abierto = true } else c.lineTo(X(xs[i]), Y(ys[i])) } }
+    c.stroke(); c.setLineDash([])
+  }
+  // o: { x0, x1, y0, y1, ystep, xlog, xticks, xfmt, yfmt, xlab, sinX, L, series:[{xs,ys,i0,i1,color,w,dash}], hl:[{y,color,label,dash}], vl:[{x,color,label}] }
+  function grafica(cv, o) {
+    const { c, w, h } = prep(cv), L = o.L ?? 48, R = 10, T = 8, B = o.sinX ? 6 : 20, lx0 = o.xlog ? Math.log10(o.x0) : o.x0, lx1 = o.xlog ? Math.log10(o.x1) : o.x1
+    const X = (x) => L + (((o.xlog ? Math.log10(x) : x) - lx0) / (lx1 - lx0)) * (w - L - R), Y = (y) => T + (1 - (y - o.y0) / (o.y1 - o.y0)) * (h - T - B)
+    c.lineWidth = 1; c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+    for (let v = o.y0; v <= o.y1 + 1e-9; v += o.ystep) { const y = Y(v); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText((o.yfmt ?? ((q) => f(q, 0)))(v), L - 4, y + 3) }
+    if (!o.sinX) {
+      c.textAlign = 'center'; const xt = o.xlog ? [0.01, 0.1, 1, 10, 100, 1e3, 1e4, 1e5, 1e6].filter((v) => v >= o.x0 * 0.999 && v <= o.x1 * 1.001) : o.xticks ?? []
+      for (const v of xt) { const x = X(v); if (o.xlab && x > w - R - 34) continue; c.strokeStyle = '#0f1a2e'; c.beginPath(); c.moveTo(x, T); c.lineTo(x, h - B); c.stroke(); c.fillStyle = '#64748b'; c.fillText(o.xlog ? (v >= 1e3 ? v / 1e3 + 'k' : v < 1 ? String(v).replace('.', ',') : v) : (o.xfmt ?? ((q) => f(q, 0)))(v), x, h - 5) }
+      if (o.xlab) { c.textAlign = 'right'; c.fillText(o.xlab, w - R, h - 5) }
+    }
+    c.save(); c.beginPath(); c.rect(L, T, w - L - R, h - T - B); c.clip()
+    for (const l of o.hl ?? []) { c.strokeStyle = l.color; c.setLineDash(l.dash === false ? [] : [5, 4]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(L, Y(l.y)); c.lineTo(w - R, Y(l.y)); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, L + 4, Y(l.y) - 3) } }
+    for (const l of o.vl ?? []) { c.strokeStyle = l.color; c.setLineDash([4, 3]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(X(l.x), T); c.lineTo(X(l.x), h - B); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, X(l.x) + 3, T + 10) } }
+    for (const s of o.series ?? []) trazo(c, X, Y, s.xs, s.ys, s.i0 ?? 0, s.i1 ?? s.xs.length, s.color, s.w, s.dash)
+    c.restore(); return { c, X, Y, w, h, L, R, T, B }
+  }
+  // matriz (filas × columnas) a color: M[fila][col] en 0..1 → mapa(v) = [r, g, b]. La fila 0 se dibuja ARRIBA salvo que `invertir` sea true.
+  // L y B son márgenes (px) a la izquierda y abajo para dibujar los ejes encima; devuelve el contexto y la zona de la imagen { x0, y0, ancho, alto }
+  function mapaCalor(cv, M, mapa, { invertir = false, L = 0, B = 0, T = 0 } = {}) {
+    const { c, w, h } = prep(cv), nf = M.length, nc = M[0].length, off = document.createElement('canvas'); off.width = nc; off.height = nf
+    const octx = off.getContext('2d'), img = octx.createImageData(nc, nf)
+    for (let j = 0; j < nf; j++) for (let i = 0; i < nc; i++) { const col = mapa(M[invertir ? nf - 1 - j : j][i]), k = 4 * (j * nc + i); img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = 255 }
+    octx.putImageData(img, 0, 0); c.imageSmoothingEnabled = false; c.drawImage(off, L, T, w - L, h - B - T); return { c, w, h, x0: L, y0: T, ancho: w - L, alto: h - B - T }
+  }
+  // marcas «bonitas» (1, 2, 5 × 10ⁿ) entre a y b, aproximadamente n
+  function ticks(a, b, n = 5) { const r = b - a, p = 10 ** Math.floor(Math.log10(r / n)), m = [1, 2, 5, 10].find((k) => (k * p * n) >= r) * p, out = []; for (let v = Math.ceil(a / m - 1e-9) * m; v <= b + 1e-9; v += m) out.push(+v.toFixed(10)); return out }
+  function dibujaImagen(cv, data, w, h) { // RGBA (Uint8ClampedArray) a un canvas del tamaño de la imagen, escalado por CSS
+    cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0); return c
+  }
+
+  // ---- controles ---------------------------------------------------------------------------------------------------------------------------------------------------
+  // defs: [{ id, label, min, max, step, valor, fmt, log }]; devuelve { v: {id: valor}, set(id, valor, silencio) }
+  function controles(root, defs, onChange) {
+    const v = {}, outs = {}, ins = {}
+    root.innerHTML = defs.map((d) => `<div class="ctl"><label for="${d.uid ?? 'c_' + d.id}">${d.label}</label><input id="${d.uid ?? 'c_' + d.id}" type="range" min="${d.log ? Math.log10(d.min) : d.min}" max="${d.log ? Math.log10(d.max) : d.max}" step="${d.log ? 0.01 : d.step}" value="${d.log ? Math.log10(d.valor) : d.valor}"><output></output></div>`).join('')
+    const filas = root.querySelectorAll('.ctl')
+    defs.forEach((d, i) => {
+      // en la escala logarítmica se redondea a 3 cifras: evita «219» donde se pidió 220
+      const inp = filas[i].querySelector('input'), out = filas[i].querySelector('output'), leer = () => (d.log ? +(10 ** +inp.value).toPrecision(3) : +inp.value), pinta = () => { v[d.id] = leer(); out.textContent = (d.fmt ?? ((x) => f(x, 2)))(v[d.id]) }
+      outs[d.id] = out; ins[d.id] = inp; pinta(); inp.addEventListener('input', () => { pinta(); onChange?.(d.id, v) })
+    })
+    return { v, set(id, val, silencio = false) { const d = defs.find((q) => q.id === id); ins[id].value = d.log ? Math.log10(val) : val; v[id] = val; outs[id].textContent = (d.fmt ?? ((x) => f(x, 2)))(val); if (!silencio) onChange?.(id, v) } }
+  }
+  const tarjetas = (el, items) => { el.innerHTML = items.map(([t, val, sub, cl]) => `<div class="card ${cl ?? ''}"><span>${t}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ''}</div>`).join('') }
+  const leyenda = (el, items) => { el.innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('') }
+
+  // ---- registro y navegación ----------------------------------------------------------------------------------------------------------------------------------------
+  const sims = [], montados = {}; let activo = null, t0 = performance.now()
+  const registrar = (def) => sims.push(def)
+  function abrir(id) {
+    const def = sims.find((s) => s.id === id) ?? sims[0]; if (!def) return
+    if (activo) { activo.obj?.desactivar?.(); $('#s-' + activo.def.id).classList.remove('on') }
+    let sec = $('#s-' + def.id)
+    if (!sec) {
+      sec = document.createElement('section'); sec.className = 'sim'; sec.id = 's-' + def.id
+      sec.innerHTML = `<div class="cab"><h2>${sims.length > 1 ? def.num + ' · ' : ''}${def.titulo}</h2><p>${def.resumen}</p></div><div class="cuerpo"></div>${def.notas?.length ? `<details class="notas"><summary>Notas sobre el informe y límites</summary><ul>${def.notas.map((n) => `<li>${n}</li>`).join('')}</ul></details>` : ''}`
+      sec.classList.add('on'); $('#lab').appendChild(sec); montados[def.id] = def.montar($('.cuerpo', sec)) // visible ANTES de montar: los canvas necesitan su tamaño real
+    }
+    sec.classList.add('on'); activo = { def, obj: montados[def.id] }; activo.obj?.activar?.(); activo.obj?.redibujar?.()
+    document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.id === def.id)); try { history.replaceState(null, '', '#' + def.id) } catch { /* en un iframe sandbox puede fallar */ }
+    document.querySelector(`#nav button[data-id="${def.id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }
+  function iniciar() {
+    sims.sort((a, b) => a.num - b.num)
+    $('#nav').innerHTML = sims.map((s) => `<button data-id="${s.id}" title="${esc(s.titulo)}"><b>${s.num}</b>${s.corto}</button>`).join(''); $('#nav').onclick = (e) => { const b = e.target.closest('button'); if (b) abrir(b.dataset.id) }
+    if (sims.length === 1) $('#nav').style.display = 'none' // página de un solo simulador: sin pestañas
+    abrir(decodeURIComponent(location.hash.slice(1)) || sims[0].id)
+    window.addEventListener('hashchange', () => abrir(decodeURIComponent(location.hash.slice(1))))
+    let rz = null; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => activo?.obj?.redibujar?.(), 120) })
+    const bucle = (ahora) => { const dt = Math.min(0.05, (ahora - t0) / 1000); t0 = ahora; if (!document.hidden) activo?.obj?.tick?.(dt); requestAnimationFrame(bucle) }
+    requestAnimationFrame(bucle)
+  }
+  return { f, esc, $, mx, mn, clamp, debounce, prep, trazo, grafica, mapaCalor, ticks, dibujaImagen, controles, tarjetas, leyenda, registrar, abrir, iniciar, sims, montados, get activo() { return activo } }
+})()
+
+/* ---- ui/01-pendulo.js ---- */
+;;(() => {
+  const P = LabPendulo, { f, $ } = LAB, LQ = P.lqr()
+  LAB.registrar({
+    id: 'pendulo', num: 1, corto: 'Péndulo', titulo: 'Péndulo invertido: PID frente a LQR',
+    resumen: 'Un carro con un péndulo invertido es inestable por sí solo (cae en menos de un segundo). Aquí lo estabilizan dos controles digitales a 100 Hz sobre una física no lineal integrada con RK4 a 500 Hz: un PID de ángulo con PD de posición y un LQR cuya ganancia sale de resolver la ecuación de Riccati. Empuja el carro, agrega ruido al sensor, limita la fuerza y compara.',
+    notas: [
+      'El modelo y las ecuaciones son los del informe (Euler-Lagrange, RK4 a 500 Hz, control a 100 Hz con retención de orden cero). Su código trata el péndulo como masa puntual a l = 0,5 m del eje; el texto habla de longitud 2l e inercia I_p. Aquí se usa el código, y una prueba comprueba que conserva la energía.',
+      'El informe no da las ganancias del PID ni las matrices Q y R del LQR: son elecciones mías (Q = diag(10, 1, 100, 10), R = 0,1; PID de ángulo con PD de posición). La fuerza máxima de 30 N y la pista de ±2,5 m tampoco están en el informe.',
+      'Sin lazo de posición el PID estabiliza el ángulo pero el carro se desliza hacia un lado hasta salir de la pista (el sistema es de fase no mínima: la ganancia de posición lleva el mismo signo que la de ángulo).',
+      'El LQR es continuo (Riccati por integración hasta el régimen, residuo ≈ 1e-11) aplicado con retención de orden cero a 100 Hz, no un LQR discreto.',
+    ],
+    montar(root) {
+      root.innerHTML = `<div class="g21"><div class="panel"><h2>Carro y péndulo (la cámara sigue al carro)</h2><canvas id="pe-cv" class="alto"></canvas>
+        <div class="row" style="margin-top:8px"><label>Control&nbsp;</label><select id="pe-ctl"><option value="lqr">LQR</option><option value="pid">PID + PD de posición</option><option value="pid0">PID solo de ángulo</option><option value="ninguno">Sin control</option></select>
+          <button id="pe-reset" class="primary mini">Reiniciar con el ángulo inicial</button><button id="pe-izq" class="mini">Empujón ◄</button><button id="pe-der" class="mini">Empujón ►</button>
+          <label><input type="checkbox" id="pe-ruido"> ruido del sensor</label><label>Velocidad&nbsp;</label><select id="pe-vel"><option value="0.25">×0,25</option><option value="1" selected>×1</option></select><button id="pe-pausa" class="mini">Pausa</button></div>
+        <div id="pe-cards" class="cards"></div></div>
+        <div class="panel"><h2>Parámetros</h2><div id="pe-ctls"></div><div class="note" style="padding:4px 0 8px" id="pe-k"></div><h2>Historia (últimos 10 s)</h2>
+          <canvas id="pe-gt" class="bajo"></canvas><canvas id="pe-gx" class="bajo" style="margin-top:6px"></canvas><canvas id="pe-gf" class="bajo" style="margin-top:6px"></canvas></div></div>
+        <div class="panel"><h2>Región de atracción: ¿hasta qué inclinación inicial recupera cada control? (fuerza máxima actual, 8 s)</h2><div class="row"><button id="pe-reg" class="mini primary">Calcular</button><span id="pe-regE" class="note" style="padding:0"></span></div>
+          <div id="pe-regR"></div></div>`
+      const sel = (id) => root.querySelector(id), cv = sel('#pe-cv')
+      const ctls = LAB.controles(sel('#pe-ctls'), [
+        { id: 'th0', label: 'Ángulo inicial', min: -1.1, max: 1.1, step: 0.01, valor: 0.15, fmt: (v) => f(v, 2) + ' rad' }, { id: 'ref', label: 'Consigna de x', min: -1.5, max: 1.5, step: 0.05, valor: 0, fmt: (v) => f(v, 2) + ' m' },
+        { id: 'Fmax', label: 'Fuerza máxima', min: 3, max: 40, step: 1, valor: 30, fmt: (v) => f(v, 0) + ' N' }], (id, v) => { if (id === 'ref') tr.ref = v.ref; if (id === 'Fmax') tr.P.Fmax = v.Fmax })
+      sel('#pe-k').textContent = `K LQR = [${LQ.K.map((k) => f(k, 2)).join(', ')}] · residuo de Riccati ${LQ.A ? P.residuoRiccati(LQ.A, LQ.B, LQ.Q, LQ.R, LQ.P).toExponential(1) : ''}`
+      const fab = (n) => (n === 'lqr' ? P.crearLQR(LQ.K) : n === 'pid' ? P.crearPID() : n === 'pid0' ? P.crearPID({ ...P.GANANCIAS_PID, kx: 0, kv: 0 }) : { nombre: 'ninguno', paso: () => 0 })
+      let tr, hist, vel = 1, corre = true
+      const nuevo = () => { tr = P.crearTiempoReal(fab(sel('#pe-ctl').value), { x0: [0, 0, ctls.v.th0, 0], ruidoTheta: sel('#pe-ruido').checked ? 0.002 : 0, semilla: 4 }); tr.P.Fmax = ctls.v.Fmax; tr.ref = ctls.v.ref; if (sel('#pe-ctl').value === 'ninguno') tr.libre = true; hist = { t: [], th: [], x: [], F: [] } }
+      nuevo()
+      const escena = () => {
+        const { c, w, h } = LAB.prep(cv), s = tr.s, ancho = 3.2, k = w / ancho, suelo = h * 0.78, X = (m) => w / 2 + (m - s[0]) * k, l = tr.P.l * k * 1.0
+        c.fillStyle = '#071226'; c.fillRect(0, suelo, w, h - suelo); c.strokeStyle = '#1e293b'; c.fillStyle = '#64748b'; c.textAlign = 'center'
+        for (let m = Math.floor((s[0] - ancho / 2) * 2) / 2; m <= s[0] + ancho / 2 + 0.5; m += 0.5) { c.beginPath(); c.moveTo(X(m), suelo); c.lineTo(X(m), suelo + 8); c.stroke(); c.fillText(f(m, 1), X(m), suelo + 22) }
+        for (const lim of [-tr.P.xLim, tr.P.xLim]) { c.fillStyle = 'rgba(248,113,113,.35)'; c.fillRect(lim > 0 ? X(lim) : X(lim) - 14, suelo - 60, 14, 60) }
+        c.strokeStyle = '#34d399'; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(X(tr.ref), suelo - 90); c.lineTo(X(tr.ref), suelo); c.stroke(); c.setLineDash([]); c.fillStyle = '#34d399'; c.fillText('consigna', X(tr.ref), suelo - 94)
+        const cw = 0.36 * k, chh = 0.16 * k, cx = X(s[0]), cy = suelo - chh - 6
+        c.fillStyle = '#0f2a4a'; c.strokeStyle = '#22d3ee'; c.lineWidth = 2; c.beginPath(); c.rect(cx - cw / 2, cy, cw, chh); c.fill(); c.stroke(); c.fillStyle = '#94a3b8'; for (const dx of [-cw / 3, cw / 3]) { c.beginPath(); c.arc(cx + dx, suelo - 6, 6, 0, 7); c.fill() }
+        const bx = cx + l * Math.sin(s[2]), by = cy - l * Math.cos(s[2]); c.strokeStyle = '#f59e0b'; c.lineWidth = 4; c.beginPath(); c.moveTo(cx, cy); c.lineTo(bx, by); c.stroke(); c.fillStyle = '#f59e0b'; c.beginPath(); c.arc(bx, by, 9, 0, 7); c.fill()
+        c.strokeStyle = '#e879f9'; c.lineWidth = 3; const fl = (tr.F / 30) * 0.9 * k; if (Math.abs(fl) > 2) { c.beginPath(); c.moveTo(cx, cy + chh + 14 + 8); c.lineTo(cx + fl, cy + chh + 14 + 8); c.stroke(); c.fillStyle = '#e879f9'; c.beginPath(); const d = Math.sign(fl); c.moveTo(cx + fl, cy + chh + 22); c.lineTo(cx + fl - d * 9, cy + chh + 17); c.lineTo(cx + fl - d * 9, cy + chh + 27); c.fill(); c.textAlign = 'left'; c.fillText('F', cx + 4, cy + chh + 38) }
+        if (tr.estado !== 'ok') { c.fillStyle = 'rgba(2,6,23,.7)'; c.fillRect(0, 0, w, 44); c.fillStyle = '#f87171'; c.font = '600 15px ui-monospace, Consolas'; c.textAlign = 'center'; c.fillText(tr.estado === 'cae' ? `El péndulo cayó a los ${f(tr.t, 2)} s` : `El carro llegó al tope de la pista a los ${f(tr.t, 2)} s`, w / 2, 28) }
+      }
+      const graf = () => {
+        const t1 = tr.t, ini = Math.max(0, t1 - 10), i0 = hist.t.findIndex((x) => x >= ini), a = i0 < 0 ? 0 : i0, x0 = Math.max(ini, 0), x1 = Math.max(10, t1), xticks = [0, 2, 4, 6, 8, 10].map((q) => x0 + q)
+        const base = { x0, x1: x0 + 10, xticks, xfmt: (v) => f(v, 0), sinX: false }
+        LAB.grafica(sel('#pe-gt'), { ...base, y0: -0.6, y1: 0.6, ystep: 0.3, yfmt: (v) => f(v, 1), hl: [{ y: 0, color: '#334155', dash: false }], series: [{ xs: hist.t, ys: hist.th, i0: a, color: '#f59e0b', w: 1.6 }] })
+        LAB.grafica(sel('#pe-gx'), { ...base, y0: -2.5, y1: 2.5, ystep: 2.5, yfmt: (v) => f(v, 1), hl: [{ y: tr.ref, color: '#34d399' }], series: [{ xs: hist.t, ys: hist.x, i0: a, color: '#22d3ee', w: 1.6 }] })
+        LAB.grafica(sel('#pe-gf'), { ...base, y0: -30, y1: 30, ystep: 30, yfmt: (v) => f(v, 0), xlab: 's', series: [{ xs: hist.t, ys: hist.F, i0: a, color: '#e879f9', w: 1.4 }] })
+        void x1
+      }
+      const cards = () => LAB.tarjetas(sel('#pe-cards'), [['Ángulo', f((tr.s[2] * 180) / Math.PI, 1) + '°', 'θ = ' + f(tr.s[2], 3) + ' rad', Math.abs(tr.s[2]) > 0.5 ? 'w3' : ''], ['Posición del carro', f(tr.s[0], 2) + ' m', 'velocidad ' + f(tr.s[1], 2) + ' m/s', Math.abs(tr.s[0]) > 2 ? 'w3' : ''], ['Fuerza', f(tr.F, 1) + ' N', 'límite ±' + f(tr.P.Fmax, 0) + ' N', Math.abs(tr.F) >= tr.P.Fmax - 1e-9 ? 'w3' : ''], ['Estado', tr.estado === 'ok' ? 'en pie' : tr.estado === 'cae' ? 'cayó' : 'fuera de pista', 't = ' + f(tr.t, 1) + ' s', tr.estado === 'ok' ? 'ok3' : 'b3']])
+      let acum = 0
+      const tick = (dt) => {
+        if (corre && tr.estado === 'ok') { const paso = Math.min(dt, 0.05) * vel; tr.avanzar(paso); acum += paso; if (acum >= 0.01) { acum = 0; hist.t.push(tr.t); hist.th.push(tr.s[2]); hist.x.push(tr.s[0]); hist.F.push(tr.F); while (hist.t.length && hist.t[0] < tr.t - 12) { hist.t.shift(); hist.th.shift(); hist.x.shift(); hist.F.shift() } } }
+        escena(); graf(); cards()
+      }
+      sel('#pe-ctl').onchange = () => { tr.cambiarControl(fab(sel('#pe-ctl').value)); tr.libre = sel('#pe-ctl').value === 'ninguno' }
+      sel('#pe-reset').onclick = () => { nuevo(); corre = true; sel('#pe-pausa').textContent = 'Pausa' }
+      sel('#pe-izq').onclick = () => tr.empujar(-10, 0.05); sel('#pe-der').onclick = () => tr.empujar(10, 0.05)
+      sel('#pe-ruido').onchange = () => { tr.ruido = sel('#pe-ruido').checked ? 0.002 : 0 }; sel('#pe-vel').onchange = () => { vel = +sel('#pe-vel').value }
+      sel('#pe-pausa').onclick = () => { corre = !corre; sel('#pe-pausa').textContent = corre ? 'Pausa' : 'Continuar' }
+      sel('#pe-reg').onclick = () => {
+        sel('#pe-regE').textContent = 'calculando…'
+        setTimeout(() => {
+          const ang = Array.from({ length: 13 }, (_, i) => +(0.1 * (i + 1)).toFixed(1)), p = { Fmax: ctls.v.Fmax }, filas = [['LQR', () => P.crearLQR(LQ.K)], ['PID + PD de posición', () => P.crearPID()], ['PID solo de ángulo', () => P.crearPID({ ...P.GANANCIAS_PID, kx: 0, kv: 0 })]]
+          sel('#pe-regR').innerHTML = filas.map(([n, fb]) => { const r = P.barridoAngulo(fb, ang, { p, dur: 8 }); return `<div class="row"><div class="note" style="padding:0;margin-bottom:3px">${n}: recupera hasta ${f(Math.max(0, ...r.filter((x) => x.ok).map((x) => x.a)), 1)} rad</div><div class="celdas">${r.map((x) => `<i class="${x.ok ? '' : 'no'}">${f(x.a, 1)}</i>`).join('')}</div></div>` }).join('')
+          sel('#pe-regE').textContent = 'verde = vuelve a la vertical y al centro en 8 s; rojo = cae o sale de la pista (ángulos en rad)'
+        }, 20)
+      }
+      return { tick, redibujar: () => { escena(); graf(); cards() }, api: { get tr() { return tr }, nuevo, ctls } }
+    },
+  })
+})()
+
+/* ---- ui/zz-inicio.js ---- */
+;LAB.iniciar()
+window.demoApi = { LAB, abrir: LAB.abrir, sim: (id) => LAB.montados[id]?.api }
+
+</script>
+</body>
+</html>

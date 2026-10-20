@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filtros de imagen a mano: BT.709, Gauss, Sobel y Canny — simulador interactivo</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.nav button { white-space: nowrap; display: flex; gap: 6px; align-items: baseline; } .nav button b { font: 600 10px var(--mono); color: var(--mut); } .nav button.on b { color: var(--cyan); }
+.sim { display: none; padding: 12px 16px; } .sim.on { display: block; }
+.cab h2 { margin: 0 0 4px; font: 600 17px var(--font); letter-spacing: .1px; text-transform: none; color: var(--txt); } .cab p { margin: 0 0 8px; color: #cbd5e1; font-size: 13px; line-height: 1.5; max-width: 980px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; } .g21 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 12px; } .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; } .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 19px var(--mono); margin-top: 2px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.ok3 { border-color: rgba(52, 211, 153, .6); } .card.ok3 b { color: var(--green); } .card.w3 { border-color: rgba(245, 158, 11, .6); } .card.w3 b { color: var(--amber); } .card.b3 { border-color: var(--red); } .card.b3 b { color: var(--red); }
+canvas { height: 220px; } canvas.alto { height: 320px; } canvas.medio { height: 260px; } canvas.bajo { height: 130px; } canvas.cuad { height: auto; aspect-ratio: 1 / 1; }
+.ctl { display: grid; grid-template-columns: 112px 1fr 74px; gap: 6px 10px; align-items: center; margin-bottom: 3px; font: 12px var(--mono); } .ctl label { color: var(--mut); } .ctl output { color: var(--cyan); text-align: right; }
+.row { margin-bottom: 8px; } .row select, .row input[type=number] { max-width: 100%; }
+.panel p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; } .panel ul { margin: 4px 0 6px 16px; padding: 0; font-size: 12.5px; line-height: 1.5; }
+details.notas { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); margin-top: 4px; } details.notas summary { cursor: pointer; font: 600 11px var(--mono); letter-spacing: .6px; text-transform: uppercase; color: var(--mut); } details.notas[open] summary { color: var(--cyan); margin-bottom: 6px; } details.notas li { margin: 4px 0; font-size: 12.5px; color: #cbd5e1; }
+.etq { font: 600 10px var(--mono); padding: 2px 7px; border-radius: 999px; border: 1px solid; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; } .etq.ok { color: var(--green); border-color: rgba(52, 211, 153, .6); } .etq.av { color: var(--amber); border-color: rgba(245, 158, 11, .6); } .etq.bad { color: var(--red); border-color: rgba(248, 113, 113, .6); }
+textarea { width: 100%; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px/1.4 var(--mono); }
+pre.salida { margin: 0; background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 11.5px/1.45 var(--mono); color: #cbd5e1; overflow: auto; max-height: 260px; }
+table.cmp td, table.cmp th { padding: 3px 7px; white-space: nowrap; } td.n, th.n { text-align: right; }
+.celdas { display: flex; gap: 3px; flex-wrap: wrap; } .celdas i { font: 10px var(--mono); font-style: normal; width: 34px; text-align: center; padding: 3px 0; border-radius: 4px; background: #14301f; color: var(--green); } .celdas i.no { background: #3a1a1f; color: var(--red); }
+.barra { height: 14px; background: #0b1730; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); } .barra i { display: block; height: 100%; background: var(--cyan); }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font: 11px var(--mono); color: var(--mut); margin-top: 4px; } .leyenda i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+svg text { font: 11px ui-monospace, Consolas, monospace; fill: #cbd5e1; }
+@media (max-width: 1000px) { .g2, .g21, .g3, .g4 { grid-template-columns: 1fr; } .sim { padding: 10px 10px; } .nav { padding: 6px 10px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Filtros de imagen a mano: BT.709, Gauss, Sobel y Canny</h1><span class="badge">de la especificación al código</span><span class="badge warn">todo simulado · sin hardware</span><span class="sp"></span>
+</div>
+<nav class="nav" id="nav"></nav>
+<main id="lab"></main>
+<div class="note">Simulador 9 de 14 del laboratorio de ingeniería: parte de un documento de especificación (ecuaciones, parámetros y fragmentos de código) y está escrito en JavaScript puro, sin librerías, con pruebas automáticas. Cuando algo no coincide con el informe se dice en «Notas sobre el informe y límites». Es un modelo de práctica: no reemplaza instrumentos ni hardware.</div>
+
+<script>
+/* ---- cores/imagen.js ---- */
+;// Filtros de imagen de bajo nivel escritos a mano sobre arreglos planos: luminancia ITU-R BT.709, convolución con borde replicado, suavizado gaussiano 5×5,
+// gradiente de Sobel, supresión de no-máximos e histéresis de Canny, y una escena sintética determinista. Las imágenes son { w, h, data: Uint8ClampedArray (RGBA) }.
+// La supresión de no-máximos tiene dos variantes: la del informe (vecinos diagonales según su tabla) y la corregida para el sistema de coordenadas con y hacia abajo.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LabImagen = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const KX = [-1, 0, 1, -2, 0, 2, -1, 0, 1], KY = [-1, -2, -1, 0, 0, 0, 1, 2, 1] // Sobel (Gy positivo hacia abajo, como en el informe)
+
+  // ---- escena sintética -----------------------------------------------------------------------------------------------------------------------------------
+  function prng(semilla = 1) { let a = semilla >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+  function nuevaImagen(w, h, relleno = [0, 0, 0]) { const data = new Uint8ClampedArray(w * h * 4); for (let i = 0; i < w * h; i++) { data[4 * i] = relleno[0]; data[4 * i + 1] = relleno[1]; data[4 * i + 2] = relleno[2]; data[4 * i + 3] = 255 } return { w, h, data } }
+  function pinta(img, f) { for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) { const c = f(x, y); if (c) { const i = 4 * (y * img.w + x); img.data[i] = c[0]; img.data[i + 1] = c[1]; img.data[i + 2] = c[2] } } return img }
+  // fondo con degradado, rectángulo, círculo, triángulo y una diagonal; ruido gaussiano opcional (sigma en niveles de gris)
+  function escena(w = 320, h = 240, { ruido = 0, semilla = 1 } = {}) {
+    const img = nuevaImagen(w, h), r = prng(semilla), cx = w * 0.68, cy = h * 0.4, rad = h * 0.22
+    pinta(img, (x, y) => {
+      const g = 40 + (60 * x) / w
+      if (x > w * 0.1 && x < w * 0.38 && y > h * 0.15 && y < h * 0.5) return [230, 210, 60]
+      if ((x - cx) ** 2 + (y - cy) ** 2 < rad * rad) return [60, 170, 230]
+      const tx = (x - w * 0.2) / (w * 0.22), ty = (y - h * 0.62) / (h * 0.3); if (tx >= 0 && tx <= 1 && ty >= 0 && ty <= 1 && ty >= tx) return [220, 70, 70]
+      if (Math.abs(x - w * 0.55 - (y - h * 0.65)) < 2 && y > h * 0.65 && y < h * 0.95) return [250, 250, 250]
+      return [g, g, g + 15]
+    })
+    if (ruido > 0) for (let i = 0; i < w * h; i++) { const n = ruido * Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r()); for (let c = 0; c < 3; c++) img.data[4 * i + c] = Math.max(0, Math.min(255, img.data[4 * i + c] + n)) }
+    return img
+  }
+
+  // ---- luminancia y convolución --------------------------------------------------------------------------------------------------------------------------------------
+  function gris709(img) { const o = new Float32Array(img.w * img.h); for (let i = 0; i < o.length; i++) o[i] = 0.2126 * img.data[4 * i] + 0.7152 * img.data[4 * i + 1] + 0.0722 * img.data[4 * i + 2]; return o }
+  function convolucion(src, w, h, kernel, k) {
+    const o = new Float32Array(w * h), m = k >> 1
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let s = 0
+      for (let j = 0; j < k; j++) { const yy = Math.min(h - 1, Math.max(0, y + j - m)); for (let i = 0; i < k; i++) s += kernel[j * k + i] * src[yy * w + Math.min(w - 1, Math.max(0, x + i - m))] }
+      o[y * w + x] = s
+    }
+    return o
+  }
+  function kernelGauss(sigma = 1.0, k = 5) { const m = k >> 1, v = [], o = []; let s = 0; for (let j = -m; j <= m; j++) for (let i = -m; i <= m; i++) { const g = Math.exp(-(i * i + j * j) / (2 * sigma * sigma)); o.push(g); s += g } return o.map((g) => g / s) }
+  const gaussiano = (g, w, h, sigma = 1.0) => convolucion(g, w, h, kernelGauss(sigma, 5), 5)
+  function sobel(g, w, h) {
+    const gx = convolucion(g, w, h, KX, 3), gy = convolucion(g, w, h, KY, 3), mag = new Float32Array(w * h), fase = new Float32Array(w * h)
+    for (let i = 0; i < mag.length; i++) { mag[i] = Math.hypot(gx[i], gy[i]); fase[i] = Math.atan2(gy[i], gx[i]) }
+    return { gx, gy, mag, fase }
+  }
+
+  // ---- Canny ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  // Variante del informe: usa la tabla (22,5–67,5° → (y+1, x−1) y (y−1, x+1); 112,5–157,5° → (y−1, x−1) y (y+1, x+1)), que corresponde a un eje y hacia arriba.
+  // Variante corregida: con y hacia abajo y Gy positivo hacia abajo, un gradiente de 45° apunta hacia (x+1, y+1).
+  function nms(mag, fase, w, h, { informe = false } = {}) {
+    const o = new Float32Array(w * h)
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x; let a = (fase[i] * 180) / Math.PI; if (a < 0) a += 180
+      let q, r
+      if (a < 22.5 || a >= 157.5) { q = mag[i + 1]; r = mag[i - 1] }
+      else if (a < 67.5) { if (informe) { q = mag[i + w - 1]; r = mag[i - w + 1] } else { q = mag[i + w + 1]; r = mag[i - w - 1] } }
+      else if (a < 112.5) { q = mag[i + w]; r = mag[i - w] }
+      else if (informe) { q = mag[i - w - 1]; r = mag[i + w + 1] } else { q = mag[i - w + 1]; r = mag[i + w - 1] }
+      o[i] = mag[i] >= q && mag[i] >= r ? mag[i] : 0
+    }
+    return o
+  }
+  // doble umbral + histéresis: los píxeles fuertes (≥ alto) se conservan y arrastran a los débiles (≥ bajo) conectados en 8 vecinos
+  function histeresis(m, w, h, alto, bajo) {
+    const o = new Uint8Array(w * h), pila = []
+    for (let i = 0; i < m.length; i++) if (m[i] >= alto) { o[i] = 255; pila.push(i) }
+    while (pila.length) {
+      const i = pila.pop(), x = i % w, y = (i / w) | 0
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue; const j = yy * w + xx; if (!o[j] && m[j] >= bajo) { o[j] = 255; pila.push(j) } }
+    }
+    return o
+  }
+  function canny(img, { sigma = 1.2, alto = 120, bajo = 50, informe = false } = {}) {
+    const g = gris709(img), s = gaussiano(g, img.w, img.h, sigma), d = sobel(s, img.w, img.h), n = nms(d.mag, d.fase, img.w, img.h, { informe })
+    return { gris: g, suave: s, ...d, nms: n, bordes: histeresis(n, img.w, img.h, alto, bajo) }
+  }
+  // escala una imagen de un canal (Float32Array) a RGBA 0..255 para dibujarla
+  function aRGBA(canal, w, h, { max = null, invertir = false } = {}) {
+    let m = max ?? 0; if (max === null) for (const v of canal) if (v > m) m = v; const img = nuevaImagen(w, h)
+    for (let i = 0; i < w * h; i++) { let v = Math.max(0, Math.min(255, (255 * Math.abs(canal[i])) / (m || 1))); if (invertir) v = 255 - v; img.data[4 * i] = img.data[4 * i + 1] = img.data[4 * i + 2] = v }
+    return img
+  }
+  const anchoDeBanda = (w, h, fps, bytesPorPixel = 4) => (w * h * bytesPorPixel * fps) / 1e6 // MB/s
+
+  return { KX, KY, prng, nuevaImagen, escena, gris709, convolucion, kernelGauss, gaussiano, sobel, nms, histeresis, canny, aRGBA, anchoDeBanda }
+})
+
+</script>
+<script>
+/* ---- ui/comun.js ---- */
+;'use strict'
+// Utilidades compartidas de la interfaz: formato, dibujo en canvas (ejes, trazos con envolvente, mapas de calor), controles deslizantes, tarjetas,
+// registro de simuladores y navegación por pestañas con enlace directo (#id). Cada simulador se monta la primera vez que se abre y luego se
+// activa/desactiva; si define `tick(dt)` se anima solo mientras está visible.
+const LAB = (() => {
+  const f = (n, d = 1) => (Number.isFinite(n) ? Number(n).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d }) : n === Infinity ? '∞' : n === -Infinity ? '−∞' : '—')
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const $ = (s, r = document) => r.querySelector(s)
+  const mx = (a, i0 = 0, i1 = a.length) => { let m = -Infinity; for (let i = i0; i < i1; i++) if (a[i] > m) m = a[i]; return m }
+  const mn = (a, i0 = 0, i1 = a.length) => { let m = Infinity; for (let i = i0; i < i1; i++) if (a[i] < m) m = a[i]; return m }
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x))
+  const debounce = (fn, ms = 120) => { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms) } }
+
+  // ---- dibujo ----------------------------------------------------------------------------------------------------------------------------------------------------
+  function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+  function trazo(c, X, Y, xs, ys, i0, i1, color, ancho = 1.5, dash = []) {
+    c.strokeStyle = color; c.lineWidth = ancho; c.setLineDash(dash); c.beginPath(); const n = i1 - i0; if (n < 2) { c.setLineDash([]); return }
+    const px = Math.abs(X(xs[i1 - 1]) - X(xs[i0]))
+    if (n > 3 * px) { // muchas más muestras que píxeles: mínimo y máximo por columna
+      let col = null, lo = 0, hi = 0, ini = true; const cierra = () => { const x = col + 0.5; if (ini) { c.moveTo(x, Y(lo)); ini = false } else c.lineTo(x, Y(lo)); c.lineTo(x, Y(hi)) }
+      for (let i = i0; i < i1; i++) { const p = Math.round(X(xs[i])); if (p !== col) { if (col !== null) cierra(); col = p; lo = hi = ys[i] } else { if (ys[i] < lo) lo = ys[i]; if (ys[i] > hi) hi = ys[i] } } cierra()
+    } else { let abierto = false; for (let i = i0; i < i1; i++) { if (!Number.isFinite(ys[i])) { abierto = false; continue } if (!abierto) { c.moveTo(X(xs[i]), Y(ys[i])); abierto = true } else c.lineTo(X(xs[i]), Y(ys[i])) } }
+    c.stroke(); c.setLineDash([])
+  }
+  // o: { x0, x1, y0, y1, ystep, xlog, xticks, xfmt, yfmt, xlab, sinX, L, series:[{xs,ys,i0,i1,color,w,dash}], hl:[{y,color,label,dash}], vl:[{x,color,label}] }
+  function grafica(cv, o) {
+    const { c, w, h } = prep(cv), L = o.L ?? 48, R = 10, T = 8, B = o.sinX ? 6 : 20, lx0 = o.xlog ? Math.log10(o.x0) : o.x0, lx1 = o.xlog ? Math.log10(o.x1) : o.x1
+    const X = (x) => L + (((o.xlog ? Math.log10(x) : x) - lx0) / (lx1 - lx0)) * (w - L - R), Y = (y) => T + (1 - (y - o.y0) / (o.y1 - o.y0)) * (h - T - B)
+    c.lineWidth = 1; c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+    for (let v = o.y0; v <= o.y1 + 1e-9; v += o.ystep) { const y = Y(v); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText((o.yfmt ?? ((q) => f(q, 0)))(v), L - 4, y + 3) }
+    if (!o.sinX) {
+      c.textAlign = 'center'; const xt = o.xlog ? [0.01, 0.1, 1, 10, 100, 1e3, 1e4, 1e5, 1e6].filter((v) => v >= o.x0 * 0.999 && v <= o.x1 * 1.001) : o.xticks ?? []
+      for (const v of xt) { const x = X(v); if (o.xlab && x > w - R - 34) continue; c.strokeStyle = '#0f1a2e'; c.beginPath(); c.moveTo(x, T); c.lineTo(x, h - B); c.stroke(); c.fillStyle = '#64748b'; c.fillText(o.xlog ? (v >= 1e3 ? v / 1e3 + 'k' : v < 1 ? String(v).replace('.', ',') : v) : (o.xfmt ?? ((q) => f(q, 0)))(v), x, h - 5) }
+      if (o.xlab) { c.textAlign = 'right'; c.fillText(o.xlab, w - R, h - 5) }
+    }
+    c.save(); c.beginPath(); c.rect(L, T, w - L - R, h - T - B); c.clip()
+    for (const l of o.hl ?? []) { c.strokeStyle = l.color; c.setLineDash(l.dash === false ? [] : [5, 4]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(L, Y(l.y)); c.lineTo(w - R, Y(l.y)); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, L + 4, Y(l.y) - 3) } }
+    for (const l of o.vl ?? []) { c.strokeStyle = l.color; c.setLineDash([4, 3]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(X(l.x), T); c.lineTo(X(l.x), h - B); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, X(l.x) + 3, T + 10) } }
+    for (const s of o.series ?? []) trazo(c, X, Y, s.xs, s.ys, s.i0 ?? 0, s.i1 ?? s.xs.length, s.color, s.w, s.dash)
+    c.restore(); return { c, X, Y, w, h, L, R, T, B }
+  }
+  // matriz (filas × columnas) a color: M[fila][col] en 0..1 → mapa(v) = [r, g, b]. La fila 0 se dibuja ARRIBA salvo que `invertir` sea true.
+  // L y B son márgenes (px) a la izquierda y abajo para dibujar los ejes encima; devuelve el contexto y la zona de la imagen { x0, y0, ancho, alto }
+  function mapaCalor(cv, M, mapa, { invertir = false, L = 0, B = 0, T = 0 } = {}) {
+    const { c, w, h } = prep(cv), nf = M.length, nc = M[0].length, off = document.createElement('canvas'); off.width = nc; off.height = nf
+    const octx = off.getContext('2d'), img = octx.createImageData(nc, nf)
+    for (let j = 0; j < nf; j++) for (let i = 0; i < nc; i++) { const col = mapa(M[invertir ? nf - 1 - j : j][i]), k = 4 * (j * nc + i); img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = 255 }
+    octx.putImageData(img, 0, 0); c.imageSmoothingEnabled = false; c.drawImage(off, L, T, w - L, h - B - T); return { c, w, h, x0: L, y0: T, ancho: w - L, alto: h - B - T }
+  }
+  // marcas «bonitas» (1, 2, 5 × 10ⁿ) entre a y b, aproximadamente n
+  function ticks(a, b, n = 5) { const r = b - a, p = 10 ** Math.floor(Math.log10(r / n)), m = [1, 2, 5, 10].find((k) => (k * p * n) >= r) * p, out = []; for (let v = Math.ceil(a / m - 1e-9) * m; v <= b + 1e-9; v += m) out.push(+v.toFixed(10)); return out }
+  function dibujaImagen(cv, data, w, h) { // RGBA (Uint8ClampedArray) a un canvas del tamaño de la imagen, escalado por CSS
+    cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0); return c
+  }
+
+  // ---- controles ---------------------------------------------------------------------------------------------------------------------------------------------------
+  // defs: [{ id, label, min, max, step, valor, fmt, log }]; devuelve { v: {id: valor}, set(id, valor, silencio) }
+  function controles(root, defs, onChange) {
+    const v = {}, outs = {}, ins = {}
+    root.innerHTML = defs.map((d) => `<div class="ctl"><label for="${d.uid ?? 'c_' + d.id}">${d.label}</label><input id="${d.uid ?? 'c_' + d.id}" type="range" min="${d.log ? Math.log10(d.min) : d.min}" max="${d.log ? Math.log10(d.max) : d.max}" step="${d.log ? 0.01 : d.step}" value="${d.log ? Math.log10(d.valor) : d.valor}"><output></output></div>`).join('')
+    const filas = root.querySelectorAll('.ctl')
+    defs.forEach((d, i) => {
+      // en la escala logarítmica se redondea a 3 cifras: evita «219» donde se pidió 220
+      const inp = filas[i].querySelector('input'), out = filas[i].querySelector('output'), leer = () => (d.log ? +(10 ** +inp.value).toPrecision(3) : +inp.value), pinta = () => { v[d.id] = leer(); out.textContent = (d.fmt ?? ((x) => f(x, 2)))(v[d.id]) }
+      outs[d.id] = out; ins[d.id] = inp; pinta(); inp.addEventListener('input', () => { pinta(); onChange?.(d.id, v) })
+    })
+    return { v, set(id, val, silencio = false) { const d = defs.find((q) => q.id === id); ins[id].value = d.log ? Math.log10(val) : val; v[id] = val; outs[id].textContent = (d.fmt ?? ((x) => f(x, 2)))(val); if (!silencio) onChange?.(id, v) } }
+  }
+  const tarjetas = (el, items) => { el.innerHTML = items.map(([t, val, sub, cl]) => `<div class="card ${cl ?? ''}"><span>${t}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ''}</div>`).join('') }
+  const leyenda = (el, items) => { el.innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('') }
+
+  // ---- registro y navegación ----------------------------------------------------------------------------------------------------------------------------------------
+  const sims = [], montados = {}; let activo = null, t0 = performance.now()
+  const registrar = (def) => sims.push(def)
+  function abrir(id) {
+    const def = sims.find((s) => s.id === id) ?? sims[0]; if (!def) return
+    if (activo) { activo.obj?.desactivar?.(); $('#s-' + activo.def.id).classList.remove('on') }
+    let sec = $('#s-' + def.id)
+    if (!sec) {
+      sec = document.createElement('section'); sec.className = 'sim'; sec.id = 's-' + def.id
+      sec.innerHTML = `<div class="cab"><h2>${sims.length > 1 ? def.num + ' · ' : ''}${def.titulo}</h2><p>${def.resumen}</p></div><div class="cuerpo"></div>${def.notas?.length ? `<details class="notas"><summary>Notas sobre el informe y límites</summary><ul>${def.notas.map((n) => `<li>${n}</li>`).join('')}</ul></details>` : ''}`
+      sec.classList.add('on'); $('#lab').appendChild(sec); montados[def.id] = def.montar($('.cuerpo', sec)) // visible ANTES de montar: los canvas necesitan su tamaño real
+    }
+    sec.classList.add('on'); activo = { def, obj: montados[def.id] }; activo.obj?.activar?.(); activo.obj?.redibujar?.()
+    document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.id === def.id)); try { history.replaceState(null, '', '#' + def.id) } catch { /* en un iframe sandbox puede fallar */ }
+    document.querySelector(`#nav button[data-id="${def.id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }
+  function iniciar() {
+    sims.sort((a, b) => a.num - b.num)
+    $('#nav').innerHTML = sims.map((s) => `<button data-id="${s.id}" title="${esc(s.titulo)}"><b>${s.num}</b>${s.corto}</button>`).join(''); $('#nav').onclick = (e) => { const b = e.target.closest('button'); if (b) abrir(b.dataset.id) }
+    if (sims.length === 1) $('#nav').style.display = 'none' // página de un solo simulador: sin pestañas
+    abrir(decodeURIComponent(location.hash.slice(1)) || sims[0].id)
+    window.addEventListener('hashchange', () => abrir(decodeURIComponent(location.hash.slice(1))))
+    let rz = null; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => activo?.obj?.redibujar?.(), 120) })
+    const bucle = (ahora) => { const dt = Math.min(0.05, (ahora - t0) / 1000); t0 = ahora; if (!document.hidden) activo?.obj?.tick?.(dt); requestAnimationFrame(bucle) }
+    requestAnimationFrame(bucle)
+  }
+  return { f, esc, $, mx, mn, clamp, debounce, prep, trazo, grafica, mapaCalor, ticks, dibujaImagen, controles, tarjetas, leyenda, registrar, abrir, iniciar, sims, montados, get activo() { return activo } }
+})()
+
+/* ---- ui/09-imagen.js ---- */
+;;(() => {
+  const I = LabImagen, { f } = LAB
+  LAB.registrar({
+    id: 'imagen', num: 9, corto: 'Filtros de imagen', titulo: 'Filtros de imagen a mano: BT.709, Gauss, Sobel y Canny',
+    resumen: 'Cada etapa del detector de bordes escrita sobre arreglos planos, sin librerías de visión: luminancia BT.709, suavizado gaussiano de 5 × 5, gradiente de Sobel, supresión de no-máximos e histéresis de doble umbral (Canny). Usa la escena sintética (con ruido ajustable) o sube tu propia imagen: se procesa en tu navegador y no sale de él. El tiempo de cada etapa se mide en vivo.',
+    notas: [
+      'Hay un error en el código de supresión de no-máximos del informe: con su operador de Sobel (Gy positivo hacia abajo) los vecinos de las dos direcciones diagonales (22,5–67,5° y 112,5–157,5°) están intercambiados, porque su tabla corresponde a un eje y hacia arriba. En una recta a 45° el borde queda el doble de grueso (≈ 3,9 píxeles por fila frente a ≈ 1,9, prueba automática); en una escena con curvas el efecto neto es que parte del contorno se pierde o se fragmenta (con los umbrales por defecto: ≈ 840 píxeles de borde frente a ≈ 1300). Marca «NMS del informe» para verlo; los bordes verticales y horizontales no cambian.',
+      'La tabla de ancho de banda del informe (≈ 497 MB/s para 1080p a 60 fps con 4 bytes por píxel) es correcta: 1920 × 1080 × 4 × 60 = 497,7 MB/s. Aquí se mide lo que rinde este navegador en cada etapa y se convierte a fotogramas por segundo equivalentes en 1080p.',
+      'El informe habla de «stream de WebCam sobre OffscreenCanvas». Aquí no se usa la cámara (privacidad, permisos): la entrada es una escena sintética determinista o un archivo que tú eliges. El procesamiento corre en el hilo principal con Float32Array/Uint8ClampedArray; no hay Web Workers ni WebGL.',
+      'La convolución usa borde replicado. El gaussiano usa σ ajustable con núcleo de 5 × 5 normalizado a 1. El Sobel y el Canny trabajan sobre la luminancia ya suavizada.',
+    ],
+    montar(root) {
+      root.innerHTML = `<div class="panel"><div class="row"><label>Imagen&nbsp;</label><select id="im-src"><option value="escena">Escena sintética</option><option value="archivo">Subir una imagen…</option></select><input type="file" id="im-file" accept="image/*" style="display:none"><label><input type="checkbox" id="im-inf"> NMS del informe (diagonales invertidas)</label><span id="im-est" class="note" style="padding:0"></span></div>
+          <div class="g2" style="margin:0"><div id="im-c1"></div><div id="im-c2"></div></div></div>
+        <div id="im-cards" class="cards" style="margin-top:12px"></div>
+        <div class="g3"><div class="panel"><h2>1 · Original</h2><canvas id="im-0" class="cuad"></canvas></div><div class="panel"><h2>2 · Luminancia BT.709</h2><canvas id="im-1" class="cuad"></canvas></div><div class="panel"><h2>3 · Gaussiano 5×5</h2><canvas id="im-2" class="cuad"></canvas></div></div>
+        <div class="g3"><div class="panel"><h2>4 · Magnitud de Sobel</h2><canvas id="im-3" class="cuad"></canvas></div><div class="panel"><h2>5 · Supresión de no-máximos</h2><canvas id="im-4" class="cuad"></canvas></div><div class="panel"><h2>6 · Canny (histéresis)</h2><canvas id="im-5" class="cuad"></canvas></div></div>`
+      const q = (s) => root.querySelector(s)
+      const c1 = LAB.controles(q('#im-c1'), [{ id: 'ruido', label: 'Ruido de la escena', min: 0, max: 40, step: 1, valor: 6, fmt: (v) => f(v, 0) + ' niveles' }, { id: 'sigma', label: 'σ del gaussiano', min: 0.4, max: 3, step: 0.1, valor: 1.2, fmt: (v) => f(v, 1) }], () => pide())
+      const c2 = LAB.controles(q('#im-c2'), [{ id: 'alto', label: 'Umbral alto', min: 20, max: 400, step: 5, valor: 110, fmt: (v) => f(v, 0) }, { id: 'bajo', label: 'Umbral bajo', min: 5, max: 300, step: 5, valor: 45, fmt: (v) => f(v, 0) }], () => pide())
+      let img = null, res = null
+      const fuente = () => (q('#im-src').value === 'escena' || !img ? I.escena(320, 240, { ruido: c1.v.ruido, semilla: 5 }) : img)
+      function proceso() {
+        const src = fuente(), { w, h } = src, t = []; let t0 = performance.now(); const lap = () => { const n = performance.now(); t.push(n - t0); t0 = n }
+        const g = I.gris709(src); lap(); const s = I.gaussiano(g, w, h, c1.v.sigma); lap(); const d = I.sobel(s, w, h); lap()
+        const inf = q('#im-inf').checked, nm = I.nms(d.mag, d.fase, w, h, { informe: inf }); lap(); const be = I.histeresis(nm, w, h, Math.max(c2.v.alto, c2.v.bajo), Math.min(c2.v.alto, c2.v.bajo)); lap()
+        const cnt = (arr) => { let n = 0; for (const v of arr) if (v > 0) n++; return n }, alto = Math.max(c2.v.alto, c2.v.bajo), bajo = Math.min(c2.v.alto, c2.v.bajo)
+        const fin = (informe) => cnt(I.histeresis(informe === inf ? nm : I.nms(d.mag, d.fase, w, h, { informe }), w, h, alto, bajo)) // bordes finales con cada variante de la NMS
+        res = { src, g, s, d, nm, be, t, w, h, nBordes: cnt(be), nCorr: fin(false), nInf: fin(true) }; pinta()
+      }
+      function pinta() {
+        const { src, g, s, d, nm, be, t, w, h } = res, gris = (a, max) => I.aRGBA(a, w, h, { max: max ?? 255 }), mapa = (cv, im) => LAB.dibujaImagen(cv, im.data, w, h)
+        mapa(q('#im-0'), src); mapa(q('#im-1'), gris(g)); mapa(q('#im-2'), gris(s)); mapa(q('#im-3'), gris(d.mag, 800)); mapa(q('#im-4'), gris(nm, 800))
+        const e = I.nuevaImagen(w, h); for (let i = 0; i < w * h; i++) if (be[i]) { e.data[4 * i] = 240; e.data[4 * i + 1] = 245; e.data[4 * i + 2] = 255 } mapa(q('#im-5'), e)
+        const tot = t.reduce((a, b) => a + b, 0), mpx = (w * h) / 1e6 / (tot / 1000), fps1080 = mpx / ((1920 * 1080) / 1e6)
+        LAB.tarjetas(q('#im-cards'), [['Tamaño', `${w} × ${h}`, `${f((w * h) / 1e3, 0)} kpíxeles`], ['Tiempo por etapa', f(tot, 0) + ' ms', `gris ${f(t[0], 0)} · gauss ${f(t[1], 0)} · sobel ${f(t[2], 0)} · nms ${f(t[3], 0)} · hist. ${f(t[4], 0)}`], ['Rendimiento', f(mpx, 1) + ' Mpíxel/s', `≈ ${f(fps1080, 1)} fps en 1080p (el informe pide 60)`, fps1080 >= 60 ? 'ok3' : 'w3'], ['Píxeles de borde (Canny)', String(res.nBordes), q('#im-inf').checked ? 'con la NMS del informe' : 'con la NMS corregida'], ['Bordes finales: corregida / informe', `${res.nCorr} / ${res.nInf}`, `con la NMS del informe cambia el ${f((Math.abs(res.nInf - res.nCorr) / Math.max(1, res.nCorr)) * 100, 0)} % de los píxeles de borde`, Math.abs(res.nInf - res.nCorr) > res.nCorr * 0.1 ? 'w3' : '']])
+      }
+      const pide = LAB.debounce(() => proceso(), 90)
+      q('#im-inf').onchange = proceso
+      q('#im-src').onchange = () => { if (q('#im-src').value === 'archivo') q('#im-file').click(); else proceso() }
+      q('#im-file').onchange = () => {
+        const fl = q('#im-file').files[0]; if (!fl) return; const u = URL.createObjectURL(fl), im = new Image()
+        im.onload = () => { const k = Math.min(1, 360 / Math.max(im.width, im.height)), w = Math.max(16, Math.round(im.width * k)), h = Math.max(16, Math.round(im.height * k)), cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.drawImage(im, 0, 0, w, h); const d = c.getImageData(0, 0, w, h); img = { w, h, data: d.data }; URL.revokeObjectURL(u); q('#im-src').value = 'archivo'; q('#im-est').textContent = `${fl.name}: ${w} × ${h} (procesada solo en tu navegador)`; proceso() }
+        im.onerror = () => { q('#im-est').textContent = 'no se pudo leer la imagen'; q('#im-src').value = 'escena' }; im.src = u
+      }
+      proceso()
+      return { redibujar: () => res && pinta(), api: { get res() { return res }, proceso, get img() { return img } } }
+    },
+  })
+})()
+
+/* ---- ui/zz-inicio.js ---- */
+;LAB.iniciar()
+window.demoApi = { LAB, abrir: LAB.abrir, sim: (id) => LAB.montados[id]?.api }
+
+</script>
+</body>
+</html>

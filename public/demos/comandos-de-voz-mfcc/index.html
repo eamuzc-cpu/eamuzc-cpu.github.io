@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reconocimiento de comandos de voz: MFCC y clasificador (TinyML) — simulador interactivo</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.nav button { white-space: nowrap; display: flex; gap: 6px; align-items: baseline; } .nav button b { font: 600 10px var(--mono); color: var(--mut); } .nav button.on b { color: var(--cyan); }
+.sim { display: none; padding: 12px 16px; } .sim.on { display: block; }
+.cab h2 { margin: 0 0 4px; font: 600 17px var(--font); letter-spacing: .1px; text-transform: none; color: var(--txt); } .cab p { margin: 0 0 8px; color: #cbd5e1; font-size: 13px; line-height: 1.5; max-width: 980px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; } .g21 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 12px; } .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; } .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 19px var(--mono); margin-top: 2px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.ok3 { border-color: rgba(52, 211, 153, .6); } .card.ok3 b { color: var(--green); } .card.w3 { border-color: rgba(245, 158, 11, .6); } .card.w3 b { color: var(--amber); } .card.b3 { border-color: var(--red); } .card.b3 b { color: var(--red); }
+canvas { height: 220px; } canvas.alto { height: 320px; } canvas.medio { height: 260px; } canvas.bajo { height: 130px; } canvas.cuad { height: auto; aspect-ratio: 1 / 1; }
+.ctl { display: grid; grid-template-columns: 112px 1fr 74px; gap: 6px 10px; align-items: center; margin-bottom: 3px; font: 12px var(--mono); } .ctl label { color: var(--mut); } .ctl output { color: var(--cyan); text-align: right; }
+.row { margin-bottom: 8px; } .row select, .row input[type=number] { max-width: 100%; }
+.panel p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; } .panel ul { margin: 4px 0 6px 16px; padding: 0; font-size: 12.5px; line-height: 1.5; }
+details.notas { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); margin-top: 4px; } details.notas summary { cursor: pointer; font: 600 11px var(--mono); letter-spacing: .6px; text-transform: uppercase; color: var(--mut); } details.notas[open] summary { color: var(--cyan); margin-bottom: 6px; } details.notas li { margin: 4px 0; font-size: 12.5px; color: #cbd5e1; }
+.etq { font: 600 10px var(--mono); padding: 2px 7px; border-radius: 999px; border: 1px solid; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; } .etq.ok { color: var(--green); border-color: rgba(52, 211, 153, .6); } .etq.av { color: var(--amber); border-color: rgba(245, 158, 11, .6); } .etq.bad { color: var(--red); border-color: rgba(248, 113, 113, .6); }
+textarea { width: 100%; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px/1.4 var(--mono); }
+pre.salida { margin: 0; background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 11.5px/1.45 var(--mono); color: #cbd5e1; overflow: auto; max-height: 260px; }
+table.cmp td, table.cmp th { padding: 3px 7px; white-space: nowrap; } td.n, th.n { text-align: right; }
+.celdas { display: flex; gap: 3px; flex-wrap: wrap; } .celdas i { font: 10px var(--mono); font-style: normal; width: 34px; text-align: center; padding: 3px 0; border-radius: 4px; background: #14301f; color: var(--green); } .celdas i.no { background: #3a1a1f; color: var(--red); }
+.barra { height: 14px; background: #0b1730; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); } .barra i { display: block; height: 100%; background: var(--cyan); }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font: 11px var(--mono); color: var(--mut); margin-top: 4px; } .leyenda i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+svg text { font: 11px ui-monospace, Consolas, monospace; fill: #cbd5e1; }
+@media (max-width: 1000px) { .g2, .g21, .g3, .g4 { grid-template-columns: 1fr; } .sim { padding: 10px 10px; } .nav { padding: 6px 10px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Reconocimiento de comandos de voz: MFCC y clasificador (TinyML)</h1><span class="badge">de la especificación al código</span><span class="badge warn">todo simulado · sin hardware</span><span class="sp"></span>
+</div>
+<nav class="nav" id="nav"></nav>
+<main id="lab"></main>
+<div class="note">Simulador 6 de 14 del laboratorio de ingeniería: parte de un documento de especificación (ecuaciones, parámetros y fragmentos de código) y está escrito en JavaScript puro, sin librerías, con pruebas automáticas. Cuando algo no coincide con el informe se dice en «Notas sobre el informe y límites». Es un modelo de práctica: no reemplaza instrumentos ni hardware.</div>
+
+<script>
+/* ---- cores/kws.js ---- */
+;// Reconocimiento de comandos con MFCC: pre-énfasis 0,97, ventana de 40 ms cada 20 ms (49 tramas en 1 s a 16 kHz), FFT de 1024, banco de 40 filtros Mel
+// triangulares (la construcción del script del informe), log-energías y DCT-II con 10 coeficientes → tensor de 49 × 10.
+// El clasificador NO es la DS-CNN del informe: es una regresión softmax sobre características agrupadas por segmentos, entrenada aquí con sonidos
+// SINTÉTICOS (barridos, pitidos, ráfagas de ruido), no con voz humana. Sirve para mostrar el pipeline completo y medir su robustez al ruido.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LabKWS = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const CONFIG = { fs: 16000, dur: 1, ventana: 640, paso: 320, nFFT: 1024, nMel: 40, nCoef: 10, preenfasis: 0.97 }
+  const CLASES = ['arriba', 'abajo', 'doble', 'alarma', 'ruido', 'silencio']
+
+  const hzAMel = (f) => 2595 * Math.log10(1 + f / 700), melAHz = (m) => 700 * (10 ** (m / 2595) - 1)
+
+  // FFT compleja en sitio (radix-2)
+  function fft(re, im) {
+    const n = re.length; let j = 0
+    for (let i = 0; i < n - 1; i++) { if (i < j) { ;[re[i], re[j]] = [re[j], re[i]]; ;[im[i], im[j]] = [im[j], im[i]] } let k = n >> 1; while (k <= j) { j -= k; k >>= 1 } j += k }
+    for (let len = 2; len <= n; len <<= 1) { const h = len >> 1, a = (-2 * Math.PI) / len, sr = Math.cos(a), si = Math.sin(a); for (let i = 0; i < n; i += len) { let wr = 1, wi = 0; for (let k = 0; k < h; k++) { const x = i + k, y = x + h, vr = re[y] * wr - im[y] * wi, vi = re[y] * wi + im[y] * wr; re[y] = re[x] - vr; im[y] = im[x] - vi; re[x] += vr; im[x] += vi; const nr = wr * sr - wi * si; wi = wr * si + wi * sr; wr = nr } } }
+  }
+
+  // Banco Mel como en el script del informe: puntos equiespaciados en Mel, bins = ⌊(nFFT+1)·f/fs⌋, triángulos de pico 1
+  function bancoMel(nFiltros = CONFIG.nMel, nFFT = CONFIG.nFFT, fs = CONFIG.fs) {
+    const altoMel = hzAMel(fs / 2), hz = Array.from({ length: nFiltros + 2 }, (_, i) => melAHz((altoMel * i) / (nFiltros + 1))), bin = hz.map((f) => Math.floor(((nFFT + 1) * f) / fs))
+    const banco = Array.from({ length: nFiltros }, () => new Float64Array(nFFT / 2 + 1))
+    for (let m = 1; m <= nFiltros; m++) {
+      for (let k = bin[m - 1]; k < bin[m]; k++) banco[m - 1][k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
+      for (let k = bin[m]; k < bin[m + 1]; k++) banco[m - 1][k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
+    }
+    return { banco, bin, hz }
+  }
+  const BANCO = bancoMel()
+
+  // c_m = Σ_{k=1..K} log(E_k)·cos(m·(k − 0,5)·π/K),  m = 0 … nCoef − 1
+  function dct2(logE, nCoef = CONFIG.nCoef) {
+    const K = logE.length; return Float64Array.from({ length: nCoef }, (_, m) => logE.reduce((a, e, k) => a + e * Math.cos((m * (k + 0.5) * Math.PI) / K), 0))
+  }
+
+  const HAMMING = Float64Array.from({ length: CONFIG.ventana }, (_, n) => 0.54 - 0.46 * Math.cos((2 * Math.PI * n) / (CONFIG.ventana - 1)))
+  // x: señal de 1 s a 16 kHz. Devuelve { mfcc: Float64Array(nTramas·nCoef), mel: logs de energía Mel por trama, nTramas }
+  function mfcc(x, cfg = CONFIG) {
+    const y = new Float64Array(x.length); y[0] = x[0]; for (let n = 1; n < x.length; n++) y[n] = x[n] - cfg.preenfasis * x[n - 1]
+    const nT = Math.floor((y.length - cfg.ventana) / cfg.paso) + 1, out = new Float64Array(nT * cfg.nCoef), mel = []
+    for (let t = 0; t < nT; t++) {
+      const re = new Float64Array(cfg.nFFT), im = new Float64Array(cfg.nFFT)
+      for (let n = 0; n < cfg.ventana; n++) re[n] = y[t * cfg.paso + n] * HAMMING[n]
+      fft(re, im)
+      const pot = new Float64Array(cfg.nFFT / 2 + 1); for (let k = 0; k < pot.length; k++) pot[k] = re[k] * re[k] + im[k] * im[k]
+      const logE = BANCO.banco.map((fila) => { let e = 0; for (let k = 0; k < fila.length; k++) e += fila[k] * pot[k]; return Math.log(e + 1e-10) })
+      mel.push(logE); out.set(dct2(logE, cfg.nCoef), t * cfg.nCoef)
+    }
+    return { mfcc: out, mel, nTramas: nT, nCoef: cfg.nCoef }
+  }
+
+  // ---- sonidos sintéticos --------------------------------------------------------------------------------------------------------------------
+  function prng(semilla = 1) { let a = semilla >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+  const gauss = (r) => Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r())
+  function generar(clase, { semilla = 1, snrDb = 20 } = {}) {
+    const r = prng(semilla * 7919 + CLASES.indexOf(clase) * 104729 + 13), fs = CONFIG.fs, n = fs * CONFIG.dur, x = new Float64Array(n), amp = 0.3 + 0.6 * r(), ini = Math.round((0.05 + 0.4 * r()) * fs)
+    const jit = () => 1 + 0.16 * (r() - 0.5), env = (i, len) => Math.sin((Math.PI * i) / len) ** 0.5
+    const tono = (i0, len, f0, f1) => { let ph = 0; for (let i = 0; i < len && i0 + i < n; i++) { ph += (2 * Math.PI * (f0 + ((f1 - f0) * i) / len)) / fs; x[i0 + i] += amp * env(i, len) * Math.sin(ph) } }
+    if (clase === 'arriba') tono(ini, Math.round(0.45 * fs), 350 * jit(), 1400 * jit())
+    else if (clase === 'abajo') tono(ini, Math.round(0.45 * fs), 1400 * jit(), 350 * jit())
+    else if (clase === 'doble') { const f = 850 * jit(), len = Math.round(0.12 * fs); tono(ini, len, f, f); tono(ini + 2 * len, len, f, f) }
+    else if (clase === 'alarma') { const len = Math.round(0.1 * fs), a = 600 * jit(), b = 1000 * jit(); for (let k = 0; k < 4; k++) tono(ini + k * len, len, k % 2 ? b : a, k % 2 ? b : a) }
+    else if (clase === 'ruido') { const len = Math.round(0.4 * fs); for (let i = 0; i < len && ini + i < n; i++) x[ini + i] = 0.5 * amp * gauss(r) * env(i, len) }
+    let pot = 0, cuenta = 0; for (let i = 0; i < n; i++) if (x[i] !== 0) { pot += x[i] * x[i]; cuenta++ }
+    const rms = cuenta ? Math.sqrt(pot / cuenta) : 0, sigma = clase === 'silencio' ? 0.002 * (1 + r()) : Math.max(0.002, rms / 10 ** (snrDb / 20))
+    for (let i = 0; i < n; i++) x[i] += sigma * gauss(r)
+    return x
+  }
+
+  // ---- características: nivel, duración activa y la media de las MFCC en 3 segmentos de la zona activa (invariante al desplazamiento) ----------------
+  function caracteristicas(m) {
+    const { mfcc: c, nTramas: nT, nCoef: nC, mel } = m, nivel = mel.map((v) => Math.log10(v.reduce((a, e) => a + Math.exp(e), 0) + 1e-12)), max = Math.max(...nivel)
+    const activas = []; nivel.forEach((v, i) => { if (v > max - 1.2) activas.push(i) }) // dentro de 12 dB del máximo
+    const a0 = activas[0], a1 = activas[activas.length - 1], largo = a1 - a0 + 1, f = [max / 5, largo / nT]
+    for (let s = 0; s < 3; s++) {
+      const i0 = a0 + Math.floor((s * largo) / 3), i1 = Math.max(i0 + 1, a0 + Math.floor(((s + 1) * largo) / 3)); const acc = new Float64Array(nC); let cnt = 0
+      for (let t = i0; t < Math.min(i1, nT); t++) { for (let k = 0; k < nC; k++) acc[k] += c[t * nC + k]; cnt++ }
+      for (let k = 0; k < nC; k++) f.push(acc[k] / Math.max(1, cnt) / (k === 0 ? 40 : 10))
+    }
+    return Float64Array.from(f)
+  }
+  const vector = (x) => caracteristicas(mfcc(x))
+
+  // ---- regresión softmax ----------------------------------------------------------------------------------------------------------------------
+  const softmax = (z) => { const m = Math.max(...z), e = z.map((v) => Math.exp(v - m)), s = e.reduce((a, b) => a + b, 0); return e.map((v) => v / s) }
+  function entrenar(X, y, { epocas = 400, lr = 0.5, l2 = 1e-3, clases = CLASES } = {}) {
+    const d = X[0].length, K = clases.length, media = new Float64Array(d), desv = new Float64Array(d)
+    X.forEach((v) => v.forEach((x, j) => (media[j] += x / X.length))); X.forEach((v) => v.forEach((x, j) => (desv[j] += (x - media[j]) ** 2 / X.length))); for (let j = 0; j < d; j++) desv[j] = Math.sqrt(desv[j]) + 1e-6
+    const Z = X.map((v) => v.map((x, j) => (x - media[j]) / desv[j])), W = Array.from({ length: K }, () => new Float64Array(d)), b = new Float64Array(K)
+    let perdida = 0
+    for (let ep = 0; ep < epocas; ep++) {
+      const gW = Array.from({ length: K }, () => new Float64Array(d)), gb = new Float64Array(K); perdida = 0
+      Z.forEach((z, i) => {
+        const p = softmax(W.map((w, k) => w.reduce((a, wj, j) => a + wj * z[j], b[k]))); perdida -= Math.log(p[y[i]] + 1e-12) / Z.length
+        for (let k = 0; k < K; k++) { const g = p[k] - (k === y[i] ? 1 : 0); gb[k] += g / Z.length; for (let j = 0; j < d; j++) gW[k][j] += (g * z[j]) / Z.length }
+      })
+      for (let k = 0; k < K; k++) { b[k] -= lr * gb[k]; for (let j = 0; j < d; j++) W[k][j] -= lr * (gW[k][j] + l2 * W[k][j]) }
+    }
+    return { W, b, media, desv, clases, perdida }
+  }
+  function predecir(modelo, f) {
+    const z = Array.from(f, (x, j) => (x - modelo.media[j]) / modelo.desv[j]), p = softmax(modelo.W.map((w, k) => w.reduce((a, wj, j) => a + wj * z[j], modelo.b[k])))
+    let k = 0; p.forEach((v, i) => { if (v > p[k]) k = i }); return { clase: modelo.clases[k], k, probs: p }
+  }
+  // Conjunto de datos: nPorClase sonidos por clase con semillas consecutivas desde `semilla0` y una relación señal/ruido dada (o sorteada entre dos valores)
+  function conjunto(nPorClase, semilla0, snr = 20) {
+    const X = [], y = []
+    CLASES.forEach((c, k) => { for (let i = 0; i < nPorClase; i++) { const s = typeof snr === 'number' ? snr : snr[0] + ((snr[1] - snr[0]) * ((i * 7 + k) % 10)) / 9; X.push(vector(generar(c, { semilla: semilla0 + i, snrDb: s }))); y.push(k) } })
+    return { X, y }
+  }
+  function evaluar(modelo, X, y) {
+    const K = modelo.clases.length, conf = Array.from({ length: K }, () => new Array(K).fill(0)); let ok = 0
+    X.forEach((f, i) => { const p = predecir(modelo, f); conf[y[i]][p.k]++; if (p.k === y[i]) ok++ })
+    return { exactitud: ok / X.length, conf }
+  }
+
+  return { CONFIG, CLASES, hzAMel, melAHz, bancoMel, BANCO, dct2, mfcc, generar, caracteristicas, vector, entrenar, predecir, conjunto, evaluar, softmax, prng }
+})
+
+/* ---- cores/fft.js ---- */
+;// Análisis espectral: FFT radix-2 en sitio (el algoritmo del informe), ventanas (Blackman-Harris de 4 términos, Hann, rectangular), STFT con solape,
+// espectro en dBFS (0 dB = una senoide de amplitud 1), estimación del pico con interpolación parabólica y generadores de señales sintéticas deterministas.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LabFFT = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  // Cooley-Tukey radix-2, decimación en el tiempo, en sitio (n potencia de 2)
+  function fft(real, imag) {
+    const n = real.length
+    if (n <= 1) return
+    if (n & (n - 1)) throw new Error('la longitud debe ser potencia de 2')
+    let j = 0
+    for (let i = 0; i < n - 1; i++) {
+      if (i < j) { ;[real[i], real[j]] = [real[j], real[i]]; ;[imag[i], imag[j]] = [imag[j], imag[i]] }
+      let k = n >> 1; while (k <= j) { j -= k; k >>= 1 } j += k
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const half = len >> 1, ang = (-2 * Math.PI) / len, wsr = Math.cos(ang), wsi = Math.sin(ang)
+      for (let i = 0; i < n; i += len) {
+        let wr = 1, wi = 0
+        for (let k = 0; k < half; k++) {
+          const a = i + k, b = i + k + half, ur = real[a], ui = imag[a], vr = real[b] * wr - imag[b] * wi, vi = real[b] * wi + imag[b] * wr
+          real[a] = ur + vr; imag[a] = ui + vi; real[b] = ur - vr; imag[b] = ui - vi
+          const nr = wr * wsr - wi * wsi; wi = wr * wsi + wi * wsr; wr = nr
+        }
+      }
+    }
+  }
+
+  // ---- ventanas ------------------------------------------------------------------------------------------------------------------
+  const BH = { a0: 0.35875, a1: 0.48829, a2: 0.14128, a3: 0.01168 }
+  function ventana(tipo, N) {
+    const w = new Float64Array(N)
+    for (let n = 0; n < N; n++) {
+      if (tipo === 'rect') w[n] = 1
+      else if (tipo === 'hann') w[n] = 0.5 - 0.5 * Math.cos((2 * Math.PI * n) / N)
+      else w[n] = BH.a0 - BH.a1 * Math.cos((2 * Math.PI * n) / N) + BH.a2 * Math.cos((4 * Math.PI * n) / N) - BH.a3 * Math.cos((6 * Math.PI * n) / N)
+    }
+    return w
+  }
+  const sumaVentana = (w) => w.reduce((a, b) => a + b, 0)
+
+  // Espectro de un bloque de N muestras en dBFS: |X[k]|·2/Σw (una senoide centrada en un bin y de amplitud A da 20·log10(A))
+  function espectroDb(x, N, w, desde = 0, piso = -200) {
+    const re = new Float64Array(N), im = new Float64Array(N), s = sumaVentana(w)
+    for (let n = 0; n < N; n++) re[n] = (x[desde + n] ?? 0) * w[n]
+    fft(re, im)
+    const out = new Float32Array(N / 2 + 1)
+    for (let k = 0; k <= N / 2; k++) out[k] = Math.max(piso, 20 * Math.log10(((k === 0 || k === N / 2 ? 1 : 2) * Math.hypot(re[k], im[k])) / s + 1e-30))
+    return out
+  }
+  // STFT: tramas de N muestras cada `hop`; devuelve las tramas en dBFS, el tiempo central de cada una y el eje de frecuencias
+  function stft(x, { N = 2048, hop = 512, fs = 48000, tipo = 'bh' } = {}) {
+    const w = ventana(tipo, N), tramas = [], tiempos = []
+    for (let i = 0; i + N <= x.length; i += hop) { tramas.push(espectroDb(x, N, w, i)); tiempos.push((i + N / 2) / fs) }
+    return { tramas, tiempos, freqs: Array.from({ length: N / 2 + 1 }, (_, k) => (k * fs) / N), N, hop, fs }
+  }
+  const resolucion = (fs, N, hop) => ({ df: fs / N, dt: hop / fs, solape: 1 - hop / N })
+
+  // pico del espectro con interpolación parabólica (sobre dB): { f, db }
+  function pico(esp, fs, N, kmin = 1, kmax = esp.length - 2) {
+    let k = kmin; for (let i = kmin; i <= kmax; i++) if (esp[i] > esp[k]) k = i
+    const a = esp[k - 1], b = esp[k], c = esp[k + 1], d = a - 2 * b + c, delta = d === 0 ? 0 : (0.5 * (a - c)) / d
+    return { f: ((k + delta) * fs) / N, db: b - 0.25 * (a - c) * delta, k }
+  }
+
+  // ---- señales sintéticas (deterministas) ----------------------------------------------------------------------------------------------
+  function prng(semilla = 1) { let a = semilla >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+  const seno = (f, dur, fs, amp = 1, fase = 0) => Float64Array.from({ length: Math.round(dur * fs) }, (_, n) => amp * Math.sin(2 * Math.PI * f * (n / fs) + fase))
+  const suma = (...s) => { const n = Math.max(...s.map((x) => x.length)), o = new Float64Array(n); for (const x of s) for (let i = 0; i < x.length; i++) o[i] += x[i]; return o }
+  function chirp(f0, f1, dur, fs, amp = 1) { const k = (f1 - f0) / dur; return Float64Array.from({ length: Math.round(dur * fs) }, (_, n) => { const t = n / fs; return amp * Math.sin(2 * Math.PI * (f0 * t + 0.5 * k * t * t)) }) }
+  function ruido(dur, fs, sigma = 0.1, semilla = 1) { const r = prng(semilla); return Float64Array.from({ length: Math.round(dur * fs) }, () => sigma * Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r())) }
+  // «voz» sintética: tren de armónicos de un f0 que baja de f0a a f0b, con tres formantes (F1 700, F2 1220, F3 2600 Hz)
+  function voz(dur, fs, f0a = 160, f0b = 110, amp = 0.4) {
+    const n = Math.round(dur * fs), o = new Float64Array(n), formantes = [[700, 130, 1], [1220, 90, 0.6], [2600, 160, 0.3]]
+    const env = (f) => formantes.reduce((a, [fc, bw, g]) => a + g / (1 + ((f - fc) / bw) ** 2), 0.02)
+    let fase = new Float64Array(40), norma = 0
+    for (let i = 0; i < n; i++) {
+      const f0 = f0a + (f0b - f0a) * (i / n); let v = 0
+      for (let h = 1; h <= 40 && h * f0 < fs / 2; h++) { fase[h - 1] += (2 * Math.PI * h * f0) / fs; v += (env(h * f0) / h ** 0.5) * Math.sin(fase[h - 1]) }
+      o[i] = v; norma = Math.max(norma, Math.abs(v))
+    }
+    return o.map((v) => (amp * v) / norma)
+  }
+
+  // ---- mapas de color (aproximación por anclas, valor 0..1 → [r, g, b]) -----------------------------------------------------------------------
+  const MAPAS = {
+    viridis: [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
+    magma: [[0, 0, 4], [81, 18, 124], [183, 55, 121], [252, 137, 97], [252, 253, 191]],
+  }
+  function color(v, mapa = 'viridis') {
+    const a = MAPAS[mapa], x = Math.min(1, Math.max(0, v)) * (a.length - 1), i = Math.min(a.length - 2, Math.floor(x)), f = x - i
+    return a[i].map((c, k) => Math.round(c + (a[i + 1][k] - c) * f))
+  }
+
+  return { fft, ventana, BH, sumaVentana, espectroDb, stft, resolucion, pico, prng, seno, suma, chirp, ruido, voz, color, MAPAS }
+})
+
+</script>
+<script>
+/* ---- ui/comun.js ---- */
+;'use strict'
+// Utilidades compartidas de la interfaz: formato, dibujo en canvas (ejes, trazos con envolvente, mapas de calor), controles deslizantes, tarjetas,
+// registro de simuladores y navegación por pestañas con enlace directo (#id). Cada simulador se monta la primera vez que se abre y luego se
+// activa/desactiva; si define `tick(dt)` se anima solo mientras está visible.
+const LAB = (() => {
+  const f = (n, d = 1) => (Number.isFinite(n) ? Number(n).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d }) : n === Infinity ? '∞' : n === -Infinity ? '−∞' : '—')
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const $ = (s, r = document) => r.querySelector(s)
+  const mx = (a, i0 = 0, i1 = a.length) => { let m = -Infinity; for (let i = i0; i < i1; i++) if (a[i] > m) m = a[i]; return m }
+  const mn = (a, i0 = 0, i1 = a.length) => { let m = Infinity; for (let i = i0; i < i1; i++) if (a[i] < m) m = a[i]; return m }
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x))
+  const debounce = (fn, ms = 120) => { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms) } }
+
+  // ---- dibujo ----------------------------------------------------------------------------------------------------------------------------------------------------
+  function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+  function trazo(c, X, Y, xs, ys, i0, i1, color, ancho = 1.5, dash = []) {
+    c.strokeStyle = color; c.lineWidth = ancho; c.setLineDash(dash); c.beginPath(); const n = i1 - i0; if (n < 2) { c.setLineDash([]); return }
+    const px = Math.abs(X(xs[i1 - 1]) - X(xs[i0]))
+    if (n > 3 * px) { // muchas más muestras que píxeles: mínimo y máximo por columna
+      let col = null, lo = 0, hi = 0, ini = true; const cierra = () => { const x = col + 0.5; if (ini) { c.moveTo(x, Y(lo)); ini = false } else c.lineTo(x, Y(lo)); c.lineTo(x, Y(hi)) }
+      for (let i = i0; i < i1; i++) { const p = Math.round(X(xs[i])); if (p !== col) { if (col !== null) cierra(); col = p; lo = hi = ys[i] } else { if (ys[i] < lo) lo = ys[i]; if (ys[i] > hi) hi = ys[i] } } cierra()
+    } else { let abierto = false; for (let i = i0; i < i1; i++) { if (!Number.isFinite(ys[i])) { abierto = false; continue } if (!abierto) { c.moveTo(X(xs[i]), Y(ys[i])); abierto = true } else c.lineTo(X(xs[i]), Y(ys[i])) } }
+    c.stroke(); c.setLineDash([])
+  }
+  // o: { x0, x1, y0, y1, ystep, xlog, xticks, xfmt, yfmt, xlab, sinX, L, series:[{xs,ys,i0,i1,color,w,dash}], hl:[{y,color,label,dash}], vl:[{x,color,label}] }
+  function grafica(cv, o) {
+    const { c, w, h } = prep(cv), L = o.L ?? 48, R = 10, T = 8, B = o.sinX ? 6 : 20, lx0 = o.xlog ? Math.log10(o.x0) : o.x0, lx1 = o.xlog ? Math.log10(o.x1) : o.x1
+    const X = (x) => L + (((o.xlog ? Math.log10(x) : x) - lx0) / (lx1 - lx0)) * (w - L - R), Y = (y) => T + (1 - (y - o.y0) / (o.y1 - o.y0)) * (h - T - B)
+    c.lineWidth = 1; c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+    for (let v = o.y0; v <= o.y1 + 1e-9; v += o.ystep) { const y = Y(v); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText((o.yfmt ?? ((q) => f(q, 0)))(v), L - 4, y + 3) }
+    if (!o.sinX) {
+      c.textAlign = 'center'; const xt = o.xlog ? [0.01, 0.1, 1, 10, 100, 1e3, 1e4, 1e5, 1e6].filter((v) => v >= o.x0 * 0.999 && v <= o.x1 * 1.001) : o.xticks ?? []
+      for (const v of xt) { const x = X(v); if (o.xlab && x > w - R - 34) continue; c.strokeStyle = '#0f1a2e'; c.beginPath(); c.moveTo(x, T); c.lineTo(x, h - B); c.stroke(); c.fillStyle = '#64748b'; c.fillText(o.xlog ? (v >= 1e3 ? v / 1e3 + 'k' : v < 1 ? String(v).replace('.', ',') : v) : (o.xfmt ?? ((q) => f(q, 0)))(v), x, h - 5) }
+      if (o.xlab) { c.textAlign = 'right'; c.fillText(o.xlab, w - R, h - 5) }
+    }
+    c.save(); c.beginPath(); c.rect(L, T, w - L - R, h - T - B); c.clip()
+    for (const l of o.hl ?? []) { c.strokeStyle = l.color; c.setLineDash(l.dash === false ? [] : [5, 4]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(L, Y(l.y)); c.lineTo(w - R, Y(l.y)); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, L + 4, Y(l.y) - 3) } }
+    for (const l of o.vl ?? []) { c.strokeStyle = l.color; c.setLineDash([4, 3]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(X(l.x), T); c.lineTo(X(l.x), h - B); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, X(l.x) + 3, T + 10) } }
+    for (const s of o.series ?? []) trazo(c, X, Y, s.xs, s.ys, s.i0 ?? 0, s.i1 ?? s.xs.length, s.color, s.w, s.dash)
+    c.restore(); return { c, X, Y, w, h, L, R, T, B }
+  }
+  // matriz (filas × columnas) a color: M[fila][col] en 0..1 → mapa(v) = [r, g, b]. La fila 0 se dibuja ARRIBA salvo que `invertir` sea true.
+  // L y B son márgenes (px) a la izquierda y abajo para dibujar los ejes encima; devuelve el contexto y la zona de la imagen { x0, y0, ancho, alto }
+  function mapaCalor(cv, M, mapa, { invertir = false, L = 0, B = 0, T = 0 } = {}) {
+    const { c, w, h } = prep(cv), nf = M.length, nc = M[0].length, off = document.createElement('canvas'); off.width = nc; off.height = nf
+    const octx = off.getContext('2d'), img = octx.createImageData(nc, nf)
+    for (let j = 0; j < nf; j++) for (let i = 0; i < nc; i++) { const col = mapa(M[invertir ? nf - 1 - j : j][i]), k = 4 * (j * nc + i); img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = 255 }
+    octx.putImageData(img, 0, 0); c.imageSmoothingEnabled = false; c.drawImage(off, L, T, w - L, h - B - T); return { c, w, h, x0: L, y0: T, ancho: w - L, alto: h - B - T }
+  }
+  // marcas «bonitas» (1, 2, 5 × 10ⁿ) entre a y b, aproximadamente n
+  function ticks(a, b, n = 5) { const r = b - a, p = 10 ** Math.floor(Math.log10(r / n)), m = [1, 2, 5, 10].find((k) => (k * p * n) >= r) * p, out = []; for (let v = Math.ceil(a / m - 1e-9) * m; v <= b + 1e-9; v += m) out.push(+v.toFixed(10)); return out }
+  function dibujaImagen(cv, data, w, h) { // RGBA (Uint8ClampedArray) a un canvas del tamaño de la imagen, escalado por CSS
+    cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0); return c
+  }
+
+  // ---- controles ---------------------------------------------------------------------------------------------------------------------------------------------------
+  // defs: [{ id, label, min, max, step, valor, fmt, log }]; devuelve { v: {id: valor}, set(id, valor, silencio) }
+  function controles(root, defs, onChange) {
+    const v = {}, outs = {}, ins = {}
+    root.innerHTML = defs.map((d) => `<div class="ctl"><label for="${d.uid ?? 'c_' + d.id}">${d.label}</label><input id="${d.uid ?? 'c_' + d.id}" type="range" min="${d.log ? Math.log10(d.min) : d.min}" max="${d.log ? Math.log10(d.max) : d.max}" step="${d.log ? 0.01 : d.step}" value="${d.log ? Math.log10(d.valor) : d.valor}"><output></output></div>`).join('')
+    const filas = root.querySelectorAll('.ctl')
+    defs.forEach((d, i) => {
+      // en la escala logarítmica se redondea a 3 cifras: evita «219» donde se pidió 220
+      const inp = filas[i].querySelector('input'), out = filas[i].querySelector('output'), leer = () => (d.log ? +(10 ** +inp.value).toPrecision(3) : +inp.value), pinta = () => { v[d.id] = leer(); out.textContent = (d.fmt ?? ((x) => f(x, 2)))(v[d.id]) }
+      outs[d.id] = out; ins[d.id] = inp; pinta(); inp.addEventListener('input', () => { pinta(); onChange?.(d.id, v) })
+    })
+    return { v, set(id, val, silencio = false) { const d = defs.find((q) => q.id === id); ins[id].value = d.log ? Math.log10(val) : val; v[id] = val; outs[id].textContent = (d.fmt ?? ((x) => f(x, 2)))(val); if (!silencio) onChange?.(id, v) } }
+  }
+  const tarjetas = (el, items) => { el.innerHTML = items.map(([t, val, sub, cl]) => `<div class="card ${cl ?? ''}"><span>${t}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ''}</div>`).join('') }
+  const leyenda = (el, items) => { el.innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('') }
+
+  // ---- registro y navegación ----------------------------------------------------------------------------------------------------------------------------------------
+  const sims = [], montados = {}; let activo = null, t0 = performance.now()
+  const registrar = (def) => sims.push(def)
+  function abrir(id) {
+    const def = sims.find((s) => s.id === id) ?? sims[0]; if (!def) return
+    if (activo) { activo.obj?.desactivar?.(); $('#s-' + activo.def.id).classList.remove('on') }
+    let sec = $('#s-' + def.id)
+    if (!sec) {
+      sec = document.createElement('section'); sec.className = 'sim'; sec.id = 's-' + def.id
+      sec.innerHTML = `<div class="cab"><h2>${sims.length > 1 ? def.num + ' · ' : ''}${def.titulo}</h2><p>${def.resumen}</p></div><div class="cuerpo"></div>${def.notas?.length ? `<details class="notas"><summary>Notas sobre el informe y límites</summary><ul>${def.notas.map((n) => `<li>${n}</li>`).join('')}</ul></details>` : ''}`
+      sec.classList.add('on'); $('#lab').appendChild(sec); montados[def.id] = def.montar($('.cuerpo', sec)) // visible ANTES de montar: los canvas necesitan su tamaño real
+    }
+    sec.classList.add('on'); activo = { def, obj: montados[def.id] }; activo.obj?.activar?.(); activo.obj?.redibujar?.()
+    document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.id === def.id)); try { history.replaceState(null, '', '#' + def.id) } catch { /* en un iframe sandbox puede fallar */ }
+    document.querySelector(`#nav button[data-id="${def.id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }
+  function iniciar() {
+    sims.sort((a, b) => a.num - b.num)
+    $('#nav').innerHTML = sims.map((s) => `<button data-id="${s.id}" title="${esc(s.titulo)}"><b>${s.num}</b>${s.corto}</button>`).join(''); $('#nav').onclick = (e) => { const b = e.target.closest('button'); if (b) abrir(b.dataset.id) }
+    if (sims.length === 1) $('#nav').style.display = 'none' // página de un solo simulador: sin pestañas
+    abrir(decodeURIComponent(location.hash.slice(1)) || sims[0].id)
+    window.addEventListener('hashchange', () => abrir(decodeURIComponent(location.hash.slice(1))))
+    let rz = null; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => activo?.obj?.redibujar?.(), 120) })
+    const bucle = (ahora) => { const dt = Math.min(0.05, (ahora - t0) / 1000); t0 = ahora; if (!document.hidden) activo?.obj?.tick?.(dt); requestAnimationFrame(bucle) }
+    requestAnimationFrame(bucle)
+  }
+  return { f, esc, $, mx, mn, clamp, debounce, prep, trazo, grafica, mapaCalor, ticks, dibujaImagen, controles, tarjetas, leyenda, registrar, abrir, iniciar, sims, montados, get activo() { return activo } }
+})()
+
+/* ---- ui/06-voz.js ---- */
+;;(() => {
+  const K = LabKWS, FF = LabFFT, { f } = LAB
+  LAB.registrar({
+    id: 'voz', num: 6, corto: 'Comandos (MFCC)', titulo: 'Reconocimiento de comandos de voz: MFCC y clasificador (TinyML)',
+    resumen: 'El pipeline de extracción de características del informe, completo: pre-énfasis 0,97 → tramas de 40 ms cada 20 ms → FFT → 40 filtros Mel → log-energías → DCT-II → tensor de 49 × 10. Un clasificador pequeño lo reconoce entre seis «comandos» sintéticos (barrido ascendente, descendente, doble pitido, alarma, ráfaga de ruido y silencio). No es voz humana ni la red DS-CNN del informe: es el mismo front-end con un clasificador mucho más simple, entrenado aquí mismo.',
+    notas: [
+      'Lo que SÍ es del informe: la escala Mel M(f) = 2595·log10(1 + f/700), el banco de filtros construido como en su script de Python, el pre-énfasis de 0,97, las 49 tramas × 10 coeficientes a 16 kHz y la DCT sobre las log-energías. Cada pieza tiene su prueba (banco Mel, ortogonalidad de la DCT, tono de 1 kHz en el filtro correcto, 49 tramas).',
+      'Lo que NO es del informe: la DS-CNN con TensorFlow Lite for Microcontrollers compilada a WebAssembly (conv. separable en profundidad 3×3 y capa de 64 neuronas). Aquí no hay modelo entrenado con voz ni WebAssembly: el clasificador es una regresión softmax de ≈ 200 parámetros sobre 32 características (nivel, duración activa y la media de las MFCC en tres tramos de la zona activa).',
+      'Los «comandos» son sonidos sintéticos generados con semillas fijas; el clasificador se entrena en la propia página con ellos. Por eso la exactitud alta NO dice nada sobre reconocer palabras reales: dice que el front-end MFCC separa bien estos patrones y cómo se degrada con ruido.',
+      'Con voz humana haría falta un conjunto de datos real (por ejemplo, Speech Commands), una red convolucional entrenada con él y cuantización a 8 bits para el microcontrolador. Esa parte no está hecha.',
+    ],
+    montar(root) {
+      root.innerHTML = `<div class="g2"><div class="panel"><h2>Entrenamiento (sonidos sintéticos)</h2><div class="row"><button class="primary mini" id="vz-tr">Entrenar de nuevo</button><span id="vz-est" class="note" style="padding:0"></span></div>
+          <div id="vz-cards" class="cards"></div><div id="vz-conf"></div><div class="row" style="margin-top:8px"><button class="mini" id="vz-rob">Medir exactitud según el ruido (≈ 2 s)</button></div><div id="vz-rob2"></div></div>
+        <div class="panel"><h2>Probar un sonido</h2><div class="row"><label>Comando&nbsp;</label><select id="vz-cl">${K.CLASES.map((c) => `<option>${c}</option>`).join('')}</select><button class="mini" id="vz-otro">Otra muestra</button></div><div id="vz-ct"></div>
+          <div id="vz-pred" class="cards"></div><div id="vz-barras"></div></div></div>
+        <div class="g3"><div class="panel"><h2>Forma de onda (1 s, 16 kHz)</h2><canvas id="vz-w" class="medio"></canvas></div><div class="panel"><h2>Log-energía Mel (49 tramas × 40 filtros)</h2><canvas id="vz-mel" class="medio"></canvas></div><div class="panel"><h2>Tensor de entrada: MFCC 49 × 10</h2><canvas id="vz-mf" class="medio"></canvas></div></div>`
+      const q = (s) => root.querySelector(s); let modelo = null, semilla = 7000, ultimo = null
+      const ct = LAB.controles(q('#vz-ct'), [{ id: 'snr', label: 'Relación señal/ruido', min: -5, max: 30, step: 1, valor: 20, fmt: (v) => f(v, 0) + ' dB' }], () => prueba())
+      const entrena = () => {
+        q('#vz-est').textContent = 'entrenando…'; setTimeout(() => {
+          const t0 = performance.now(), d = K.conjunto(30, 1, [8, 25]); modelo = K.entrenar(d.X, d.y, { epocas: 300 }); const ms = performance.now() - t0, v = K.conjunto(20, 90000, 20), r = K.evaluar(modelo, v.X, v.y)
+          q('#vz-est').textContent = `listo en ${f(ms / 1000, 1)} s`; LAB.tarjetas(q('#vz-cards'), [['Exactitud (sonidos nuevos, 20 dB)', f(r.exactitud * 100, 1) + ' %', `${v.y.length} sonidos de prueba`, r.exactitud > 0.9 ? 'ok3' : 'w3'], ['Parámetros', String(K.CLASES.length * (v.X[0].length + 1)), `${v.X[0].length} características × ${K.CLASES.length} clases`], ['Conjunto de entrenamiento', String(30 * K.CLASES.length), 'SNR de 8 a 25 dB']])
+          q('#vz-conf').innerHTML = `<table class="cmp"><tr><th>real \\ predicho</th>${K.CLASES.map((c) => `<th class="n">${c}</th>`).join('')}</tr>${r.conf.map((fila, i) => `<tr><td>${K.CLASES[i]}</td>${fila.map((n, j) => `<td class="n" style="${i === j ? 'color:var(--green)' : n ? 'color:var(--red)' : 'color:#475569'}">${n}</td>`).join('')}</tr>`).join('')}</table>`
+          prueba()
+        }, 30)
+      }
+      function prueba() {
+        if (!modelo) return; const c = q('#vz-cl').value, x = K.generar(c, { semilla, snrDb: ct.v.snr }), m = K.mfcc(x), fe = K.caracteristicas(m), p = K.predecir(modelo, fe); ultimo = { x, m, p }
+        const ok = p.clase === c; LAB.tarjetas(q('#vz-pred'), [['Predicción', p.clase, ok ? 'coincide con el comando real' : 'NO coincide con «' + c + '»', ok ? 'ok3' : 'b3'], ['Confianza', f(Math.max(...p.probs) * 100, 1) + ' %', 'probabilidad softmax']])
+        q('#vz-barras').innerHTML = K.CLASES.map((n, i) => `<div style="display:grid;grid-template-columns:70px 1fr 54px;gap:8px;align-items:center;margin:2px 0;font:11.5px var(--mono)"><span>${n}</span><div class="barra"><i style="width:${p.probs[i] * 100}%;${i === p.k ? '' : 'background:#475569'}"></i></div><span>${f(p.probs[i] * 100, 1)} %</span></div>`).join('')
+        const xs = Array.from(x, (_, i) => i / 16000); LAB.grafica(q('#vz-w'), { x0: 0, x1: 1, y0: -1, y1: 1, ystep: 0.5, xticks: [0, 0.25, 0.5, 0.75, 1], xfmt: (v) => f(v, 2), yfmt: (v) => f(v, 1), xlab: 's', series: [{ xs, ys: x, color: '#22d3ee', w: 1 }] })
+        const nT = m.nTramas, mel = Array.from({ length: 40 }, (_, k) => Float32Array.from({ length: nT }, (_, t) => m.mel[t][k])), lo = LAB.mn(m.mel.flat()), hi = LAB.mx(m.mel.flat()), mfc = Array.from({ length: 10 }, (_, k) => Float32Array.from({ length: nT }, (_, t) => m.mfcc[t * 10 + k]))
+        const norm = (M, a, b) => (v) => FF.color((v - a) / (b - a || 1), 'magma'), cm = LAB.mapaCalor(q('#vz-mel'), mel, norm(0, lo, hi), { invertir: true, L: 22, B: 16 }); cm.c.fillStyle = '#94a3b8'; cm.c.fillText('Mel', 2, 12); cm.c.fillText('tramas →', 26, cm.h - 3)
+        const a = LAB.mn(Array.from(m.mfcc)), b = LAB.mx(Array.from(m.mfcc)), cf = LAB.mapaCalor(q('#vz-mf'), mfc, norm(0, a, b), { invertir: true, L: 22, B: 16 }); cf.c.fillStyle = '#94a3b8'; cf.c.fillText('c', 6, 12); cf.c.fillText('tramas →', 26, cf.h - 3)
+      }
+      q('#vz-cl').onchange = prueba; q('#vz-otro').onclick = () => { semilla += 1; prueba() }; q('#vz-tr').onclick = entrena
+      q('#vz-rob').onclick = () => {
+        if (!modelo) return; q('#vz-rob2').textContent = 'midiendo…'; setTimeout(() => {
+          const filas = [25, 15, 10, 5, 0].map((s) => { const d = K.conjunto(8, 40000, s), r = K.evaluar(modelo, d.X, d.y); return [s, r.exactitud] })
+          q('#vz-rob2').innerHTML = `<table class="cmp"><tr><th>SNR</th>${filas.map(([s]) => `<th class="n">${s} dB</th>`).join('')}</tr><tr><td>exactitud</td>${filas.map(([, a]) => `<td class="n" style="color:${a > 0.9 ? 'var(--green)' : a > 0.7 ? 'var(--amber)' : 'var(--red)'}">${f(a * 100, 0)} %</td>`).join('')}</tr></table><div class="note" style="padding:4px 0 0">48 sonidos nuevos por columna; con menos ruido que el del entrenamiento (> 25 dB) o más (< 8 dB) la exactitud cae.</div>`
+        }, 30)
+      }
+      entrena()
+      return { redibujar: prueba, api: { get modelo() { return modelo }, entrena, prueba, get ultimo() { return ultimo } } }
+    },
+  })
+})()
+
+/* ---- ui/zz-inicio.js ---- */
+;LAB.iniciar()
+window.demoApi = { LAB, abrir: LAB.abrir, sim: (id) => LAB.montados[id]?.api }
+
+</script>
+</body>
+</html>

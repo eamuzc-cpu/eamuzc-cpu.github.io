@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planificador de trayectorias autónomas: A*, RRT y Pure Pursuit — simulador interactivo</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.nav button { white-space: nowrap; display: flex; gap: 6px; align-items: baseline; } .nav button b { font: 600 10px var(--mono); color: var(--mut); } .nav button.on b { color: var(--cyan); }
+.sim { display: none; padding: 12px 16px; } .sim.on { display: block; }
+.cab h2 { margin: 0 0 4px; font: 600 17px var(--font); letter-spacing: .1px; text-transform: none; color: var(--txt); } .cab p { margin: 0 0 8px; color: #cbd5e1; font-size: 13px; line-height: 1.5; max-width: 980px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; } .g21 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 12px; } .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; } .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 19px var(--mono); margin-top: 2px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.ok3 { border-color: rgba(52, 211, 153, .6); } .card.ok3 b { color: var(--green); } .card.w3 { border-color: rgba(245, 158, 11, .6); } .card.w3 b { color: var(--amber); } .card.b3 { border-color: var(--red); } .card.b3 b { color: var(--red); }
+canvas { height: 220px; } canvas.alto { height: 320px; } canvas.medio { height: 260px; } canvas.bajo { height: 130px; } canvas.cuad { height: auto; aspect-ratio: 1 / 1; }
+.ctl { display: grid; grid-template-columns: 112px 1fr 74px; gap: 6px 10px; align-items: center; margin-bottom: 3px; font: 12px var(--mono); } .ctl label { color: var(--mut); } .ctl output { color: var(--cyan); text-align: right; }
+.row { margin-bottom: 8px; } .row select, .row input[type=number] { max-width: 100%; }
+.panel p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; } .panel ul { margin: 4px 0 6px 16px; padding: 0; font-size: 12.5px; line-height: 1.5; }
+details.notas { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); margin-top: 4px; } details.notas summary { cursor: pointer; font: 600 11px var(--mono); letter-spacing: .6px; text-transform: uppercase; color: var(--mut); } details.notas[open] summary { color: var(--cyan); margin-bottom: 6px; } details.notas li { margin: 4px 0; font-size: 12.5px; color: #cbd5e1; }
+.etq { font: 600 10px var(--mono); padding: 2px 7px; border-radius: 999px; border: 1px solid; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; } .etq.ok { color: var(--green); border-color: rgba(52, 211, 153, .6); } .etq.av { color: var(--amber); border-color: rgba(245, 158, 11, .6); } .etq.bad { color: var(--red); border-color: rgba(248, 113, 113, .6); }
+textarea { width: 100%; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px/1.4 var(--mono); }
+pre.salida { margin: 0; background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 11.5px/1.45 var(--mono); color: #cbd5e1; overflow: auto; max-height: 260px; }
+table.cmp td, table.cmp th { padding: 3px 7px; white-space: nowrap; } td.n, th.n { text-align: right; }
+.celdas { display: flex; gap: 3px; flex-wrap: wrap; } .celdas i { font: 10px var(--mono); font-style: normal; width: 34px; text-align: center; padding: 3px 0; border-radius: 4px; background: #14301f; color: var(--green); } .celdas i.no { background: #3a1a1f; color: var(--red); }
+.barra { height: 14px; background: #0b1730; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); } .barra i { display: block; height: 100%; background: var(--cyan); }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font: 11px var(--mono); color: var(--mut); margin-top: 4px; } .leyenda i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+svg text { font: 11px ui-monospace, Consolas, monospace; fill: #cbd5e1; }
+@media (max-width: 1000px) { .g2, .g21, .g3, .g4 { grid-template-columns: 1fr; } .sim { padding: 10px 10px; } .nav { padding: 6px 10px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Planificador de trayectorias autónomas: A*, RRT y Pure Pursuit</h1><span class="badge">de la especificación al código</span><span class="badge warn">todo simulado · sin hardware</span><span class="sp"></span>
+</div>
+<nav class="nav" id="nav"></nav>
+<main id="lab"></main>
+<div class="note">Simulador 14 de 14 del laboratorio de ingeniería: parte de un documento de especificación (ecuaciones, parámetros y fragmentos de código) y está escrito en JavaScript puro, sin librerías, con pruebas automáticas. Cuando algo no coincide con el informe se dice en «Notas sobre el informe y límites». Es un modelo de práctica: no reemplaza instrumentos ni hardware.</div>
+
+<script>
+/* ---- cores/rutas.js ---- */
+;// Planificación de trayectorias para un vehículo tipo Ackermann: mapa de ocupación con celdas de 0,2 m y obstáculos inflados, A* de 8 vecinos con heurística octil y sin
+// cortar esquinas, RRT, suavizado por línea de vista, cinemática de bicicleta (L = 2,5 m, δmax = 35°) integrada con la solución exacta del arco, y seguimiento Pure Pursuit
+// con distancia de anticipación Ld ∈ [3, 8] m. Coordenadas en metros (x a la derecha, y hacia arriba).
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LabRutas = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const VEH = { L: 2.5, deltaMax: (35 * Math.PI) / 180, LdMin: 3, LdMax: 8, radio: 1.0, margen: 1.2, celda: 0.2 }
+  const SQ2 = Math.SQRT2
+
+  // ---- mapa de ocupación -----------------------------------------------------------------------------------------------------------------------------------------------------
+  function crearMapa(ancho, alto, celda = VEH.celda) {
+    const W = Math.round(ancho / celda), H = Math.round(alto / celda)
+    return { W, H, celda, ocup: new Uint8Array(W * H), infl: new Uint8Array(W * H), rInfla: -1 }
+  }
+  const aCelda = (m, x, y) => [Math.floor(x / m.celda), Math.floor(y / m.celda)], centro = (m, i, j) => [(i + 0.5) * m.celda, (j + 0.5) * m.celda]
+  const dentro = (m, i, j) => i >= 0 && j >= 0 && i < m.W && j < m.H
+  function pinta(m, f) { for (let j = 0; j < m.H; j++) for (let i = 0; i < m.W; i++) { const [x, y] = centro(m, i, j); if (f(x, y)) m.ocup[j * m.W + i] = 1 } m.rInfla = -1 }
+  const rectangulo = (m, x0, y0, x1, y1) => pinta(m, (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1)
+  const circulo = (m, cx, cy, r) => pinta(m, (x, y) => (x - cx) ** 2 + (y - cy) ** 2 <= r * r)
+  // inflado por el radio del vehículo (en metros): una celda queda bloqueada si hay un obstáculo a menos de r
+  function inflar(m, r) {
+    if (m.rInfla === r) return m
+    m.infl = new Uint8Array(m.W * m.H); const n = Math.ceil(r / m.celda), pts = []
+    for (let dj = -n; dj <= n; dj++) for (let di = -n; di <= n; di++) if (Math.hypot(di, dj) * m.celda <= r + 1e-9) pts.push([di, dj])
+    for (let j = 0; j < m.H; j++) for (let i = 0; i < m.W; i++) if (m.ocup[j * m.W + i]) for (const [di, dj] of pts) { const a = i + di, b = j + dj; if (dentro(m, a, b)) m.infl[b * m.W + a] = 1 }
+    m.rInfla = r; return m
+  }
+  const libreCelda = (m, i, j) => dentro(m, i, j) && !m.infl[j * m.W + i]
+  const librePunto = (m, x, y) => { const [i, j] = aCelda(m, x, y); return libreCelda(m, i, j) }
+  // línea de vista libre entre dos puntos (muestreo cada media celda sobre el mapa inflado)
+  function visible(m, a, b) {
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(d / (m.celda * 0.5)))
+    for (let k = 0; k <= n; k++) if (!librePunto(m, a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n)) return false
+    return true
+  }
+
+  // ---- A* -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  class Monton { // montículo binario mínimo de [prioridad, desempate, índice]
+    constructor() { this.a = [] }
+    get n() { return this.a.length }
+    push(x) { const a = this.a; a.push(x); let i = a.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (this.m(a[i], a[p])) { ;[a[i], a[p]] = [a[p], a[i]]; i = p } else break } }
+    m(x, y) { return x[0] < y[0] || (x[0] === y[0] && x[1] < y[1]) }
+    pop() { const a = this.a, t = a[0], u = a.pop(); if (a.length) { a[0] = u; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let s = i; if (l < a.length && this.m(a[l], a[s])) s = l; if (r < a.length && this.m(a[r], a[s])) s = r; if (s === i) break; ;[a[i], a[s]] = [a[s], a[i]]; i = s } } return t }
+  }
+  const octil = (di, dj) => { const a = Math.abs(di), b = Math.abs(dj); return a + b + (SQ2 - 2) * Math.min(a, b) }
+  const VECINOS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, SQ2], [1, -1, SQ2], [-1, 1, SQ2], [-1, -1, SQ2]]
+  // A* sobre el mapa inflado. Devuelve { celdas, puntos (centros en m), costo (m), expansiones } o null. Sin cortar esquinas en diagonal. `h = 0` equivale a Dijkstra.
+  function aEstrella(m, ini, meta, { heuristica = true } = {}) {
+    const [si, sj] = aCelda(m, ini[0], ini[1]), [gi, gj] = aCelda(m, meta[0], meta[1])
+    if (!libreCelda(m, si, sj) || !libreCelda(m, gi, gj)) return null
+    const N = m.W * m.H, g = new Float64Array(N).fill(Infinity), padre = new Int32Array(N).fill(-1), cerrado = new Uint8Array(N), open = new Monton(), s = sj * m.W + si, t = gj * m.W + gi
+    g[s] = 0; open.push([heuristica ? octil(gi - si, gj - sj) : 0, 0, s]); let exp = 0
+    while (open.n) {
+      const [, , u] = open.pop(); if (cerrado[u]) continue; cerrado[u] = 1; exp++
+      if (u === t) break
+      const ui = u % m.W, uj = (u / m.W) | 0
+      for (const [di, dj, c] of VECINOS) {
+        const vi = ui + di, vj = uj + dj; if (!libreCelda(m, vi, vj)) continue
+        if (di !== 0 && dj !== 0 && (!libreCelda(m, ui + di, uj) || !libreCelda(m, ui, uj + dj))) continue // no cortar esquinas
+        const v = vj * m.W + vi, ng = g[u] + c; if (ng < g[v] - 1e-12) { g[v] = ng; padre[v] = u; const h = heuristica ? octil(gi - vi, gj - vj) : 0; open.push([ng + h, h, v]) }
+      }
+    }
+    if (!isFinite(g[t])) return null
+    const celdas = []; for (let u = t; u !== -1; u = padre[u]) celdas.push([u % m.W, (u / m.W) | 0]); celdas.reverse()
+    return { celdas, puntos: celdas.map(([i, j]) => centro(m, i, j)), costo: g[t] * m.celda, expansiones: exp }
+  }
+
+  // ---- suavizado y remuestreo ------------------------------------------------------------------------------------------------------------------------------------------------
+  function atajar(m, pts) { // «string pulling»: desde cada punto salta al más lejano que se ve en línea recta
+    if (pts.length < 3) return pts.slice(); const out = [pts[0]]; let i = 0
+    while (i < pts.length - 1) { let j = pts.length - 1; while (j > i + 1 && !visible(m, pts[i], pts[j])) j--; out.push(pts[j]); i = j }
+    return out
+  }
+  const largo = (p) => p.reduce((a, q, i) => (i ? a + Math.hypot(q[0] - p[i - 1][0], q[1] - p[i - 1][1]) : 0), 0)
+  function remuestrear(p, ds = 0.5) {
+    const out = [p[0]]; let acum = 0
+    for (let i = 1; i < p.length; i++) { const d = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); let t = ds - acum; while (t <= d + 1e-12) { const f = t / d; out.push([p[i - 1][0] + (p[i][0] - p[i - 1][0]) * f, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * f]); t += ds } acum = (acum + d) % ds }
+    const u = p[p.length - 1], l = out[out.length - 1]; if (Math.hypot(u[0] - l[0], u[1] - l[1]) > 1e-9) out.push(u); return out
+  }
+
+  // ---- RRT -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  function prng(semilla = 1) { let a = semilla >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+  function rrt(m, ini, meta, { semilla = 1, paso = 1.2, iter = 6000, sesgo = 0.1 } = {}) {
+    if (!librePunto(m, ...ini) || !librePunto(m, ...meta)) return null
+    const r = prng(semilla), nodos = [{ x: ini[0], y: ini[1], p: -1 }], W = m.W * m.celda, H = m.H * m.celda, aristas = []
+    for (let k = 0; k < iter; k++) {
+      const q = r() < sesgo ? meta : [r() * W, r() * H]; let n = 0, mejor = Infinity
+      for (let i = 0; i < nodos.length; i++) { const d = (nodos[i].x - q[0]) ** 2 + (nodos[i].y - q[1]) ** 2; if (d < mejor) { mejor = d; n = i } }
+      const d = Math.sqrt(mejor); if (d < 1e-9) continue; const f = Math.min(1, paso / d), nuevo = [nodos[n].x + (q[0] - nodos[n].x) * f, nodos[n].y + (q[1] - nodos[n].y) * f]
+      if (!visible(m, [nodos[n].x, nodos[n].y], nuevo)) continue
+      nodos.push({ x: nuevo[0], y: nuevo[1], p: n }); aristas.push([nodos[n].x, nodos[n].y, nuevo[0], nuevo[1]])
+      if (Math.hypot(nuevo[0] - meta[0], nuevo[1] - meta[1]) <= paso && visible(m, nuevo, meta)) {
+        const ruta = [meta]; for (let i = nodos.length - 1; i !== -1; i = nodos[i].p) ruta.push([nodos[i].x, nodos[i].y]); ruta.reverse(); return { puntos: ruta, nodos: nodos.length, aristas, costo: largo(ruta) }
+      }
+    }
+    return null
+  }
+
+  // ---- vehículo y Pure Pursuit -----------------------------------------------------------------------------------------------------------------------------------------------
+  // solución exacta del modelo de bicicleta con δ constante durante dt
+  function avanzar(e, v, delta, dt, L = VEH.L) {
+    const d = Math.max(-VEH.deltaMax, Math.min(VEH.deltaMax, delta)), w = (v * Math.tan(d)) / L, th = e.theta
+    if (Math.abs(w) < 1e-9) return { x: e.x + v * dt * Math.cos(th), y: e.y + v * dt * Math.sin(th), theta: th }
+    return { x: e.x + (v / w) * (Math.sin(th + w * dt) - Math.sin(th)), y: e.y + (v / w) * (Math.cos(th) - Math.cos(th + w * dt)), theta: th + w * dt }
+  }
+  // punto de anticipación: la intersección con el círculo de radio Ld más adelantada sobre el camino (desde el segmento más cercano); si el camino termina antes, su último punto
+  function anticipacion(p, e, Ld, desde = 0) {
+    let mejor = Infinity, iCerca = desde
+    for (let i = desde; i < Math.min(p.length - 1, desde + 400); i++) { const d = distSeg(e.x, e.y, p[i], p[i + 1]); if (d < mejor) { mejor = d; iCerca = i } }
+    const [px, py] = p[iCerca], [qx, qy] = p[iCerca + 1] ?? p[iCerca], L2 = (qx - px) ** 2 + (qy - py) ** 2, tProy = L2 ? Math.max(0, Math.min(1, ((e.x - px) * (qx - px) + (e.y - py) * (qy - py)) / L2)) : 0
+    for (let i = p.length - 2; i >= iCerca; i--) { // solo intersecciones por delante de la proyección del vehículo sobre el camino
+      const [ax, ay] = p[i], [bx, by] = p[i + 1], dx = bx - ax, dy = by - ay, fx = ax - e.x, fy = ay - e.y, A = dx * dx + dy * dy, B = 2 * (fx * dx + fy * dy), C = fx * fx + fy * fy - Ld * Ld, D = B * B - 4 * A * C
+      if (D < 0 || A === 0) continue; const s = Math.sqrt(D), minimo = i === iCerca ? tProy - 1e-12 : 0
+      for (const t of [(-B + s) / (2 * A), (-B - s) / (2 * A)]) if (t >= minimo && t <= 1) return { punto: [ax + dx * t, ay + dy * t], i: iCerca }
+    }
+    return { punto: p[p.length - 1], i: iCerca }
+  }
+  function distSeg(x, y, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2)) : 0; return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy) }
+  const errorTransversal = (p, e) => { let m = Infinity; for (let i = 0; i < p.length - 1; i++) m = Math.min(m, distSeg(e.x, e.y, p[i], p[i + 1])); return m }
+  // δ = atan2(2·L·sin α, Ld)
+  function direccionPP(e, objetivo, L = VEH.L) { const dx = objetivo[0] - e.x, dy = objetivo[1] - e.y, alfa = Math.atan2(dy, dx) - e.theta, Ld = Math.hypot(dx, dy); return Math.atan2(2 * L * Math.sin(alfa), Ld) }
+  const anticipar = (v, k = 1.2) => Math.max(VEH.LdMin, Math.min(VEH.LdMax, k * v))
+  // Sigue el camino a velocidad `v` (m/s); frena cerca de la meta. mapa opcional para contar colisiones contra los obstáculos reales con un círculo de `radio`.
+  function seguir(camino, e0, { v = 3, dt = 1 / 60, tmax = 120, tolMeta = 0.4, mapa = null, radio = VEH.radio, frena = true } = {}) {
+    let e = { ...e0 }, i0 = 0, t = 0, colisiones = 0, maxErr = 0, llego = false, maxDelta = 0; const tray = [], meta = camino[camino.length - 1]
+    while (t < tmax) {
+      const dMeta = Math.hypot(meta[0] - e.x, meta[1] - e.y); if (dMeta < tolMeta) { llego = true; break }
+      const vv = frena ? Math.min(v, Math.max(0.6, Math.sqrt(2 * 1.5 * dMeta))) : v, a = anticipacion(camino, e, anticipar(vv), i0); i0 = a.i
+      const delta = Math.max(-VEH.deltaMax, Math.min(VEH.deltaMax, direccionPP(e, a.punto))); maxDelta = Math.max(maxDelta, Math.abs(delta))
+      e = avanzar(e, vv, delta, dt); t += dt; const err = errorTransversal(camino.slice(Math.max(0, i0 - 2), i0 + 40), e); maxErr = Math.max(maxErr, err)
+      if (mapa && chocaCon(mapa, e.x, e.y, radio)) colisiones++
+      if (tray.length === 0 || tray.length % 3 === 0 || true) tray.push([e.x, e.y, e.theta, vv, delta])
+    }
+    return { tray, llego, t, colisiones, maxErr, maxDelta, final: e }
+  }
+  function chocaCon(m, x, y, r) { const n = Math.ceil(r / m.celda), [ci, cj] = aCelda(m, x, y); for (let dj = -n; dj <= n; dj++) for (let di = -n; di <= n; di++) { const i = ci + di, j = cj + dj; if (!dentro(m, i, j) || !m.ocup[j * m.W + i]) continue; const [cx, cy] = centro(m, i, j); if (Math.hypot(cx - x, cy - y) < r) return true } return false }
+
+  // ---- escenario de demostración -----------------------------------------------------------------------------------------------------------------------------------------------
+  function escenario() {
+    const m = crearMapa(60, 40)
+    rectangulo(m, 0, 0, 60, 0.4); rectangulo(m, 0, 39.6, 60, 40); rectangulo(m, 0, 0, 0.4, 40); rectangulo(m, 59.6, 0, 60, 40)
+    rectangulo(m, 14, 0.4, 16, 20); rectangulo(m, 30, 20, 32, 39.6); rectangulo(m, 46, 0.4, 48, 22)
+    circulo(m, 22, 31, 2.5); circulo(m, 39, 8, 2.5); circulo(m, 54, 30, 2.5)
+    return { mapa: m, inicio: { x: 4, y: 4, theta: 0.3 }, meta: [56, 36] }
+  }
+  // Planificación completa: inflado, búsqueda (A* o RRT), atajos y remuestreo. El inflado es el radio del vehículo (1,0 m) más un margen (1,2 m) por el error de
+  // seguimiento: Pure Pursuit corta las esquinas (≈ 1,1–1,5 m en este mapa) y con el inflado justo el vehículo rozaba los obstáculos.
+  function planificar(m, ini, meta, { radio = VEH.radio + VEH.margen, metodo = 'astar', semilla = 1 } = {}) {
+    inflar(m, radio); const r = metodo === 'rrt' ? rrt(m, ini, meta, { semilla }) : aEstrella(m, ini, meta); if (!r) return null
+    const bruto = r.puntos, corto = atajar(m, bruto), suave = remuestrear(corto, 0.5); return { bruto, corto, camino: suave, largoBruto: largo(bruto), largoCorto: largo(corto), expansiones: r.expansiones ?? null, nodos: r.nodos ?? null, aristas: r.aristas ?? null }
+  }
+
+  return { VEH, crearMapa, aCelda, centro, pinta, rectangulo, circulo, inflar, libreCelda, libre: libreCelda, libreCeldaPunto: librePunto, visible, aEstrella, octil, atajar, remuestrear, largo, rrt, avanzar, anticipacion, distSeg, errorTransversal, direccionPP, anticipar, seguir, chocaCon, escenario, planificar, prng }
+})
+
+</script>
+<script>
+/* ---- ui/comun.js ---- */
+;'use strict'
+// Utilidades compartidas de la interfaz: formato, dibujo en canvas (ejes, trazos con envolvente, mapas de calor), controles deslizantes, tarjetas,
+// registro de simuladores y navegación por pestañas con enlace directo (#id). Cada simulador se monta la primera vez que se abre y luego se
+// activa/desactiva; si define `tick(dt)` se anima solo mientras está visible.
+const LAB = (() => {
+  const f = (n, d = 1) => (Number.isFinite(n) ? Number(n).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d }) : n === Infinity ? '∞' : n === -Infinity ? '−∞' : '—')
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const $ = (s, r = document) => r.querySelector(s)
+  const mx = (a, i0 = 0, i1 = a.length) => { let m = -Infinity; for (let i = i0; i < i1; i++) if (a[i] > m) m = a[i]; return m }
+  const mn = (a, i0 = 0, i1 = a.length) => { let m = Infinity; for (let i = i0; i < i1; i++) if (a[i] < m) m = a[i]; return m }
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x))
+  const debounce = (fn, ms = 120) => { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms) } }
+
+  // ---- dibujo ----------------------------------------------------------------------------------------------------------------------------------------------------
+  function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+  function trazo(c, X, Y, xs, ys, i0, i1, color, ancho = 1.5, dash = []) {
+    c.strokeStyle = color; c.lineWidth = ancho; c.setLineDash(dash); c.beginPath(); const n = i1 - i0; if (n < 2) { c.setLineDash([]); return }
+    const px = Math.abs(X(xs[i1 - 1]) - X(xs[i0]))
+    if (n > 3 * px) { // muchas más muestras que píxeles: mínimo y máximo por columna
+      let col = null, lo = 0, hi = 0, ini = true; const cierra = () => { const x = col + 0.5; if (ini) { c.moveTo(x, Y(lo)); ini = false } else c.lineTo(x, Y(lo)); c.lineTo(x, Y(hi)) }
+      for (let i = i0; i < i1; i++) { const p = Math.round(X(xs[i])); if (p !== col) { if (col !== null) cierra(); col = p; lo = hi = ys[i] } else { if (ys[i] < lo) lo = ys[i]; if (ys[i] > hi) hi = ys[i] } } cierra()
+    } else { let abierto = false; for (let i = i0; i < i1; i++) { if (!Number.isFinite(ys[i])) { abierto = false; continue } if (!abierto) { c.moveTo(X(xs[i]), Y(ys[i])); abierto = true } else c.lineTo(X(xs[i]), Y(ys[i])) } }
+    c.stroke(); c.setLineDash([])
+  }
+  // o: { x0, x1, y0, y1, ystep, xlog, xticks, xfmt, yfmt, xlab, sinX, L, series:[{xs,ys,i0,i1,color,w,dash}], hl:[{y,color,label,dash}], vl:[{x,color,label}] }
+  function grafica(cv, o) {
+    const { c, w, h } = prep(cv), L = o.L ?? 48, R = 10, T = 8, B = o.sinX ? 6 : 20, lx0 = o.xlog ? Math.log10(o.x0) : o.x0, lx1 = o.xlog ? Math.log10(o.x1) : o.x1
+    const X = (x) => L + (((o.xlog ? Math.log10(x) : x) - lx0) / (lx1 - lx0)) * (w - L - R), Y = (y) => T + (1 - (y - o.y0) / (o.y1 - o.y0)) * (h - T - B)
+    c.lineWidth = 1; c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+    for (let v = o.y0; v <= o.y1 + 1e-9; v += o.ystep) { const y = Y(v); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText((o.yfmt ?? ((q) => f(q, 0)))(v), L - 4, y + 3) }
+    if (!o.sinX) {
+      c.textAlign = 'center'; const xt = o.xlog ? [0.01, 0.1, 1, 10, 100, 1e3, 1e4, 1e5, 1e6].filter((v) => v >= o.x0 * 0.999 && v <= o.x1 * 1.001) : o.xticks ?? []
+      for (const v of xt) { const x = X(v); if (o.xlab && x > w - R - 34) continue; c.strokeStyle = '#0f1a2e'; c.beginPath(); c.moveTo(x, T); c.lineTo(x, h - B); c.stroke(); c.fillStyle = '#64748b'; c.fillText(o.xlog ? (v >= 1e3 ? v / 1e3 + 'k' : v < 1 ? String(v).replace('.', ',') : v) : (o.xfmt ?? ((q) => f(q, 0)))(v), x, h - 5) }
+      if (o.xlab) { c.textAlign = 'right'; c.fillText(o.xlab, w - R, h - 5) }
+    }
+    c.save(); c.beginPath(); c.rect(L, T, w - L - R, h - T - B); c.clip()
+    for (const l of o.hl ?? []) { c.strokeStyle = l.color; c.setLineDash(l.dash === false ? [] : [5, 4]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(L, Y(l.y)); c.lineTo(w - R, Y(l.y)); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, L + 4, Y(l.y) - 3) } }
+    for (const l of o.vl ?? []) { c.strokeStyle = l.color; c.setLineDash([4, 3]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(X(l.x), T); c.lineTo(X(l.x), h - B); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, X(l.x) + 3, T + 10) } }
+    for (const s of o.series ?? []) trazo(c, X, Y, s.xs, s.ys, s.i0 ?? 0, s.i1 ?? s.xs.length, s.color, s.w, s.dash)
+    c.restore(); return { c, X, Y, w, h, L, R, T, B }
+  }
+  // matriz (filas × columnas) a color: M[fila][col] en 0..1 → mapa(v) = [r, g, b]. La fila 0 se dibuja ARRIBA salvo que `invertir` sea true.
+  // L y B son márgenes (px) a la izquierda y abajo para dibujar los ejes encima; devuelve el contexto y la zona de la imagen { x0, y0, ancho, alto }
+  function mapaCalor(cv, M, mapa, { invertir = false, L = 0, B = 0, T = 0 } = {}) {
+    const { c, w, h } = prep(cv), nf = M.length, nc = M[0].length, off = document.createElement('canvas'); off.width = nc; off.height = nf
+    const octx = off.getContext('2d'), img = octx.createImageData(nc, nf)
+    for (let j = 0; j < nf; j++) for (let i = 0; i < nc; i++) { const col = mapa(M[invertir ? nf - 1 - j : j][i]), k = 4 * (j * nc + i); img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = 255 }
+    octx.putImageData(img, 0, 0); c.imageSmoothingEnabled = false; c.drawImage(off, L, T, w - L, h - B - T); return { c, w, h, x0: L, y0: T, ancho: w - L, alto: h - B - T }
+  }
+  // marcas «bonitas» (1, 2, 5 × 10ⁿ) entre a y b, aproximadamente n
+  function ticks(a, b, n = 5) { const r = b - a, p = 10 ** Math.floor(Math.log10(r / n)), m = [1, 2, 5, 10].find((k) => (k * p * n) >= r) * p, out = []; for (let v = Math.ceil(a / m - 1e-9) * m; v <= b + 1e-9; v += m) out.push(+v.toFixed(10)); return out }
+  function dibujaImagen(cv, data, w, h) { // RGBA (Uint8ClampedArray) a un canvas del tamaño de la imagen, escalado por CSS
+    cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0); return c
+  }
+
+  // ---- controles ---------------------------------------------------------------------------------------------------------------------------------------------------
+  // defs: [{ id, label, min, max, step, valor, fmt, log }]; devuelve { v: {id: valor}, set(id, valor, silencio) }
+  function controles(root, defs, onChange) {
+    const v = {}, outs = {}, ins = {}
+    root.innerHTML = defs.map((d) => `<div class="ctl"><label for="${d.uid ?? 'c_' + d.id}">${d.label}</label><input id="${d.uid ?? 'c_' + d.id}" type="range" min="${d.log ? Math.log10(d.min) : d.min}" max="${d.log ? Math.log10(d.max) : d.max}" step="${d.log ? 0.01 : d.step}" value="${d.log ? Math.log10(d.valor) : d.valor}"><output></output></div>`).join('')
+    const filas = root.querySelectorAll('.ctl')
+    defs.forEach((d, i) => {
+      // en la escala logarítmica se redondea a 3 cifras: evita «219» donde se pidió 220
+      const inp = filas[i].querySelector('input'), out = filas[i].querySelector('output'), leer = () => (d.log ? +(10 ** +inp.value).toPrecision(3) : +inp.value), pinta = () => { v[d.id] = leer(); out.textContent = (d.fmt ?? ((x) => f(x, 2)))(v[d.id]) }
+      outs[d.id] = out; ins[d.id] = inp; pinta(); inp.addEventListener('input', () => { pinta(); onChange?.(d.id, v) })
+    })
+    return { v, set(id, val, silencio = false) { const d = defs.find((q) => q.id === id); ins[id].value = d.log ? Math.log10(val) : val; v[id] = val; outs[id].textContent = (d.fmt ?? ((x) => f(x, 2)))(val); if (!silencio) onChange?.(id, v) } }
+  }
+  const tarjetas = (el, items) => { el.innerHTML = items.map(([t, val, sub, cl]) => `<div class="card ${cl ?? ''}"><span>${t}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ''}</div>`).join('') }
+  const leyenda = (el, items) => { el.innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('') }
+
+  // ---- registro y navegación ----------------------------------------------------------------------------------------------------------------------------------------
+  const sims = [], montados = {}; let activo = null, t0 = performance.now()
+  const registrar = (def) => sims.push(def)
+  function abrir(id) {
+    const def = sims.find((s) => s.id === id) ?? sims[0]; if (!def) return
+    if (activo) { activo.obj?.desactivar?.(); $('#s-' + activo.def.id).classList.remove('on') }
+    let sec = $('#s-' + def.id)
+    if (!sec) {
+      sec = document.createElement('section'); sec.className = 'sim'; sec.id = 's-' + def.id
+      sec.innerHTML = `<div class="cab"><h2>${sims.length > 1 ? def.num + ' · ' : ''}${def.titulo}</h2><p>${def.resumen}</p></div><div class="cuerpo"></div>${def.notas?.length ? `<details class="notas"><summary>Notas sobre el informe y límites</summary><ul>${def.notas.map((n) => `<li>${n}</li>`).join('')}</ul></details>` : ''}`
+      sec.classList.add('on'); $('#lab').appendChild(sec); montados[def.id] = def.montar($('.cuerpo', sec)) // visible ANTES de montar: los canvas necesitan su tamaño real
+    }
+    sec.classList.add('on'); activo = { def, obj: montados[def.id] }; activo.obj?.activar?.(); activo.obj?.redibujar?.()
+    document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.id === def.id)); try { history.replaceState(null, '', '#' + def.id) } catch { /* en un iframe sandbox puede fallar */ }
+    document.querySelector(`#nav button[data-id="${def.id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }
+  function iniciar() {
+    sims.sort((a, b) => a.num - b.num)
+    $('#nav').innerHTML = sims.map((s) => `<button data-id="${s.id}" title="${esc(s.titulo)}"><b>${s.num}</b>${s.corto}</button>`).join(''); $('#nav').onclick = (e) => { const b = e.target.closest('button'); if (b) abrir(b.dataset.id) }
+    if (sims.length === 1) $('#nav').style.display = 'none' // página de un solo simulador: sin pestañas
+    abrir(decodeURIComponent(location.hash.slice(1)) || sims[0].id)
+    window.addEventListener('hashchange', () => abrir(decodeURIComponent(location.hash.slice(1))))
+    let rz = null; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => activo?.obj?.redibujar?.(), 120) })
+    const bucle = (ahora) => { const dt = Math.min(0.05, (ahora - t0) / 1000); t0 = ahora; if (!document.hidden) activo?.obj?.tick?.(dt); requestAnimationFrame(bucle) }
+    requestAnimationFrame(bucle)
+  }
+  return { f, esc, $, mx, mn, clamp, debounce, prep, trazo, grafica, mapaCalor, ticks, dibujaImagen, controles, tarjetas, leyenda, registrar, abrir, iniciar, sims, montados, get activo() { return activo } }
+})()
+
+/* ---- ui/14-rutas.js ---- */
+;;(() => {
+  const R = LabRutas, { f } = LAB, V = R.VEH
+  LAB.registrar({
+    id: 'rutas', num: 14, corto: 'Rutas autónomas', titulo: 'Planificador de trayectorias autónomas: A*, RRT y Pure Pursuit',
+    resumen: 'Un vehículo tipo Ackermann (distancia entre ejes 2,5 m, dirección máxima 35°) debe ir de un punto a otro de un mapa de 60 × 40 m con celdas de 0,2 m. Se planifica con A* (8 vecinos, heurística octil) o con RRT, se acorta la ruta por línea de vista y el vehículo la sigue con Pure Pursuit. Haz clic para mover la meta, Mayús + clic para poner un obstáculo: el vehículo replanifica desde donde está.',
+    notas: [
+      'Parámetros del informe: L_wb = 2,5 m, Ld entre 3 y 8 m, δmax = 35° (0,61 rad), celda de 0,2 m; modelo de bicicleta dx = v·cos θ, dy = v·sin θ, dθ = (v/L)·tan δ y δ = atan2(2·L·sin α, Ld). El modelo se integra con la solución exacta del arco (sin error de integración); a 60 Hz.',
+      'El mapa, los obstáculos, las velocidades y la distancia de anticipación en función de la velocidad (Ld = 1,2·v acotada a 3–8 m) los elegí yo. «Evitación dinámica de obstáculos» se implementa como replanificación completa desde la posición actual (no hay un campo de potencial ni un evasor reactivo).',
+      'Margen de seguridad: con los obstáculos inflados solo por el radio del vehículo (1,0 m) Pure Pursuit recorta las esquinas (error transversal de ≈ 1,1–1,5 m en este mapa) y el vehículo roza los obstáculos (prueba automática). Por eso la planificación infla 1,0 m + un margen (por defecto 1,2 m); pon el margen en 0 y mira las colisiones.',
+      'A* es óptimo en la grilla de 8 vecinos (mismo costo que Dijkstra en 120 mapas aleatorios, sin cortar esquinas en diagonal) y la heurística octil es exacta en un mapa vacío. RRT no es óptimo ni completo: puede fallar o dar rutas más largas; usa una semilla fija. El camino de la grilla no respeta el radio mínimo de giro (3,57 m): Pure Pursuit lo suaviza, no lo garantiza.',
+    ],
+    montar(root) {
+      root.innerHTML = `<div class="g21"><div class="panel"><h2>Mapa de 60 × 40 m (clic: nueva meta · Mayús + clic: obstáculo)</h2><canvas id="ru-cv" style="aspect-ratio:3/2;height:auto;cursor:crosshair"></canvas><div class="leyenda"><span><i style="background:#64748b"></i>obstáculo</span><span><i style="background:#f87171"></i>zona inflada</span><span><i style="background:#94a3b8"></i>camino de la grilla</span><span><i style="background:#f59e0b"></i>tras atajos</span><span><i style="background:#22d3ee"></i>camino que sigue el vehículo</span><span><i style="background:#34d399"></i>punto de anticipación</span></div></div>
+        <div class="panel"><div class="row"><label>Método&nbsp;</label><select id="ru-m"><option value="astar">A*</option><option value="rrt">RRT</option></select><label><input type="checkbox" id="ru-i" checked> mostrar inflado</label></div><div id="ru-c"></div>
+          <div class="row" style="margin-top:6px"><button class="mini primary" id="ru-go">Planificar y salir</button><button class="mini" id="ru-p">Pausa</button><button class="mini" id="ru-ob">Obstáculo sobre la ruta</button><button class="mini" id="ru-lim">Quitar obstáculos nuevos</button></div><div id="ru-cards" class="cards" style="margin-top:8px;grid-template-columns:repeat(2,1fr)"></div></div></div>`
+      const q = (s) => root.querySelector(s), cv = q('#ru-cv'), esc = R.escenario()
+      const ctl = LAB.controles(q('#ru-c'), [{ id: 'v', label: 'Velocidad', min: 1, max: 6, step: 0.5, valor: 3, fmt: (v) => f(v, 1) + ' m/s' }, { id: 'marg', label: 'Margen de seguridad', min: 0, max: 2.5, step: 0.1, valor: 1.2, fmt: (v) => f(v, 1) + ' m' }, { id: 'vel', label: 'Velocidad de la simulación', min: 1, max: 8, step: 1, valor: 3, fmt: (v) => '×' + f(v, 0) }], (id) => { if (id === 'marg') planifica(false) })
+      let mapa = esc.mapa, ini = { ...esc.inicio }, meta = [...esc.meta], plan = null, e = { ...ini }, i0 = 0, corre = false, t = 0, col = 0, maxErr = 0, llego = false, dCalc = 0, ult = { delta: 0, Ld: 3, la: null }, extra = [], base = null, ms = 0
+      const construyeBase = () => { const c = document.createElement('canvas'); c.width = mapa.W; c.height = mapa.H; const x = c.getContext('2d'), im = x.createImageData(mapa.W, mapa.H), mostrar = q('#ru-i').checked; for (let j = 0; j < mapa.H; j++) for (let i = 0; i < mapa.W; i++) { const k = 4 * ((mapa.H - 1 - j) * mapa.W + i), o = mapa.ocup[j * mapa.W + i], inf = mapa.infl[j * mapa.W + i]; let rgb = [7, 16, 31]; if (o) rgb = [100, 116, 139]; else if (inf && mostrar) rgb = [58, 26, 31]; im.data[k] = rgb[0]; im.data[k + 1] = rgb[1]; im.data[k + 2] = rgb[2]; im.data[k + 3] = 255 } x.putImageData(im, 0, 0); base = c }
+      function planifica(salir) {
+        const radio = V.radio + ctl.v.marg, t0 = performance.now(); plan = R.planificar(mapa, [e.x, e.y], meta, { radio, metodo: q('#ru-m').value }); ms = performance.now() - t0; construyeBase(); i0 = 0
+        if (salir) { corre = !!plan; llego = false; q('#ru-p').textContent = 'Pausa' }
+      }
+      function reinicia() { e = { ...ini }; i0 = 0; t = 0; col = 0; maxErr = 0; llego = false; corre = false; planifica(false); dibuja() }
+      const sim = (dt) => {
+        if (!plan || !corre || llego) return; const camino = plan.camino, dMeta = Math.hypot(meta[0] - e.x, meta[1] - e.y)
+        if (dMeta < 0.4) { llego = true; corre = false; return }
+        const vv = Math.min(ctl.v.v, Math.max(0.6, Math.sqrt(2 * 1.5 * dMeta))), Ld = R.anticipar(vv), a = R.anticipacion(camino, e, Ld, i0); i0 = a.i
+        const delta = Math.max(-V.deltaMax, Math.min(V.deltaMax, R.direccionPP(e, a.punto))); e = R.avanzar(e, vv, delta, dt); t += dt
+        const err = R.errorTransversal(camino.slice(Math.max(0, i0 - 2), i0 + 40), e); maxErr = Math.max(maxErr, err); dCalc = err; if (R.chocaCon(mapa, e.x, e.y, V.radio)) col++; ult = { delta, Ld, la: a.punto, v: vv }
+      }
+      function dibuja() {
+        const { c, w, h } = LAB.prep(cv), sx = w / (mapa.W * mapa.celda), X = (x) => x * sx, Y = (y) => h - y * sx
+        if (base) { c.imageSmoothingEnabled = false; c.drawImage(base, 0, 0, w, h) }
+        if (plan) {
+          if (plan.aristas) { c.strokeStyle = 'rgba(148,163,184,.22)'; c.lineWidth = 0.8; c.beginPath(); for (const [a, b, d, g] of plan.aristas) { c.moveTo(X(a), Y(b)); c.lineTo(X(d), Y(g)) } c.stroke() }
+          const poli = (pts, col, an, dash) => { c.strokeStyle = col; c.lineWidth = an; c.setLineDash(dash ?? []); c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(X(p[0]), Y(p[1])) : c.moveTo(X(p[0]), Y(p[1])))); c.stroke(); c.setLineDash([]) }
+          poli(plan.bruto, '#94a3b8', 1, [3, 3]); poli(plan.corto, '#f59e0b', 1.5); poli(plan.camino, '#22d3ee', 2.4)
+        }
+        c.fillStyle = '#34d399'; c.beginPath(); c.arc(X(meta[0]), Y(meta[1]), 6, 0, 7); c.fill(); c.fillStyle = '#e2e8f0'; c.textAlign = 'left'; c.fillText('meta', X(meta[0]) + 8, Y(meta[1]) - 6); c.fillStyle = '#94a3b8'; c.beginPath(); c.arc(X(ini.x), Y(ini.y), 4, 0, 7); c.fill(); c.fillText('inicio', X(ini.x) + 6, Y(ini.y) - 6)
+        if (ult.la && corre) { c.strokeStyle = 'rgba(52,211,153,.5)'; c.setLineDash([4, 4]); c.beginPath(); c.arc(X(e.x), Y(e.y), ult.Ld * sx, 0, 7); c.stroke(); c.setLineDash([]); c.fillStyle = '#34d399'; c.beginPath(); c.arc(X(ult.la[0]), Y(ult.la[1]), 5, 0, 7); c.fill() }
+        // vehículo: 4,2 × 1,8 m, eje trasero en (x, y)
+        c.save(); c.translate(X(e.x), Y(e.y)); c.rotate(-e.theta); c.fillStyle = col && R.chocaCon(mapa, e.x, e.y, V.radio) ? '#f87171' : '#0f2a4a'; c.strokeStyle = '#22d3ee'; c.lineWidth = 2; c.beginPath(); c.rect(-0.6 * sx, -0.9 * sx, 4.2 * sx, 1.8 * sx); c.fill(); c.stroke()
+        c.strokeStyle = '#e879f9'; c.lineWidth = 3; for (const s of [-1, 1]) { c.save(); c.translate(2.5 * sx, s * 0.8 * sx); c.rotate(-ult.delta); c.beginPath(); c.moveTo(-0.45 * sx, 0); c.lineTo(0.45 * sx, 0); c.stroke(); c.restore() } c.restore()
+        const act = plan ? f(plan.largoCorto, 1) + ' m' : 'sin ruta'
+        LAB.tarjetas(q('#ru-cards'), [['Método', q('#ru-m').value === 'astar' ? 'A*' : 'RRT', plan ? (plan.expansiones != null ? plan.expansiones + ' expansiones' : plan.nodos + ' nodos') + ` · ${f(ms, 0)} ms` : 'no encontró camino', plan ? '' : 'b3'], ['Largo del camino', act, plan ? `grilla ${f(plan.largoBruto, 1)} m → con atajos ${f(plan.largoCorto, 1)} m` : ''], ['Estado', !plan ? 'sin ruta' : llego ? 'llegó' : corre ? 'en marcha' : 'detenido', `t = ${f(t, 1)} s · v = ${f(ult.v ?? 0, 1)} m/s`, llego ? 'ok3' : !plan ? 'b3' : ''], ['Error transversal', f(dCalc, 2) + ' m', `máximo ${f(maxErr, 2)} m`, maxErr > 1.6 ? 'w3' : ''], ['Dirección δ', f((ult.delta * 180) / Math.PI, 1) + '°', `límite ±35° · Ld = ${f(ult.Ld, 1)} m`], ['Colisiones', String(col), col ? 'pasos con el vehículo tocando un obstáculo' : 'ninguna', col ? 'b3' : 'ok3']])
+      }
+      const tick = (dt) => { const k = ctl.v.vel, paso = 1 / 60; let n = Math.min(40, Math.round((dt * k) / paso)); for (let i = 0; i < n; i++) sim(paso); dibuja() }
+      cv.addEventListener('click', (ev) => { const r = cv.getBoundingClientRect(), x = ((ev.clientX - r.left) / r.width) * 60, y = (1 - (ev.clientY - r.top) / r.height) * 40; if (ev.shiftKey) { R.circulo(mapa, x, y, 1.5); extra.push([x, y]); planifica(corre || !!plan); if (!plan) corre = false } else { meta = [x, y]; planifica(true) } dibuja() })
+      q('#ru-go').onclick = () => { if (llego || t > 0) reinicia(); planifica(true) }; q('#ru-p').onclick = () => { corre = !corre; q('#ru-p').textContent = corre ? 'Pausa' : 'Continuar' }
+      q('#ru-ob').onclick = () => { if (!plan) return; const k = Math.min(plan.camino.length - 2, i0 + Math.round(plan.camino.length * 0.3)), p = plan.camino[k]; R.circulo(mapa, p[0], p[1], 1.6); extra.push(p); planifica(true); dibuja() }
+      q('#ru-lim').onclick = () => { mapa = R.escenario().mapa; extra = []; planifica(false); dibuja() }
+      q('#ru-m').onchange = () => { planifica(false); dibuja() }; q('#ru-i').onchange = () => { construyeBase(); dibuja() }
+      planifica(false); dibuja()
+      return { tick, redibujar: dibuja, api: { avanzar(seg) { for (let i = 0; i < Math.round(seg * 60); i++) sim(1 / 60); dibuja() }, get plan() { return plan }, get e() { return e }, get llego() { return llego }, get col() { return col }, get t() { return t }, planifica, reinicia, set corre(v) { corre = v }, get mapa() { return mapa } } }
+    },
+  })
+})()
+
+/* ---- ui/zz-inicio.js ---- */
+;LAB.iniciar()
+window.demoApi = { LAB, abrir: LAB.abrir, sim: (id) => LAB.montados[id]?.api }
+
+</script>
+</body>
+</html>

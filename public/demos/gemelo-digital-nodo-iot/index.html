@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemelo digital de un nodo sensor IoT: actitud, temperatura y telemetría — simulador interactivo</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.nav button { white-space: nowrap; display: flex; gap: 6px; align-items: baseline; } .nav button b { font: 600 10px var(--mono); color: var(--mut); } .nav button.on b { color: var(--cyan); }
+.sim { display: none; padding: 12px 16px; } .sim.on { display: block; }
+.cab h2 { margin: 0 0 4px; font: 600 17px var(--font); letter-spacing: .1px; text-transform: none; color: var(--txt); } .cab p { margin: 0 0 8px; color: #cbd5e1; font-size: 13px; line-height: 1.5; max-width: 980px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; } .g21 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 12px; } .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; } .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 19px var(--mono); margin-top: 2px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.ok3 { border-color: rgba(52, 211, 153, .6); } .card.ok3 b { color: var(--green); } .card.w3 { border-color: rgba(245, 158, 11, .6); } .card.w3 b { color: var(--amber); } .card.b3 { border-color: var(--red); } .card.b3 b { color: var(--red); }
+canvas { height: 220px; } canvas.alto { height: 320px; } canvas.medio { height: 260px; } canvas.bajo { height: 130px; } canvas.cuad { height: auto; aspect-ratio: 1 / 1; }
+.ctl { display: grid; grid-template-columns: 112px 1fr 74px; gap: 6px 10px; align-items: center; margin-bottom: 3px; font: 12px var(--mono); } .ctl label { color: var(--mut); } .ctl output { color: var(--cyan); text-align: right; }
+.row { margin-bottom: 8px; } .row select, .row input[type=number] { max-width: 100%; }
+.panel p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; } .panel ul { margin: 4px 0 6px 16px; padding: 0; font-size: 12.5px; line-height: 1.5; }
+details.notas { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); margin-top: 4px; } details.notas summary { cursor: pointer; font: 600 11px var(--mono); letter-spacing: .6px; text-transform: uppercase; color: var(--mut); } details.notas[open] summary { color: var(--cyan); margin-bottom: 6px; } details.notas li { margin: 4px 0; font-size: 12.5px; color: #cbd5e1; }
+.etq { font: 600 10px var(--mono); padding: 2px 7px; border-radius: 999px; border: 1px solid; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; } .etq.ok { color: var(--green); border-color: rgba(52, 211, 153, .6); } .etq.av { color: var(--amber); border-color: rgba(245, 158, 11, .6); } .etq.bad { color: var(--red); border-color: rgba(248, 113, 113, .6); }
+textarea { width: 100%; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px/1.4 var(--mono); }
+pre.salida { margin: 0; background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 11.5px/1.45 var(--mono); color: #cbd5e1; overflow: auto; max-height: 260px; }
+table.cmp td, table.cmp th { padding: 3px 7px; white-space: nowrap; } td.n, th.n { text-align: right; }
+.celdas { display: flex; gap: 3px; flex-wrap: wrap; } .celdas i { font: 10px var(--mono); font-style: normal; width: 34px; text-align: center; padding: 3px 0; border-radius: 4px; background: #14301f; color: var(--green); } .celdas i.no { background: #3a1a1f; color: var(--red); }
+.barra { height: 14px; background: #0b1730; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); } .barra i { display: block; height: 100%; background: var(--cyan); }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font: 11px var(--mono); color: var(--mut); margin-top: 4px; } .leyenda i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+svg text { font: 11px ui-monospace, Consolas, monospace; fill: #cbd5e1; }
+@media (max-width: 1000px) { .g2, .g21, .g3, .g4 { grid-template-columns: 1fr; } .sim { padding: 10px 10px; } .nav { padding: 6px 10px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Gemelo digital de un nodo sensor IoT: actitud, temperatura y telemetría</h1><span class="badge">de la especificación al código</span><span class="badge warn">todo simulado · sin hardware</span><span class="sp"></span>
+</div>
+<nav class="nav" id="nav"></nav>
+<main id="lab"></main>
+<div class="note">Simulador 7 de 14 del laboratorio de ingeniería: parte de un documento de especificación (ecuaciones, parámetros y fragmentos de código) y está escrito en JavaScript puro, sin librerías, con pruebas automáticas. Cuando algo no coincide con el informe se dice en «Notas sobre el informe y límites». Es un modelo de práctica: no reemplaza instrumentos ni hardware.</div>
+
+<script>
+/* ---- cores/gemelo.js ---- */
+;// Gemelo digital de un nodo sensor IoT: filtro complementario de actitud (pitch/roll) con IMU simulada, modelo térmico RC de la placa, y la telemetría codificada
+// con un formato tipo Protocol Buffers escrito a mano (varint + zigzag, sin librería) comparado con JSON. Fórmulas del informe: α = 0,98, Rth = 45,2 K/W, Cth = 0,12 J/K.
+// No incluye broker ni Three.js: la escena se dibuja en canvas con `rotarCuerpo`.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LabGemelo = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const PARAMS = { alpha: 0.98, Rth: 45.2, Cth: 0.12, Tamb: 25, fs: 50, g: 9.81 }
+  const tau = (p = PARAMS) => p.Rth * p.Cth
+  const tauFiltro = (alpha, dt) => (alpha * dt) / (1 - alpha) // constante de tiempo del complementario
+
+  // ---- actitud: filtro complementario (idéntico al del informe) -----------------------------------------------------------------------------
+  const pitchAcel = (a) => Math.atan2(a.y, Math.sqrt(a.x * a.x + a.z * a.z)), rollAcel = (a) => Math.atan2(-a.x, a.z)
+  function crearNodo(p = {}) {
+    const c = { ...PARAMS, ...p }; let pitch = c.pitch0 ?? 0, roll = c.roll0 ?? 0, T = c.Tamb
+    return {
+      get estado() { return { pitch, roll, temp: T } },
+      actualizar(accel, gyro, pDisip, dt) {
+        pitch = c.alpha * (pitch + gyro.x * dt) + (1 - c.alpha) * pitchAcel(accel)
+        roll = c.alpha * (roll + gyro.y * dt) + (1 - c.alpha) * rollAcel(accel)
+        T += (((c.Tamb + pDisip * c.Rth) - T) / (c.Rth * c.Cth)) * dt // Euler explícito, estable mientras dt < 2·Rth·Cth
+        return { orientation: { pitch, roll }, temperature: T }
+      },
+    }
+  }
+
+  // ---- IMU sintética --------------------------------------------------------------------------------------------------------------------------
+  function prng(semilla = 1) { let a = semilla >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+  const gauss = (r) => Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r())
+  // gravedad en el marco del cuerpo para unos ángulos dados: es lo que mide un acelerómetro en reposo
+  const gravedadCuerpo = (p, r, g = PARAMS.g) => ({ x: -g * Math.cos(p) * Math.sin(r), y: g * Math.sin(p), z: g * Math.cos(p) * Math.cos(r) })
+  // cfg: { dur, fs, angulos(t) → {pitch, roll} verdaderos, sigmaAcel (m/s²), sigmaGiro (rad/s), sesgoGiro {x,y} (rad/s), vibracion {t0, dur, amp (m/s²), f}, semilla }
+  function simularIMU(cfg) {
+    const fs = cfg.fs ?? PARAMS.fs, n = Math.round(cfg.dur * fs), r = prng(cfg.semilla ?? 1), out = { t: [], p: [], r: [], accel: [], gyro: [] }, dt = 1 / fs
+    const sa = cfg.sigmaAcel ?? 0, sg = cfg.sigmaGiro ?? 0, b = cfg.sesgoGiro ?? { x: 0, y: 0 }
+    for (let k = 0; k < n; k++) {
+      const t = k * dt, a0 = cfg.angulos(t), a1 = cfg.angulos(t + 1e-4), g = gravedadCuerpo(a0.pitch, a0.roll)
+      let vib = 0; if (cfg.vibracion && t >= cfg.vibracion.t0 && t < cfg.vibracion.t0 + cfg.vibracion.dur) vib = cfg.vibracion.amp * Math.sin(2 * Math.PI * (cfg.vibracion.f ?? 17) * t)
+      out.t.push(t); out.p.push(a0.pitch); out.r.push(a0.roll)
+      out.accel.push({ x: g.x + sa * gauss(r) + vib, y: g.y + sa * gauss(r) + 0.6 * vib, z: g.z + sa * gauss(r) })
+      out.gyro.push({ x: (a1.pitch - a0.pitch) / 1e-4 + b.x + sg * gauss(r), y: (a1.roll - a0.roll) / 1e-4 + b.y + sg * gauss(r) })
+    }
+    return out
+  }
+  // estimadores: 'complementario', 'giro' (solo integración) y 'acel' (solo acelerómetro); devuelve las series de pitch y roll
+  function estimar(senal, tipo = 'complementario', alpha = PARAMS.alpha) {
+    const dt = senal.t[1] - senal.t[0], pitch = [], roll = []; let p = 0, rr = 0
+    senal.t.forEach((_, k) => {
+      const a = senal.accel[k], gy = senal.gyro[k]
+      if (tipo === 'acel') { p = pitchAcel(a); rr = rollAcel(a) } else if (tipo === 'giro') { p += gy.x * dt; rr += gy.y * dt } else { p = alpha * (p + gy.x * dt) + (1 - alpha) * pitchAcel(a); rr = alpha * (rr + gy.y * dt) + (1 - alpha) * rollAcel(a) }
+      pitch.push(p); roll.push(rr)
+    })
+    return { pitch, roll }
+  }
+  const rms = (a, b, desde = 0) => { let s = 0, n = 0; for (let i = desde; i < a.length; i++) { s += (a[i] - b[i]) ** 2; n++ } return Math.sqrt(s / n) }
+
+  // ---- térmico ----------------------------------------------------------------------------------------------------------------------------------
+  const tempAnalitica = (P, t, T0 = PARAMS.Tamb, p = PARAMS) => p.Tamb + P * p.Rth + (T0 - p.Tamb - P * p.Rth) * Math.exp(-t / tau(p))
+  // perfil de potencia típico de un nodo: reposo 0,05 W, medición 0,3 W y ráfaga de transmisión de 1,2 W (periodo 20 s)
+  const perfilPotencia = (t) => { const f = t % 20; return f < 1 ? 1.2 : f < 3 ? 0.3 : 0.05 }
+
+  // ---- telemetría: varint + zigzag, formato tipo Protocol Buffers ----------------------------------------------------------------------------------
+  const zig = (n) => (n >= 0 ? n * 2 : -n * 2 - 1), unzig = (z) => (z % 2 === 0 ? z / 2 : -(z + 1) / 2)
+  function varint(n) { const b = []; while (n >= 128) { b.push((n % 128) | 128); n = Math.floor(n / 128) } b.push(n); return b }
+  function leerVarint(buf, i) { let r = 0, m = 1, k = i; for (;;) { const b = buf[k++]; r += (b & 127) * m; if (b < 128) break; m *= 128 } return [r, k] }
+  // mensaje: { seq, ts (ms), pitch, roll (rad), temp (°C), potencia (W) } → campos 1..6; los reales van en enteros (centésimas de grado / de °C, mW)
+  const CAMPOS = [['seq', 1, (v) => v, (v) => v, false], ['ts', 2, (v) => v, (v) => v, false], ['pitch', 3, (v) => Math.round(((v * 180) / Math.PI) * 100), (v) => ((v / 100) * Math.PI) / 180, true], ['roll', 4, (v) => Math.round(((v * 180) / Math.PI) * 100), (v) => ((v / 100) * Math.PI) / 180, true], ['temp', 5, (v) => Math.round(v * 100), (v) => v / 100, true], ['potencia', 6, (v) => Math.round(v * 1000), (v) => v / 1000, false]]
+  function codificar(m) { const o = []; for (const [nom, num, enc, , z] of CAMPOS) if (m[nom] !== undefined) { const v = enc(m[nom]); o.push(...varint((num << 3) | 0), ...varint(z ? zig(v) : v)) } return Uint8Array.from(o) }
+  function decodificar(buf) {
+    const m = {}; let i = 0
+    while (i < buf.length) { let tag; ;[tag, i] = leerVarint(buf, i); const campo = CAMPOS.find((c) => c[1] === tag >> 3); let v; ;[v, i] = leerVarint(buf, i); if (campo) m[campo[0]] = campo[3](campo[4] ? unzig(v) : v) }
+    return m
+  }
+  const bytesJSON = (m) => JSON.stringify(m).length
+
+  // ---- geometría para dibujar la placa ----------------------------------------------------------------------------------------------------------------
+  // cuerpo → mundo: Rx(pitch)·Ry(roll) (así el eje z del mundo visto desde el cuerpo es gravedadCuerpo/g)
+  function rotarCuerpo(v, p, r) {
+    const [x, y, z] = v, x1 = x * Math.cos(r) + z * Math.sin(r), z1 = -x * Math.sin(r) + z * Math.cos(r)
+    return [x1, y * Math.cos(p) - z1 * Math.sin(p), y * Math.sin(p) + z1 * Math.cos(p)]
+  }
+
+  return { PARAMS, tau, tauFiltro, crearNodo, pitchAcel, rollAcel, gravedadCuerpo, simularIMU, estimar, rms, tempAnalitica, perfilPotencia, zig, unzig, varint, leerVarint, codificar, decodificar, bytesJSON, rotarCuerpo, prng }
+})
+
+/* ---- cores/gerber.js ---- */
+;// Visor de archivos Gerber RS-274X: analizador léxico (formato numérico FS, unidades MO, aperturas circulares / rectangulares / oblongas, D01 trazar, D02 mover,
+// D03 destellar, coordenadas modales, regiones G36/G37, arcos G02/G03 en modo multicuadrante G75), generación de polígonos por operación, triangulación por
+// recorte de orejas y una proyección isométrica para la vista de capas apiladas. También incluye `parseInforme`, la réplica del analizador del informe,
+// para mostrar sus límites (escala fija de 10⁵ y obligación de X e Y en cada línea). Todo se normaliza a milímetros.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LabGerber = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  // ---- analizador ---------------------------------------------------------------------------------------------------------------------------------------
+  function parse(texto) {
+    const est = { unidad: 'mm', xd: 6, yd: 6, aperturas: {}, ops: [], avisos: [], x: 0, y: 0, ap: null, modo: 1, region: null, polaridadClara: 0, comentarios: 0, lineas: 0 }
+    const k = () => (est.unidad === 'in' ? 25.4 : 1), num = (s, dec) => (parseInt(s, 10) / 10 ** dec) * k()
+    const extendida = (w) => {
+      let m
+      if ((m = /^FS([LT])([AI])X(\d)(\d)Y(\d)(\d)$/.exec(w))) { est.xd = +m[4]; est.yd = +m[6]; if (m[1] !== 'L' || m[2] !== 'A') est.avisos.push('formato FS no soportado (solo ceros iniciales omitidos y coordenadas absolutas)') }
+      else if ((m = /^MO(MM|IN)$/.exec(w))) est.unidad = m[1] === 'MM' ? 'mm' : 'in'
+      else if ((m = /^ADD(\d+)([A-Z]),([\d.]+)(?:[Xx]([\d.]+))?(?:[Xx]([\d.]+))?$/.exec(w))) {
+        const id = +m[1], t = m[2], a = +m[3] * k(), b = m[4] !== undefined ? +m[4] * k() : null
+        est.aperturas[id] = t === 'C' ? { tipo: 'C', d: a } : t === 'R' ? { tipo: 'R', w: a, h: b ?? a } : t === 'O' ? { tipo: 'O', w: a, h: b ?? a } : { tipo: t, d: a }
+        if (!'CRO'.includes(t)) est.avisos.push(`apertura ${id} de tipo ${t} aproximada como círculo`)
+      } else if (/^LP[DC]$/.test(w)) { if (w === 'LPC') est.polaridadClara++ } else if (/^(TF|TA|TO|TD|AM|AB|SR|LM|LR|LS|IP|OF|MI|SF|AS)/.test(w)) { /* atributos y modificadores que no cambian la geometría simple */ }
+      else est.avisos.push('comando extendido ignorado: ' + w)
+    }
+    const estandar = (w) => {
+      est.lineas++
+      if (/^G0?4/.test(w)) { est.comentarios++; return }
+      if (/^M0?2$/.test(w)) return
+      const m = /^(?:G(\d+))?(?:X(-?\d+))?(?:Y(-?\d+))?(?:I(-?\d+))?(?:J(-?\d+))?(?:D(\d+))?$/.exec(w)
+      if (!m) { est.avisos.push('palabra ignorada: ' + w); return }
+      const [, g, xs, ys, is, js, d] = m
+      if (g !== undefined) { const gi = +g; if (gi === 1 || gi === 2 || gi === 3) est.modo = gi; else if (gi === 36) est.region = [] ; else if (gi === 37) { if (est.region) { cierraContorno(); est.ops.push({ tipo: 'REGION', contornos: est.region.filter((c) => c.length >= 3) }); est.region = null } } else if (gi === 74) est.avisos.push('G74 (un cuadrante) no soportado: se usa G75') }
+      const x0 = est.x, y0 = est.y; if (xs !== undefined) est.x = num(xs, est.xd); if (ys !== undefined) est.y = num(ys, est.yd)
+      if (d === undefined) return
+      const di = +d
+      if (di >= 10) { est.ap = di; return }
+      if (est.region) {
+        if (di === 2) { cierraContorno(); est.region.push([[est.x, est.y]]) } else if (di === 1) { if (!est.region.length) est.region.push([[x0, y0]]); const c = est.region[est.region.length - 1]; if (est.modo === 1) c.push([est.x, est.y]); else c.push(...arco([x0, y0], [est.x, est.y], is !== undefined ? num(is, est.xd) : 0, js !== undefined ? num(js, est.yd) : 0, est.modo === 3).slice(1)) }
+        return
+      }
+      if (di === 1) {
+        if (est.ap === null) { est.avisos.push('D01 sin apertura seleccionada'); return }
+        if (est.modo === 1) est.ops.push({ tipo: 'DRAW', de: [x0, y0], a: [est.x, est.y], ap: est.ap })
+        else { const pts = arco([x0, y0], [est.x, est.y], is !== undefined ? num(is, est.xd) : 0, js !== undefined ? num(js, est.yd) : 0, est.modo === 3); for (let i = 1; i < pts.length; i++) est.ops.push({ tipo: 'DRAW', de: pts[i - 1], a: pts[i], ap: est.ap, arco: true }) }
+      } else if (di === 3) { if (est.ap === null) est.avisos.push('D03 sin apertura seleccionada'); else est.ops.push({ tipo: 'FLASH', x: est.x, y: est.y, ap: est.ap }) }
+    }
+    const cierraContorno = () => { if (est.region && est.region.length) { const c = est.region[est.region.length - 1]; if (c.length > 2 && (c[0][0] !== c[c.length - 1][0] || c[0][1] !== c[c.length - 1][1])) c.push([...c[0]]) } }
+    const re = /%([^%]*)%|([^%*]+)\*/g; let m
+    const limpio = texto.replace(/\r/g, '').replace(/\n/g, '')
+    while ((m = re.exec(limpio))) { if (m[1] !== undefined) m[1].split('*').map((s) => s.trim()).filter(Boolean).forEach(extendida); else estandar(m[2].trim()) }
+    return { unidad: 'mm', fmt: { xd: est.xd, yd: est.yd }, unidadOriginal: est.unidad, aperturas: est.aperturas, ops: est.ops, avisos: est.avisos, comentarios: est.comentarios, polaridadClara: est.polaridadClara, bbox: bbox(est.ops, est.aperturas) }
+  }
+  // arco circular multicuadrante: de `a` a `b` con el centro en a + (i, j); ccw = G03. Devuelve los puntos (incluye extremos), un segmento cada ≤ 5°
+  function arco(a, b, i, j, ccw) {
+    const cx = a[0] + i, cy = a[1] + j, r = Math.hypot(a[0] - cx, a[1] - cy); let a0 = Math.atan2(a[1] - cy, a[0] - cx), a1 = Math.atan2(b[1] - cy, b[0] - cx)
+    const mismo = Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-9
+    if (ccw) { while (a1 <= a0 + 1e-12) a1 += 2 * Math.PI; if (mismo) a1 = a0 + 2 * Math.PI } else { while (a1 >= a0 - 1e-12) a1 -= 2 * Math.PI; if (mismo) a1 = a0 - 2 * Math.PI }
+    const n = Math.max(2, Math.ceil(Math.abs(a1 - a0) / (Math.PI / 36))), pts = [a]; for (let s = 1; s < n; s++) { const t = a0 + ((a1 - a0) * s) / n; pts.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]) } pts.push(b); return pts
+  }
+  function bbox(ops, ap) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+    const ext = (x, y, hx, hy) => { x0 = Math.min(x0, x - hx); x1 = Math.max(x1, x + hx); y0 = Math.min(y0, y - hy); y1 = Math.max(y1, y + hy) }
+    for (const o of ops) {
+      if (o.tipo === 'REGION') for (const c of o.contornos) for (const [x, y] of c) ext(x, y, 0, 0)
+      else { const a = ap[o.ap] ?? { tipo: 'C', d: 0 }, hx = a.tipo === 'C' ? a.d / 2 : (a.w ?? a.d) / 2, hy = a.tipo === 'C' ? a.d / 2 : (a.h ?? a.d) / 2; if (o.tipo === 'FLASH') ext(o.x, o.y, hx, hy); else { ext(o.de[0], o.de[1], hx, hx); ext(o.a[0], o.a[1], hx, hx) } }
+    }
+    return isFinite(x0) ? { x0, y0, x1, y1, ancho: x1 - x0, alto: y1 - y0 } : null
+  }
+
+  // ---- réplica del analizador del informe ---------------------------------------------------------------------------------------------------------
+  function parseInforme(linea) {
+    if (linea.startsWith('D') && linea.length <= 4) return { type: 'APERTURE', apertureId: parseInt(linea.substring(1)) }
+    const m = /X(-?\d+)Y(-?\d+)D0([1-3])\*/.exec(linea)
+    if (m) { const op = parseInt(m[3]); return { type: op === 1 ? 'DRAW' : op === 2 ? 'MOVE' : 'FLASH', x: parseInt(m[1]) / 100000, y: parseInt(m[2]) / 100000 } }
+    return null
+  }
+
+  // ---- geometría --------------------------------------------------------------------------------------------------------------------------------------------
+  const circulo = (x, y, d, n = 24) => Array.from({ length: n }, (_, i) => [x + (d / 2) * Math.cos((2 * Math.PI * i) / n), y + (d / 2) * Math.sin((2 * Math.PI * i) / n)])
+  const rect = (x, y, w, h) => [[x - w / 2, y - h / 2], [x + w / 2, y - h / 2], [x + w / 2, y + h / 2], [x - w / 2, y + h / 2]]
+  // apertura oblonga (estadio): dos semicírculos unidos por un tramo recto a lo largo del lado mayor
+  function oblongo(x, y, w, h, n = 8) { const L = Math.abs(w - h) / 2; return w >= h ? traza([x - L, y], [x + L, y], h, n) : traza([x, y - L], [x, y + L], w, n) }
+  // traza = rectángulo con extremos redondos («estadio») de ancho w
+  function traza(a, b, w, n = 8) {
+    const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), r = w / 2, pts = []
+    for (let i = 0; i <= n; i++) { const t = ang - Math.PI / 2 + (Math.PI * i) / n; pts.push([b[0] + r * Math.cos(t), b[1] + r * Math.sin(t)]) }
+    for (let i = 0; i <= n; i++) { const t = ang + Math.PI / 2 + (Math.PI * i) / n; pts.push([a[0] + r * Math.cos(t), a[1] + r * Math.sin(t)]) }
+    return pts
+  }
+  function poligonos(ops, ap) {
+    const out = []
+    for (const o of ops) {
+      if (o.tipo === 'REGION') o.contornos.forEach((c) => out.push({ tipo: 'region', pts: c.slice(0, -1) }))
+      else if (o.tipo === 'FLASH') { const a = ap[o.ap]; if (!a) continue; out.push({ tipo: 'pad', forma: a.tipo, centro: [o.x, o.y], pts: a.tipo === 'R' ? rect(o.x, o.y, a.w, a.h) : a.tipo === 'O' ? oblongo(o.x, o.y, a.w, a.h) : circulo(o.x, o.y, a.d ?? a.w) }) }
+      else { const a = ap[o.ap]; if (!a) continue; const w = a.tipo === 'C' ? a.d : Math.min(a.w, a.h); out.push({ tipo: 'traza', ancho: w, de: o.de, a: o.a, pts: traza(o.de, o.a, w) }) }
+    }
+    return out
+  }
+  const area = (p) => { let s = 0; for (let i = 0; i < p.length; i++) { const [x0, y0] = p[i], [x1, y1] = p[(i + 1) % p.length]; s += x0 * y1 - x1 * y0 } return s / 2 }
+  // triangulación por recorte de orejas de un polígono simple (acepta sentido horario o antihorario). Devuelve ternas de índices del arreglo original.
+  function triangular(p) {
+    const n = p.length; if (n < 3) return []
+    const idx = Array.from({ length: n }, (_, i) => i); if (area(p) < 0) idx.reverse()
+    const cruz = (a, b, c) => (p[b][0] - p[a][0]) * (p[c][1] - p[a][1]) - (p[b][1] - p[a][1]) * (p[c][0] - p[a][0])
+    const dentro = (pt, a, b, c) => { const d1 = cruz(a, b, pt), d2 = cruz(b, c, pt), d3 = cruz(c, a, pt); return d1 > 1e-12 && d2 > 1e-12 && d3 > 1e-12 }
+    const tris = []; let guarda = 0
+    while (idx.length > 3 && guarda++ < 10 * n * n) {
+      let corto = false
+      for (let i = 0; i < idx.length; i++) {
+        const a = idx[(i + idx.length - 1) % idx.length], b = idx[i], c = idx[(i + 1) % idx.length]
+        if (cruz(a, b, c) <= 1e-12) continue
+        let libre = true; for (const j of idx) if (j !== a && j !== b && j !== c) { const pt = j; const d1 = cruz(a, b, pt), d2 = cruz(b, c, pt), d3 = cruz(c, a, pt); if (d1 > -1e-12 && d2 > -1e-12 && d3 > -1e-12) { libre = false; break } }
+        if (libre) { tris.push([a, b, c]); idx.splice(i, 1); corto = true; break }
+      }
+      if (!corto) { for (let i = 1; i < idx.length - 1; i++) tris.push([idx[0], idx[i], idx[i + 1]]); return tris } // degenerado: abanico
+    }
+    if (idx.length === 3) tris.push([idx[0], idx[1], idx[2]])
+    return tris
+  }
+  // proyección isométrica de capas apiladas: gira alrededor del eje vertical (yaw) y se inclina (tilt: π/2 = vista cenital, 0 = vista lateral). v crece hacia abajo.
+  function proyectar(x, y, z, yaw, tilt, escala = 1) {
+    const xr = x * Math.cos(yaw) - y * Math.sin(yaw), yr = x * Math.sin(yaw) + y * Math.cos(yaw)
+    return [escala * xr, -escala * (yr * Math.sin(tilt) + z * Math.cos(tilt))]
+  }
+
+  // ---- placa de ejemplo ----------------------------------------------------------------------------------------------------------------------------------------
+  // Placa de 50 × 35 mm con esquinas redondeadas. Formato 4.6 en milímetros. Devuelve el texto de cada capa y lo que contiene (para las pruebas).
+  function placaEjemplo() {
+    const f = (v) => String(Math.round(v * 1e6)), P = (x, y) => `X${f(x)}Y${f(y)}`
+    const cab = (cuerpo) => `G04 Placa de ejemplo 50 x 35 mm (generada)*\n%FSLAX46Y46*%\n%MOMM*%\nG75*\nG01*\n${cuerpo}M02*\n`
+    const nueva = () => { const m = { pads: 0, trazas: 0, longitud: 0, regiones: 0, arcosCompletos: 0, cuartos: 0 }; return { m, pad: (x, y) => { m.pads++; return `${P(x, y)}D03*\n` }, lin: (a, b) => { m.trazas++; m.longitud += Math.hypot(b[0] - a[0], b[1] - a[1]); return `${P(a[0], a[1])}D02*\n${P(b[0], b[1])}D01*\n` }, poli(pts) { return pts.slice(1).map((p, i) => this.lin(pts[i], p)).join('') } } }
+    const CALLES = [[30, 20], [34, 20], [38, 20], [30, 26], [34, 26]]
+    // cobre: cabecera 2×6 de 2,54 mm (la primera fila cuadrada), cinco pasivos, un LED con su resistencia y dos agujeros de montaje con corona
+    const cu = nueva(); let cobre = '%ADD10C,0.250*%\n%ADD11C,0.500*%\n%ADD12R,1.700X1.700*%\n%ADD13C,1.700*%\n%ADD14R,1.000X1.300*%\n%ADD15C,4.000*%\n%ADD16O,2.400X1.200*%\n'
+    cobre += 'D12*\n'; for (let i = 0; i < 6; i++) cobre += cu.pad(10 + i * 2.54, 8)
+    cobre += 'D13*\n'; for (let i = 0; i < 6; i++) cobre += cu.pad(10 + i * 2.54, 10.54)
+    cobre += 'D14*\n'; for (const [x, y] of CALLES) cobre += cu.pad(x, y)
+    cobre += 'D13*\n'; cobre += cu.pad(42, 26) + cu.pad(45, 26)
+    cobre += 'D16*\n'; cobre += cu.pad(44, 14)
+    cobre += 'D15*\n'; cobre += cu.pad(4, 4) + cu.pad(46, 31)
+    cobre += 'D10*\n'; for (let i = 0; i < 6; i++) cobre += cu.lin([10 + i * 2.54, 8], [10 + i * 2.54, 10.54])
+    cobre += cu.poli([[10, 10.54], [10, 14], [28, 14], [28, 20], [30, 20]]) + cu.poli([[12.54, 10.54], [12.54, 16], [32, 16], [32, 20], [34, 20]])
+    cobre += 'D11*\n'; cobre += cu.poli([[15.08, 10.54], [15.08, 18], [36, 18], [38, 20]]) + cu.poli([[30, 26], [30, 28.5], [42, 28.5], [42, 26]])
+    cu.m.regiones = 1; cobre += `G36*\n${P(20, 24)}D02*\nG01*\n${P(28, 24)}D01*\n${P(28, 31)}D01*\n${P(22, 33)}D01*\n${P(20, 31)}D01*\n${P(20, 24)}D01*\nG37*\n` // relleno con chaflán
+    // máscara: aberturas (destellos) sobre cada pad; serigrafía: contorno de la cabecera y de los pasivos y un círculo (arco completo) alrededor del LED
+    const ma = nueva(); let mascara = '%ADD20C,2.000*%\n%ADD21R,2.000X2.000*%\n%ADD22R,1.300X1.600*%\n%ADD23C,4.400*%\n%ADD24O,2.700X1.500*%\nD21*\n'
+    for (let i = 0; i < 6; i++) mascara += ma.pad(10 + i * 2.54, 8); mascara += 'D20*\n'; for (let i = 0; i < 6; i++) mascara += ma.pad(10 + i * 2.54, 10.54)
+    mascara += 'D22*\n'; for (const [x, y] of CALLES) mascara += ma.pad(x, y); mascara += 'D20*\n' + ma.pad(42, 26) + ma.pad(45, 26) + 'D24*\n' + ma.pad(44, 14) + 'D23*\n' + ma.pad(4, 4) + ma.pad(46, 31)
+    const se = nueva(); let ser = '%ADD30C,0.150*%\nD30*\n'; ser += se.poli([[8.5, 6.5], [8.5, 12], [24.7, 12], [24.7, 6.5], [8.5, 6.5]]); for (const [x, y] of CALLES.slice(0, 3)) ser += se.poli([[x - 1.2, y - 1.2], [x + 1.2, y - 1.2], [x + 1.2, y + 1.2], [x - 1.2, y + 1.2], [x - 1.2, y - 1.2]])
+    se.m.arcosCompletos = 1; ser += `${P(46.5, 26)}D02*\nG03*\n${P(46.5, 26)}I${f(-3)}J${f(0)}D01*\nG01*\n`
+    // contorno con esquinas de 3 mm de radio (cuartos de círculo en modo multicuadrante)
+    const r = 3, W = 50, H = 35, co = nueva(); let c = '%ADD40C,0.100*%\nD40*\n'
+    c += `${P(r, 0)}D02*\n${P(W - r, 0)}D01*\nG03*\n${P(W, r)}I${f(0)}J${f(r)}D01*\nG01*\n${P(W, H - r)}D01*\nG03*\n${P(W - r, H)}I${f(-r)}J${f(0)}D01*\nG01*\n${P(r, H)}D01*\nG03*\n${P(0, H - r)}I${f(0)}J${f(-r)}D01*\nG01*\n${P(0, r)}D01*\nG03*\n${P(r, 0)}I${f(r)}J${f(0)}D01*\nG01*\n`
+    co.m.cuartos = 4; co.m.trazas = 4 // rectas; los cuartos de círculo se cuentan aparte
+    return { capas: { cobre: cab(cobre), mascara: cab(mascara), serigrafia: cab(ser), contorno: cab(c) }, meta: { cobre: cu.m, mascara: ma.m, serigrafia: se.m, contorno: co.m }, ancho: W, alto: H }
+  }
+
+  return { parse, arco, parseInforme, circulo, rect, oblongo, traza, poligonos, area, triangular, proyectar, placaEjemplo, bbox }
+})
+
+</script>
+<script>
+/* ---- ui/comun.js ---- */
+;'use strict'
+// Utilidades compartidas de la interfaz: formato, dibujo en canvas (ejes, trazos con envolvente, mapas de calor), controles deslizantes, tarjetas,
+// registro de simuladores y navegación por pestañas con enlace directo (#id). Cada simulador se monta la primera vez que se abre y luego se
+// activa/desactiva; si define `tick(dt)` se anima solo mientras está visible.
+const LAB = (() => {
+  const f = (n, d = 1) => (Number.isFinite(n) ? Number(n).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d }) : n === Infinity ? '∞' : n === -Infinity ? '−∞' : '—')
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const $ = (s, r = document) => r.querySelector(s)
+  const mx = (a, i0 = 0, i1 = a.length) => { let m = -Infinity; for (let i = i0; i < i1; i++) if (a[i] > m) m = a[i]; return m }
+  const mn = (a, i0 = 0, i1 = a.length) => { let m = Infinity; for (let i = i0; i < i1; i++) if (a[i] < m) m = a[i]; return m }
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x))
+  const debounce = (fn, ms = 120) => { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms) } }
+
+  // ---- dibujo ----------------------------------------------------------------------------------------------------------------------------------------------------
+  function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+  function trazo(c, X, Y, xs, ys, i0, i1, color, ancho = 1.5, dash = []) {
+    c.strokeStyle = color; c.lineWidth = ancho; c.setLineDash(dash); c.beginPath(); const n = i1 - i0; if (n < 2) { c.setLineDash([]); return }
+    const px = Math.abs(X(xs[i1 - 1]) - X(xs[i0]))
+    if (n > 3 * px) { // muchas más muestras que píxeles: mínimo y máximo por columna
+      let col = null, lo = 0, hi = 0, ini = true; const cierra = () => { const x = col + 0.5; if (ini) { c.moveTo(x, Y(lo)); ini = false } else c.lineTo(x, Y(lo)); c.lineTo(x, Y(hi)) }
+      for (let i = i0; i < i1; i++) { const p = Math.round(X(xs[i])); if (p !== col) { if (col !== null) cierra(); col = p; lo = hi = ys[i] } else { if (ys[i] < lo) lo = ys[i]; if (ys[i] > hi) hi = ys[i] } } cierra()
+    } else { let abierto = false; for (let i = i0; i < i1; i++) { if (!Number.isFinite(ys[i])) { abierto = false; continue } if (!abierto) { c.moveTo(X(xs[i]), Y(ys[i])); abierto = true } else c.lineTo(X(xs[i]), Y(ys[i])) } }
+    c.stroke(); c.setLineDash([])
+  }
+  // o: { x0, x1, y0, y1, ystep, xlog, xticks, xfmt, yfmt, xlab, sinX, L, series:[{xs,ys,i0,i1,color,w,dash}], hl:[{y,color,label,dash}], vl:[{x,color,label}] }
+  function grafica(cv, o) {
+    const { c, w, h } = prep(cv), L = o.L ?? 48, R = 10, T = 8, B = o.sinX ? 6 : 20, lx0 = o.xlog ? Math.log10(o.x0) : o.x0, lx1 = o.xlog ? Math.log10(o.x1) : o.x1
+    const X = (x) => L + (((o.xlog ? Math.log10(x) : x) - lx0) / (lx1 - lx0)) * (w - L - R), Y = (y) => T + (1 - (y - o.y0) / (o.y1 - o.y0)) * (h - T - B)
+    c.lineWidth = 1; c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+    for (let v = o.y0; v <= o.y1 + 1e-9; v += o.ystep) { const y = Y(v); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText((o.yfmt ?? ((q) => f(q, 0)))(v), L - 4, y + 3) }
+    if (!o.sinX) {
+      c.textAlign = 'center'; const xt = o.xlog ? [0.01, 0.1, 1, 10, 100, 1e3, 1e4, 1e5, 1e6].filter((v) => v >= o.x0 * 0.999 && v <= o.x1 * 1.001) : o.xticks ?? []
+      for (const v of xt) { const x = X(v); if (o.xlab && x > w - R - 34) continue; c.strokeStyle = '#0f1a2e'; c.beginPath(); c.moveTo(x, T); c.lineTo(x, h - B); c.stroke(); c.fillStyle = '#64748b'; c.fillText(o.xlog ? (v >= 1e3 ? v / 1e3 + 'k' : v < 1 ? String(v).replace('.', ',') : v) : (o.xfmt ?? ((q) => f(q, 0)))(v), x, h - 5) }
+      if (o.xlab) { c.textAlign = 'right'; c.fillText(o.xlab, w - R, h - 5) }
+    }
+    c.save(); c.beginPath(); c.rect(L, T, w - L - R, h - T - B); c.clip()
+    for (const l of o.hl ?? []) { c.strokeStyle = l.color; c.setLineDash(l.dash === false ? [] : [5, 4]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(L, Y(l.y)); c.lineTo(w - R, Y(l.y)); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, L + 4, Y(l.y) - 3) } }
+    for (const l of o.vl ?? []) { c.strokeStyle = l.color; c.setLineDash([4, 3]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(X(l.x), T); c.lineTo(X(l.x), h - B); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, X(l.x) + 3, T + 10) } }
+    for (const s of o.series ?? []) trazo(c, X, Y, s.xs, s.ys, s.i0 ?? 0, s.i1 ?? s.xs.length, s.color, s.w, s.dash)
+    c.restore(); return { c, X, Y, w, h, L, R, T, B }
+  }
+  // matriz (filas × columnas) a color: M[fila][col] en 0..1 → mapa(v) = [r, g, b]. La fila 0 se dibuja ARRIBA salvo que `invertir` sea true.
+  // L y B son márgenes (px) a la izquierda y abajo para dibujar los ejes encima; devuelve el contexto y la zona de la imagen { x0, y0, ancho, alto }
+  function mapaCalor(cv, M, mapa, { invertir = false, L = 0, B = 0, T = 0 } = {}) {
+    const { c, w, h } = prep(cv), nf = M.length, nc = M[0].length, off = document.createElement('canvas'); off.width = nc; off.height = nf
+    const octx = off.getContext('2d'), img = octx.createImageData(nc, nf)
+    for (let j = 0; j < nf; j++) for (let i = 0; i < nc; i++) { const col = mapa(M[invertir ? nf - 1 - j : j][i]), k = 4 * (j * nc + i); img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = 255 }
+    octx.putImageData(img, 0, 0); c.imageSmoothingEnabled = false; c.drawImage(off, L, T, w - L, h - B - T); return { c, w, h, x0: L, y0: T, ancho: w - L, alto: h - B - T }
+  }
+  // marcas «bonitas» (1, 2, 5 × 10ⁿ) entre a y b, aproximadamente n
+  function ticks(a, b, n = 5) { const r = b - a, p = 10 ** Math.floor(Math.log10(r / n)), m = [1, 2, 5, 10].find((k) => (k * p * n) >= r) * p, out = []; for (let v = Math.ceil(a / m - 1e-9) * m; v <= b + 1e-9; v += m) out.push(+v.toFixed(10)); return out }
+  function dibujaImagen(cv, data, w, h) { // RGBA (Uint8ClampedArray) a un canvas del tamaño de la imagen, escalado por CSS
+    cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0); return c
+  }
+
+  // ---- controles ---------------------------------------------------------------------------------------------------------------------------------------------------
+  // defs: [{ id, label, min, max, step, valor, fmt, log }]; devuelve { v: {id: valor}, set(id, valor, silencio) }
+  function controles(root, defs, onChange) {
+    const v = {}, outs = {}, ins = {}
+    root.innerHTML = defs.map((d) => `<div class="ctl"><label for="${d.uid ?? 'c_' + d.id}">${d.label}</label><input id="${d.uid ?? 'c_' + d.id}" type="range" min="${d.log ? Math.log10(d.min) : d.min}" max="${d.log ? Math.log10(d.max) : d.max}" step="${d.log ? 0.01 : d.step}" value="${d.log ? Math.log10(d.valor) : d.valor}"><output></output></div>`).join('')
+    const filas = root.querySelectorAll('.ctl')
+    defs.forEach((d, i) => {
+      // en la escala logarítmica se redondea a 3 cifras: evita «219» donde se pidió 220
+      const inp = filas[i].querySelector('input'), out = filas[i].querySelector('output'), leer = () => (d.log ? +(10 ** +inp.value).toPrecision(3) : +inp.value), pinta = () => { v[d.id] = leer(); out.textContent = (d.fmt ?? ((x) => f(x, 2)))(v[d.id]) }
+      outs[d.id] = out; ins[d.id] = inp; pinta(); inp.addEventListener('input', () => { pinta(); onChange?.(d.id, v) })
+    })
+    return { v, set(id, val, silencio = false) { const d = defs.find((q) => q.id === id); ins[id].value = d.log ? Math.log10(val) : val; v[id] = val; outs[id].textContent = (d.fmt ?? ((x) => f(x, 2)))(val); if (!silencio) onChange?.(id, v) } }
+  }
+  const tarjetas = (el, items) => { el.innerHTML = items.map(([t, val, sub, cl]) => `<div class="card ${cl ?? ''}"><span>${t}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ''}</div>`).join('') }
+  const leyenda = (el, items) => { el.innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('') }
+
+  // ---- registro y navegación ----------------------------------------------------------------------------------------------------------------------------------------
+  const sims = [], montados = {}; let activo = null, t0 = performance.now()
+  const registrar = (def) => sims.push(def)
+  function abrir(id) {
+    const def = sims.find((s) => s.id === id) ?? sims[0]; if (!def) return
+    if (activo) { activo.obj?.desactivar?.(); $('#s-' + activo.def.id).classList.remove('on') }
+    let sec = $('#s-' + def.id)
+    if (!sec) {
+      sec = document.createElement('section'); sec.className = 'sim'; sec.id = 's-' + def.id
+      sec.innerHTML = `<div class="cab"><h2>${sims.length > 1 ? def.num + ' · ' : ''}${def.titulo}</h2><p>${def.resumen}</p></div><div class="cuerpo"></div>${def.notas?.length ? `<details class="notas"><summary>Notas sobre el informe y límites</summary><ul>${def.notas.map((n) => `<li>${n}</li>`).join('')}</ul></details>` : ''}`
+      sec.classList.add('on'); $('#lab').appendChild(sec); montados[def.id] = def.montar($('.cuerpo', sec)) // visible ANTES de montar: los canvas necesitan su tamaño real
+    }
+    sec.classList.add('on'); activo = { def, obj: montados[def.id] }; activo.obj?.activar?.(); activo.obj?.redibujar?.()
+    document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.id === def.id)); try { history.replaceState(null, '', '#' + def.id) } catch { /* en un iframe sandbox puede fallar */ }
+    document.querySelector(`#nav button[data-id="${def.id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }
+  function iniciar() {
+    sims.sort((a, b) => a.num - b.num)
+    $('#nav').innerHTML = sims.map((s) => `<button data-id="${s.id}" title="${esc(s.titulo)}"><b>${s.num}</b>${s.corto}</button>`).join(''); $('#nav').onclick = (e) => { const b = e.target.closest('button'); if (b) abrir(b.dataset.id) }
+    if (sims.length === 1) $('#nav').style.display = 'none' // página de un solo simulador: sin pestañas
+    abrir(decodeURIComponent(location.hash.slice(1)) || sims[0].id)
+    window.addEventListener('hashchange', () => abrir(decodeURIComponent(location.hash.slice(1))))
+    let rz = null; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => activo?.obj?.redibujar?.(), 120) })
+    const bucle = (ahora) => { const dt = Math.min(0.05, (ahora - t0) / 1000); t0 = ahora; if (!document.hidden) activo?.obj?.tick?.(dt); requestAnimationFrame(bucle) }
+    requestAnimationFrame(bucle)
+  }
+  return { f, esc, $, mx, mn, clamp, debounce, prep, trazo, grafica, mapaCalor, ticks, dibujaImagen, controles, tarjetas, leyenda, registrar, abrir, iniciar, sims, montados, get activo() { return activo } }
+})()
+
+/* ---- ui/07-gemelo.js ---- */
+;;(() => {
+  const G = LabGemelo, GB = LabGerber, { f } = LAB, DUR = 60, FS = 50
+  LAB.registrar({
+    id: 'gemelo', num: 7, corto: 'Gemelo IoT', titulo: 'Gemelo digital de un nodo sensor IoT: actitud, temperatura y telemetría',
+    resumen: 'Una placa con IMU y un microcontrolador se mueve; el gemelo estima su actitud (pitch y roll) con un filtro complementario (α = 0,98) que mezcla el giroscopio (preciso pero con deriva) y el acelerómetro (sin deriva pero ruidoso), y calcula la temperatura de la placa con un modelo térmico RC (Rth = 45,2 K/W, Cth = 0,12 J/K). Cada muestra se codifica como un mensaje binario tipo Protocol Buffers y se compara con JSON.',
+    notas: [
+      'Fórmulas del informe: filtro complementario θ = α(θ + ω·dt) + (1 − α)·θ_acel con α = 0,98 a 50 Hz (constante de tiempo α·dt/(1 − α) = 0,98 s) y T = T_amb + P·Rth·(1 − e^(−t/τ)) con τ = Rth·Cth = 5,42 s, integrado con Euler explícito (estable mientras dt < 2τ; coincide con la solución analítica a 0,3 %).',
+      'No hay Three.js, modelos GLTF ni iluminación PBR: la placa se dibuja como una caja con proyección isométrica en Canvas 2D, girada con los ángulos estimados (sólida) y los verdaderos (punteada). Tampoco hay broker WebSocket/MQTT: la telemetría es un mensaje codificado a mano que se muestra en hexadecimal.',
+      'La «codificación Protocol Buffers» es un formato propio con varint y zigzag escrito sin librería (campos 1 a 6): 150 → 0x96 0x01 como en la documentación de protobuf. Los ángulos y la temperatura se cuantizan a 0,01° y 0,01 °C, la potencia a 1 mW.',
+      'La IMU es sintética (ruido gaussiano, sesgo del giroscopio y una vibración de 17 Hz opcional entre los 20 y 30 s). El informe no da niveles de ruido ni perfil de potencia: los de este gemelo son elecciones mías (reposo 0,05 W, medición 0,3 W, ráfaga de transmisión 1,2 W cada 20 s).',
+    ],
+    montar(root) {
+      root.innerHTML = `<div class="g21"><div class="panel"><h2>Placa (sólida = estimada, punteada = verdadera)</h2><canvas id="ge-b" class="alto"></canvas><div class="row" style="margin-top:8px"><button class="mini primary" id="ge-play">Pausa</button><label>Velocidad&nbsp;</label><select id="ge-vel"><option value="1">×1</option><option value="5" selected>×5</option><option value="20">×20</option></select><label>Movimiento&nbsp;</label><select id="ge-mov"><option value="suave">Balanceo suave</option><option value="rapido">Giro rápido</option><option value="escalon">Vuelco brusco (escalón)</option><option value="quieto">Quieto inclinado</option></select>
+          <label>Potencia&nbsp;</label><select id="ge-pot"><option value="perfil">Perfil del nodo (0,05 / 0,3 / 1,2 W)</option><option value="0.3">Constante 0,3 W</option><option value="1.2">Constante 1,2 W</option></select><label><input type="checkbox" id="ge-vib"> vibración de 17 Hz (20–30 s)</label></div><div id="ge-ctl"></div></div>
+        <div class="panel"><h2>Telemetría de la muestra actual</h2><pre class="salida" id="ge-msg"></pre><div id="ge-cards" class="cards" style="margin-top:8px"></div></div></div>
+        <div class="g2"><div class="panel"><h2>Pitch: estimadores frente al verdadero (últimos 20 s)</h2><canvas id="ge-p" class="medio"></canvas><div class="leyenda" id="ge-ley"></div></div><div class="panel"><h2>Temperatura de la placa y potencia disipada</h2><canvas id="ge-t" class="medio"></canvas><div id="ge-ct" class="cards" style="margin-top:8px"></div></div></div>`
+      const q = (s) => root.querySelector(s), cv = q('#ge-b')
+      const ctl = LAB.controles(q('#ge-ctl'), [{ id: 'alfa', label: 'α del filtro', min: 0.8, max: 0.999, step: 0.001, valor: 0.98, fmt: (v) => f(v, 3) }, { id: 'sesgo', label: 'Sesgo del giroscopio', min: 0, max: 0.12, step: 0.005, valor: 0.015, fmt: (v) => f(v, 3) + ' rad/s' }, { id: 'ruido', label: 'Ruido del acelerómetro', min: 0, max: 2, step: 0.05, valor: 0.5, fmt: (v) => f(v, 2) + ' m/s²' }], () => prepara())
+      let senal, est, temp, pot, t = 0, corre = true, vel = 5, T0 = 25
+      const movs = { suave: (t) => ({ pitch: 0.45 * Math.sin(0.6 * t), roll: 0.3 * Math.sin(0.4 * t + 1) }), rapido: (t) => ({ pitch: 0.6 * Math.sin(2.2 * t), roll: 0.5 * Math.sin(1.7 * t) }), escalon: (t) => ({ pitch: t > 15 ? 0.6 : 0, roll: t > 30 ? -0.5 : 0.1 }), quieto: () => ({ pitch: 0.35, roll: -0.25 }) }
+      function prepara() {
+        senal = G.simularIMU({ dur: DUR, fs: FS, angulos: movs[q('#ge-mov').value], sigmaAcel: ctl.v.ruido, sigmaGiro: 0.01, sesgoGiro: { x: ctl.v.sesgo, y: -ctl.v.sesgo * 0.6 }, vibracion: q('#ge-vib').checked ? { t0: 20, dur: 10, amp: 6, f: 17 } : null, semilla: 11 })
+        est = { comp: G.estimar(senal, 'complementario', ctl.v.alfa), giro: G.estimar(senal, 'giro'), acel: G.estimar(senal, 'acel') }
+        const nodo = G.crearNodo(), p = q('#ge-pot').value; pot = senal.t.map((tt) => (p === 'perfil' ? G.perfilPotencia(tt) : +p)); temp = senal.t.map((tt, k) => nodo.actualizar(senal.accel[k], senal.gyro[k], pot[k], 1 / FS).temperature); dibuja()
+      }
+      const proy = (v, yaw = 0.7, tilt = 0.95) => GB.proyectar(v[0], v[1], v[2], yaw, tilt, 1)
+      function placa(c, cx, cy, k, p, r, color, relleno) {
+        const V = []; for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) V.push([sx * 0.9, sy * 0.55, sz * 0.06]); const R = V.map((v) => G.rotarCuerpo(v, p, r))
+        const caras = [[0, 1, 3, 2, 'inf'], [4, 5, 7, 6, 'sup'], [0, 1, 5, 4, 'a'], [2, 3, 7, 6, 'b'], [0, 2, 6, 4, 'c'], [1, 3, 7, 5, 'd']].map((cc) => ({ cc, d: cc.slice(0, 4).reduce((s, i) => s + (R[i][1] * Math.cos(0.95) - R[i][2] * Math.sin(0.95)), 0) })).sort((a, b) => b.d - a.d)
+        for (const { cc } of caras) { const pts = cc.slice(0, 4).map((i) => proy(R[i])); c.beginPath(); pts.forEach(([x, y], j) => (j ? c.lineTo(cx + x * k, cy + y * k) : c.moveTo(cx + x * k, cy + y * k))); c.closePath(); if (relleno) { c.fillStyle = cc[4] === 'sup' ? '#14532d' : cc[4] === 'inf' ? '#0b1f12' : '#0f3a22'; c.fill() } c.strokeStyle = color; c.lineWidth = relleno ? 1.6 : 1.2; c.setLineDash(relleno ? [] : [5, 4]); c.stroke(); c.setLineDash([]) }
+        if (relleno) { const chip = [[-0.25, -0.15, 0.07], [0.25, -0.15, 0.07], [0.25, 0.2, 0.07], [-0.25, 0.2, 0.07]].map((v) => proy(G.rotarCuerpo(v, p, r))); c.beginPath(); chip.forEach(([x, y], j) => (j ? c.lineTo(cx + x * k, cy + y * k) : c.moveTo(cx + x * k, cy + y * k))); c.closePath(); c.fillStyle = '#111827'; c.fill(); c.strokeStyle = '#64748b'; c.stroke() }
+      }
+      function dibuja() {
+        const k = Math.min(DUR * FS - 1, Math.floor(t * FS)), { c, w, h } = LAB.prep(cv), s = Math.min(w, h) * 0.36; c.fillStyle = '#071226'; c.fillRect(0, 0, w, h)
+        // ejes del mundo
+        c.strokeStyle = '#1e293b'; c.beginPath(); for (const [a, b] of [[[-1.6, 0, 0], [1.6, 0, 0]], [[0, -1.6, 0], [0, 1.6, 0]]]) { const A = proy(a), B = proy(b); c.moveTo(w / 2 + A[0] * s, h / 2 + 30 + A[1] * s); c.lineTo(w / 2 + B[0] * s, h / 2 + 30 + B[1] * s) } c.stroke()
+        placa(c, w / 2, h / 2 + 30, s, senal.p[k], senal.r[k], '#94a3b8', false); placa(c, w / 2, h / 2 + 30, s, est.comp.pitch[k], est.comp.roll[k], '#22d3ee', true)
+        c.fillStyle = '#cbd5e1'; c.textAlign = 'left'; c.font = '12px ui-monospace, Consolas'; c.fillText(`t = ${f(t, 1)} s`, 12, 20); c.fillText(`pitch ${f((est.comp.pitch[k] * 180) / Math.PI, 1)}° (verdadero ${f((senal.p[k] * 180) / Math.PI, 1)}°)`, 12, 38); c.fillText(`roll ${f((est.comp.roll[k] * 180) / Math.PI, 1)}° (verdadero ${f((senal.r[k] * 180) / Math.PI, 1)}°)`, 12, 56)
+        const msg = { seq: k, ts: 1760000000000 + Math.round(k * 20), pitch: est.comp.pitch[k], roll: est.comp.roll[k], temp: temp[k], potencia: pot[k] }, bin = G.codificar(msg), js = JSON.stringify(msg), d = G.decodificar(bin)
+        q('#ge-msg').textContent = `JSON (${js.length} B):\n${js}\n\nBinario (${bin.length} B):\n${Array.from(bin, (b) => b.toString(16).padStart(2, '0')).join(' ')}\n\nDecodificado:\npitch ${f((d.pitch * 180) / Math.PI, 2)}°  roll ${f((d.roll * 180) / Math.PI, 2)}°  T ${f(d.temp, 2)} °C  P ${f(d.potencia, 3)} W`
+        LAB.tarjetas(q('#ge-cards'), [['Tamaño binario', bin.length + ' B', `JSON ${js.length} B (${f((bin.length / js.length) * 100, 0)} %)`, 'ok3'], ['Ancho de banda a 50 Hz', f((bin.length * FS) / 1000, 2) + ' kB/s', `JSON ${f((js.length * FS) / 1000, 2)} kB/s`], ['Constante de tiempo del filtro', f(G.tauFiltro(ctl.v.alfa, 1 / FS), 2) + ' s', `α·dt/(1 − α), α = ${f(ctl.v.alfa, 3)}`]])
+        const i0 = Math.max(0, k - 20 * FS), tt = senal.t, x0 = tt[i0], x1 = Math.max(tt[i0] + 20, tt[k])
+        LAB.grafica(q('#ge-p'), { x0, x1, y0: -0.8, y1: 0.8, ystep: 0.4, xticks: LAB.ticks(x0, x1, 5), xfmt: (v) => f(v, 0), yfmt: (v) => f((v * 180) / Math.PI, 0) + '°', xlab: 's', hl: [{ y: 0, color: '#334155', dash: false }], series: [{ xs: tt, ys: est.acel.pitch, i0, i1: k + 1, color: '#f87171', w: 1 }, { xs: tt, ys: est.giro.pitch, i0, i1: k + 1, color: '#f59e0b', w: 1.4 }, { xs: tt, ys: senal.p, i0, i1: k + 1, color: '#94a3b8', w: 2, dash: [5, 4] }, { xs: tt, ys: est.comp.pitch, i0, i1: k + 1, color: '#22d3ee', w: 2 }] })
+        LAB.leyenda(q('#ge-ley'), [['#94a3b8', 'verdadero'], ['#22d3ee', 'complementario'], ['#f59e0b', 'solo giroscopio (deriva)'], ['#f87171', 'solo acelerómetro (ruido)']])
+        const tinf = Math.max(...pot.slice(0, k + 1)) * G.PARAMS.Rth + 25, j0 = Math.max(0, k - 30 * FS)
+        LAB.grafica(q('#ge-t'), { x0: tt[j0], x1: Math.max(tt[j0] + 30, tt[k]), y0: 20, y1: Math.ceil((tinf + 6) / 10) * 10, ystep: Math.max(5, Math.ceil((tinf - 20) / 5 / 5) * 5), xticks: LAB.ticks(tt[j0], Math.max(tt[j0] + 30, tt[k]), 5), xfmt: (v) => f(v, 0), xlab: 's', yfmt: (v) => f(v, 0) + '°', hl: [{ y: 25, color: '#334155', label: 'ambiente 25 °C' }], series: [{ xs: tt, ys: temp, i0: j0, i1: k + 1, color: '#f59e0b', w: 2 }, { xs: tt, ys: pot.map((p) => 25 + p * 10), i0: j0, i1: k + 1, color: '#e879f9', w: 1, dash: [3, 3] }] })
+        const rm = (a, b) => Math.sqrt(a.slice(0, k + 1).reduce((s, v, i) => s + (v - b[i]) ** 2, 0) / (k + 1)) * (180 / Math.PI)
+        LAB.tarjetas(q('#ge-ct'), [['T de la placa', f(temp[k], 1) + ' °C', `potencia ${f(pot[k], 2)} W · τ = ${f(G.tau(), 2)} s`], ['Error RMS del pitch', f(rm(est.comp.pitch, senal.p), 2) + '°', `giro ${f(rm(est.giro.pitch, senal.p), 1)}° · acel ${f(rm(est.acel.pitch, senal.p), 1)}°`, rm(est.comp.pitch, senal.p) < Math.min(rm(est.giro.pitch, senal.p), rm(est.acel.pitch, senal.p)) + 0.01 ? 'ok3' : 'w3'], ['Régimen de P constante', f(25 + 0.3 * G.PARAMS.Rth, 1) + ' °C', 'T∞ = Tamb + P·Rth (0,3 W)']])
+      }
+      q('#ge-play').onclick = () => { corre = !corre; q('#ge-play').textContent = corre ? 'Pausa' : 'Reproducir' }; q('#ge-vel').onchange = () => { vel = +q('#ge-vel').value }
+      for (const id of ['#ge-mov', '#ge-pot', '#ge-vib']) q(id).onchange = () => { prepara() }
+      prepara()
+      return { tick: (dt) => { if (corre) { t += dt * vel; if (t >= DUR - 0.05) t = 0; dibuja() } }, redibujar: dibuja, api: { get t() { return t }, set t(v) { t = v; dibuja() }, get est() { return est }, get senal() { return senal } } }
+    },
+  })
+})()
+
+/* ---- ui/zz-inicio.js ---- */
+;LAB.iniciar()
+window.demoApi = { LAB, abrir: LAB.abrir, sim: (id) => LAB.montados[id]?.api }
+
+</script>
+</body>
+</html>

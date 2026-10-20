@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard SCADA / HMI: dos estanques, control en cascada y alarmas ISA-18.2 — simulador interactivo</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.nav button { white-space: nowrap; display: flex; gap: 6px; align-items: baseline; } .nav button b { font: 600 10px var(--mono); color: var(--mut); } .nav button.on b { color: var(--cyan); }
+.sim { display: none; padding: 12px 16px; } .sim.on { display: block; }
+.cab h2 { margin: 0 0 4px; font: 600 17px var(--font); letter-spacing: .1px; text-transform: none; color: var(--txt); } .cab p { margin: 0 0 8px; color: #cbd5e1; font-size: 13px; line-height: 1.5; max-width: 980px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; } .g21 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 12px; } .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; } .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 19px var(--mono); margin-top: 2px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.ok3 { border-color: rgba(52, 211, 153, .6); } .card.ok3 b { color: var(--green); } .card.w3 { border-color: rgba(245, 158, 11, .6); } .card.w3 b { color: var(--amber); } .card.b3 { border-color: var(--red); } .card.b3 b { color: var(--red); }
+canvas { height: 220px; } canvas.alto { height: 320px; } canvas.medio { height: 260px; } canvas.bajo { height: 130px; } canvas.cuad { height: auto; aspect-ratio: 1 / 1; }
+.ctl { display: grid; grid-template-columns: 112px 1fr 74px; gap: 6px 10px; align-items: center; margin-bottom: 3px; font: 12px var(--mono); } .ctl label { color: var(--mut); } .ctl output { color: var(--cyan); text-align: right; }
+.row { margin-bottom: 8px; } .row select, .row input[type=number] { max-width: 100%; }
+.panel p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; } .panel ul { margin: 4px 0 6px 16px; padding: 0; font-size: 12.5px; line-height: 1.5; }
+details.notas { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); margin-top: 4px; } details.notas summary { cursor: pointer; font: 600 11px var(--mono); letter-spacing: .6px; text-transform: uppercase; color: var(--mut); } details.notas[open] summary { color: var(--cyan); margin-bottom: 6px; } details.notas li { margin: 4px 0; font-size: 12.5px; color: #cbd5e1; }
+.etq { font: 600 10px var(--mono); padding: 2px 7px; border-radius: 999px; border: 1px solid; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; } .etq.ok { color: var(--green); border-color: rgba(52, 211, 153, .6); } .etq.av { color: var(--amber); border-color: rgba(245, 158, 11, .6); } .etq.bad { color: var(--red); border-color: rgba(248, 113, 113, .6); }
+textarea { width: 100%; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px/1.4 var(--mono); }
+pre.salida { margin: 0; background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 11.5px/1.45 var(--mono); color: #cbd5e1; overflow: auto; max-height: 260px; }
+table.cmp td, table.cmp th { padding: 3px 7px; white-space: nowrap; } td.n, th.n { text-align: right; }
+.celdas { display: flex; gap: 3px; flex-wrap: wrap; } .celdas i { font: 10px var(--mono); font-style: normal; width: 34px; text-align: center; padding: 3px 0; border-radius: 4px; background: #14301f; color: var(--green); } .celdas i.no { background: #3a1a1f; color: var(--red); }
+.barra { height: 14px; background: #0b1730; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); } .barra i { display: block; height: 100%; background: var(--cyan); }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font: 11px var(--mono); color: var(--mut); margin-top: 4px; } .leyenda i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+svg text { font: 11px ui-monospace, Consolas, monospace; fill: #cbd5e1; }
+@media (max-width: 1000px) { .g2, .g21, .g3, .g4 { grid-template-columns: 1fr; } .sim { padding: 10px 10px; } .nav { padding: 6px 10px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Dashboard SCADA / HMI: dos estanques, control en cascada y alarmas ISA-18.2</h1><span class="badge">de la especificación al código</span><span class="badge warn">todo simulado · sin hardware</span><span class="sp"></span>
+</div>
+<nav class="nav" id="nav"></nav>
+<main id="lab"></main>
+<div class="note">Simulador 8 de 14 del laboratorio de ingeniería: parte de un documento de especificación (ecuaciones, parámetros y fragmentos de código) y está escrito en JavaScript puro, sin librerías, con pruebas automáticas. Cuando algo no coincide con el informe se dice en «Notas sobre el informe y límites». Es un modelo de práctica: no reemplaza instrumentos ni hardware.</div>
+
+<script>
+/* ---- cores/scada.js ---- */
+;// Dashboard SCADA de dos estanques en serie (ley de Torricelli) con control en cascada maestro (nivel del estanque 2) – esclavo (flujo de entrada), válvula con
+// retardo, temperatura del fluido y gestión de alarmas ISA-18.2 (estados activa-sin-reconocer, activa-reconocida, retorno-sin-reconocer; retardo de activación y banda muerta).
+// El informe no da las áreas ni los orificios: se eligieron para que el nivel de régimen sea 1 m con ≈ 30 L/min. El código del informe NO limita las integrales (la
+// «anti-windup» de su comentario es solo la saturación de la salida): `antiWindup: false` reproduce ese comportamiento y `true` integra de forma condicional.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.LabSCADA = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const LPM = 1 / 60000 // 1 L/min en m³/s
+  const PARAMS = { A1: 0.03, A2: 0.03, a1: 1.4e-4, a2: 1.129e-4, g: 9.81, Qmax: 50 * LPM, tauValvula: 2, tauT: 60, Tbase: 45, hMax: 2.0, dtPlanta: 0.1, dtCtl: 0.5 }
+  // maestro: L/min por m (y por m·s); esclavo: % de válvula por L/min (y por L/min·s). Con las constantes de ~80 s y ~120 s de los dos estanques, el escalón
+  // de 0,5 a 1,2 m asienta (±2 %) en unos 550 s con ≈ 9 % de sobreimpulso.
+  const GANANCIAS = { kpM: 40, kiM: 0.2, kpE: 3, kiE: 1.5 }
+
+  // ---- planta --------------------------------------------------------------------------------------------------------------------------------------------
+  // s = { h1, h2, pos (% real de la válvula), T }; u = { cmd (%), Tsp }; dist = { aFuga (m²), suministro (0..1) }
+  function derivadas(s, u, p, dist = {}) {
+    const raiz = (h) => Math.sqrt(2 * p.g * Math.max(h, 0)), q1 = p.a1 * raiz(s.h1), q2 = (p.a2 + (dist.aFuga ?? 0)) * raiz(s.h2), Fin = (p.Qmax * (dist.suministro ?? 1) * s.pos) / 100
+    return { h1: (Fin - q1) / p.A1, h2: (q1 - q2) / p.A2, pos: (u.cmd - s.pos) / p.tauValvula, T: (u.Tsp - s.T) / p.tauT, Fin, q1, q2 }
+  }
+  function pasoPlanta(s, u, p, dist, dt) {
+    const k = (st) => derivadas(st, u, p, dist), sum = (a, b, f) => ({ h1: a.h1 + f * b.h1, h2: a.h2 + f * b.h2, pos: a.pos + f * b.pos, T: a.T + f * b.T })
+    const k1 = k(s), k2 = k(sum(s, k1, dt / 2)), k3 = k(sum(s, k2, dt / 2)), k4 = k(sum(s, k3, dt))
+    const n = {}; for (const c of ['h1', 'h2', 'pos', 'T']) n[c] = s[c] + (dt / 6) * (k1[c] + 2 * k2[c] + 2 * k3[c] + k4[c])
+    n.h1 = Math.min(p.hMax, Math.max(0, n.h1)); n.h2 = Math.min(p.hMax, Math.max(0, n.h2)); n.pos = Math.min(100, Math.max(0, n.pos))
+    return n
+  }
+  const flujoEntrada = (s, p, dist = {}) => (p.Qmax * (dist.suministro ?? 1) * s.pos) / 100 // m³/s
+
+  // ---- control en cascada ---------------------------------------------------------------------------------------------------------------------------------
+  function crearCascada({ kpM, kiM, kpE, kiE, dt = 0.5, antiWindup = true, FmaxLpm = 50 } = { ...GANANCIAS }) {
+    let iM = 0, iE = 0, ultimo = { flujoSp: 0, valvula: 0 }
+    return {
+      reset() { iM = 0; iE = 0 },
+      // arranque sin sobresalto: con el error de nivel dado, el maestro ya pide `flujoSp` y el esclavo ya entrega `valvula` (%)
+      precargar({ flujoSp, valvula, errNivel = 0, flujo = flujoSp }) { iM = (flujoSp - kpM * errNivel) / kiM; iE = (valvula - kpE * (flujoSp - flujo)) / kiE },
+      get integrales() { return { iM, iE } },
+      // h2 en m, flujo y consignas en L/min; devuelve la apertura de la válvula en %
+      calcular(spH2, h2, flujoLpm) {
+        const eM = spH2 - h2; let fSp = kpM * eM + kiM * iM
+        const satM = fSp > FmaxLpm || fSp < 0; if (!antiWindup || !satM || (fSp > FmaxLpm && eM < 0) || (fSp < 0 && eM > 0)) iM += eM * dt
+        fSp = kpM * eM + kiM * iM; if (antiWindup) fSp = Math.max(0, Math.min(FmaxLpm, fSp))
+        const eE = fSp - flujoLpm; let v = kpE * eE + kiE * iE
+        const satE = v > 100 || v < 0; if (!antiWindup || !satE || (v > 100 && eE < 0) || (v < 0 && eE > 0)) iE += eE * dt
+        v = Math.max(0, Math.min(100, kpE * eE + kiE * iE)); ultimo = { flujoSp: fSp, valvula: v }; return v
+      },
+      get ultimo() { return ultimo },
+    }
+  }
+
+  // ---- alarmas ISA-18.2 ----------------------------------------------------------------------------------------------------------------------------------------------
+  const ALARMAS = [
+    { tag: 'LAHH-201', texto: 'Nivel del estanque 2 muy alto', variable: 'h2', cond: '>', limite: 1.85, banda: 0.03, retardo: 2, prioridad: 'Crítica', unidad: 'm' },
+    { tag: 'LAH-201', texto: 'Nivel del estanque 2 alto', variable: 'h2', cond: '>', limite: 1.6, banda: 0.03, retardo: 3, prioridad: 'Alta', unidad: 'm' },
+    // suprimida en manual, parada y durante los primeros 30 s de arranque (supresión por estado de proceso, como pide ISA-18.2 para no alarmar lo esperado)
+    { tag: 'FAL-101', texto: 'Flujo de entrada bajo (en marcha automática)', variable: 'flujo', cond: '<', limite: 5, banda: 1, retardo: 5, prioridad: 'Media', unidad: 'L/min', habilitada: (c) => c.auto && c.marcha && (c.t ?? 1e9) > 30 },
+    { tag: 'TAH-301', texto: 'Temperatura del fluido alta', variable: 'T', cond: '>', limite: 65, banda: 1, retardo: 5, prioridad: 'Alta', unidad: '°C' },
+  ]
+  function crearAlarmas(defs = ALARMAS) {
+    const est = defs.map(() => ({ estado: 'NORMAL', desde: null, tCond: 0, activaciones: 0 })), eventos = []
+    const reg = (t, d, evento, valor) => eventos.push({ t, tag: d.tag, evento, valor })
+    return {
+      estados: est, eventos,
+      actualizar(vals, t, dt, ctx = {}) {
+        defs.forEach((d, i) => {
+          const e = est[i], v = vals[d.variable], habil = d.habilitada ? d.habilitada(ctx) : true, alto = d.cond === '>'
+          const dispara = habil && (alto ? v > d.limite : v < d.limite), libera = !habil || (alto ? v < d.limite - d.banda : v > d.limite + d.banda)
+          const activa = e.estado === 'ACTIVA_NR' || e.estado === 'ACTIVA_R'
+          if (!activa) {
+            e.tCond = dispara ? e.tCond + dt : 0
+            if (e.tCond >= d.retardo) { e.estado = 'ACTIVA_NR'; e.desde = t; e.activaciones++; e.tCond = 0; reg(t, d, 'ACTIVA', v) } // RTN_NR vuelve a activarse si la condición reaparece
+          } else if (libera) {
+            if (e.estado === 'ACTIVA_NR') { e.estado = 'RTN_NR'; reg(t, d, 'RETORNO', v) } else { e.estado = 'NORMAL'; reg(t, d, 'RETORNO', v) }
+          }
+        })
+      },
+      reconocer(tag, t) { const i = defs.findIndex((d) => d.tag === tag), e = est[i]; if (!e) return false; if (e.estado === 'ACTIVA_NR') { e.estado = 'ACTIVA_R'; reg(t, defs[i], 'RECONOCIDA'); return true } if (e.estado === 'RTN_NR') { e.estado = 'NORMAL'; reg(t, defs[i], 'RETORNO_RECONOCIDO'); return true } return false },
+      reconocerTodas(t) { return defs.filter((d) => this.reconocer(d.tag, t)).length },
+      lista() { return defs.map((d, i) => ({ ...d, ...est[i] })).filter((a) => a.estado !== 'NORMAL') },
+    }
+  }
+
+  // ---- sistema completo --------------------------------------------------------------------------------------------------------------------------------------------
+  // opciones: { p, ganancias, antiWindup, enclavamiento (cierra la válvula con LAHH hasta rearme), auto (true = cascada, false = válvula manual) }
+  function crearSistema(op = {}) {
+    const p = { ...PARAMS, ...(op.p ?? {}) }, g = { ...GANANCIAS, ...(op.ganancias ?? {}), dt: p.dtCtl, antiWindup: op.antiWindup ?? true }
+    const ctl = crearCascada(g), alarmas = crearAlarmas(op.alarmas ?? ALARMAS)
+    const S = { t: 0, s: { h1: op.h1 ?? 0.3, h2: op.h2 ?? 0.3, pos: 0, T: p.Tbase }, sp: op.sp ?? 1.0, auto: op.auto ?? true, manual: 0, marcha: true, enclavamiento: op.enclavamiento ?? true, disparo: false, Tsp: p.Tbase, dist: { aFuga: 0, suministro: 1, valvulaPegada: null }, cmd: 0, hist: [] }
+    // equilibrio: la válvula y las integrales de los PI parten de lo que exige mantener h1 y h2 donde están (sin el bache de arranque con las integrales en cero)
+    if (op.equilibrio) { const Fin = p.a1 * Math.sqrt(2 * p.g * S.s.h1), pos = (Fin / p.Qmax) * 100; S.s.pos = pos; S.cmd = pos; ctl.precargar({ flujoSp: Fin * 60000, valvula: pos, errNivel: S.sp - S.s.h2 }) }
+    let tCtl = 0
+    const medidas = () => ({ h1: S.s.h1, h2: S.s.h2, flujo: (flujoEntrada(S.s, p, S.dist) * 60000), T: S.s.T, pos: S.s.pos })
+    const sistema = {
+      p, S, ctl, alarmas,
+      get medidas() { return medidas() },
+      avanzar(seg, registrar = 0) {
+        const n = Math.round(seg / p.dtPlanta)
+        for (let k = 0; k < n; k++) {
+          if (tCtl <= 1e-9) {
+            const m = medidas(); let cmd = S.auto && S.marcha ? ctl.calcular(S.sp, m.h2, m.flujo) : S.marcha ? S.manual : 0
+            if (S.disparo) cmd = 0; if (S.dist.valvulaPegada !== null) cmd = S.dist.valvulaPegada; S.cmd = cmd; tCtl = p.dtCtl
+          }
+          S.s = pasoPlanta(S.s, { cmd: S.cmd, Tsp: S.Tsp }, p, S.dist, p.dtPlanta); S.t += p.dtPlanta; tCtl -= p.dtPlanta
+          const m = medidas(); alarmas.actualizar(m, S.t, p.dtPlanta, { auto: S.auto, marcha: S.marcha, t: S.t })
+          if (S.enclavamiento && alarmas.estados[0].estado.startsWith('ACTIVA')) S.disparo = true // LAHH: dispara y cierra la válvula
+          if (registrar && Math.round(S.t / p.dtPlanta) % Math.round(registrar / p.dtPlanta) === 0) S.hist.push({ t: S.t, ...m, sp: S.sp, cmd: S.cmd })
+        }
+      },
+      rearmar() { if (S.s.h2 < 1.6 - 0.03) { S.disparo = false; ctl.reset(); return true } return false },
+    }
+    return sistema
+  }
+
+  return { LPM, PARAMS, GANANCIAS, ALARMAS, derivadas, pasoPlanta, flujoEntrada, crearCascada, crearAlarmas, crearSistema }
+})
+
+</script>
+<script>
+/* ---- ui/comun.js ---- */
+;'use strict'
+// Utilidades compartidas de la interfaz: formato, dibujo en canvas (ejes, trazos con envolvente, mapas de calor), controles deslizantes, tarjetas,
+// registro de simuladores y navegación por pestañas con enlace directo (#id). Cada simulador se monta la primera vez que se abre y luego se
+// activa/desactiva; si define `tick(dt)` se anima solo mientras está visible.
+const LAB = (() => {
+  const f = (n, d = 1) => (Number.isFinite(n) ? Number(n).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d }) : n === Infinity ? '∞' : n === -Infinity ? '−∞' : '—')
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const $ = (s, r = document) => r.querySelector(s)
+  const mx = (a, i0 = 0, i1 = a.length) => { let m = -Infinity; for (let i = i0; i < i1; i++) if (a[i] > m) m = a[i]; return m }
+  const mn = (a, i0 = 0, i1 = a.length) => { let m = Infinity; for (let i = i0; i < i1; i++) if (a[i] < m) m = a[i]; return m }
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x))
+  const debounce = (fn, ms = 120) => { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms) } }
+
+  // ---- dibujo ----------------------------------------------------------------------------------------------------------------------------------------------------
+  function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+  function trazo(c, X, Y, xs, ys, i0, i1, color, ancho = 1.5, dash = []) {
+    c.strokeStyle = color; c.lineWidth = ancho; c.setLineDash(dash); c.beginPath(); const n = i1 - i0; if (n < 2) { c.setLineDash([]); return }
+    const px = Math.abs(X(xs[i1 - 1]) - X(xs[i0]))
+    if (n > 3 * px) { // muchas más muestras que píxeles: mínimo y máximo por columna
+      let col = null, lo = 0, hi = 0, ini = true; const cierra = () => { const x = col + 0.5; if (ini) { c.moveTo(x, Y(lo)); ini = false } else c.lineTo(x, Y(lo)); c.lineTo(x, Y(hi)) }
+      for (let i = i0; i < i1; i++) { const p = Math.round(X(xs[i])); if (p !== col) { if (col !== null) cierra(); col = p; lo = hi = ys[i] } else { if (ys[i] < lo) lo = ys[i]; if (ys[i] > hi) hi = ys[i] } } cierra()
+    } else { let abierto = false; for (let i = i0; i < i1; i++) { if (!Number.isFinite(ys[i])) { abierto = false; continue } if (!abierto) { c.moveTo(X(xs[i]), Y(ys[i])); abierto = true } else c.lineTo(X(xs[i]), Y(ys[i])) } }
+    c.stroke(); c.setLineDash([])
+  }
+  // o: { x0, x1, y0, y1, ystep, xlog, xticks, xfmt, yfmt, xlab, sinX, L, series:[{xs,ys,i0,i1,color,w,dash}], hl:[{y,color,label,dash}], vl:[{x,color,label}] }
+  function grafica(cv, o) {
+    const { c, w, h } = prep(cv), L = o.L ?? 48, R = 10, T = 8, B = o.sinX ? 6 : 20, lx0 = o.xlog ? Math.log10(o.x0) : o.x0, lx1 = o.xlog ? Math.log10(o.x1) : o.x1
+    const X = (x) => L + (((o.xlog ? Math.log10(x) : x) - lx0) / (lx1 - lx0)) * (w - L - R), Y = (y) => T + (1 - (y - o.y0) / (o.y1 - o.y0)) * (h - T - B)
+    c.lineWidth = 1; c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+    for (let v = o.y0; v <= o.y1 + 1e-9; v += o.ystep) { const y = Y(v); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText((o.yfmt ?? ((q) => f(q, 0)))(v), L - 4, y + 3) }
+    if (!o.sinX) {
+      c.textAlign = 'center'; const xt = o.xlog ? [0.01, 0.1, 1, 10, 100, 1e3, 1e4, 1e5, 1e6].filter((v) => v >= o.x0 * 0.999 && v <= o.x1 * 1.001) : o.xticks ?? []
+      for (const v of xt) { const x = X(v); if (o.xlab && x > w - R - 34) continue; c.strokeStyle = '#0f1a2e'; c.beginPath(); c.moveTo(x, T); c.lineTo(x, h - B); c.stroke(); c.fillStyle = '#64748b'; c.fillText(o.xlog ? (v >= 1e3 ? v / 1e3 + 'k' : v < 1 ? String(v).replace('.', ',') : v) : (o.xfmt ?? ((q) => f(q, 0)))(v), x, h - 5) }
+      if (o.xlab) { c.textAlign = 'right'; c.fillText(o.xlab, w - R, h - 5) }
+    }
+    c.save(); c.beginPath(); c.rect(L, T, w - L - R, h - T - B); c.clip()
+    for (const l of o.hl ?? []) { c.strokeStyle = l.color; c.setLineDash(l.dash === false ? [] : [5, 4]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(L, Y(l.y)); c.lineTo(w - R, Y(l.y)); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, L + 4, Y(l.y) - 3) } }
+    for (const l of o.vl ?? []) { c.strokeStyle = l.color; c.setLineDash([4, 3]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(X(l.x), T); c.lineTo(X(l.x), h - B); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, X(l.x) + 3, T + 10) } }
+    for (const s of o.series ?? []) trazo(c, X, Y, s.xs, s.ys, s.i0 ?? 0, s.i1 ?? s.xs.length, s.color, s.w, s.dash)
+    c.restore(); return { c, X, Y, w, h, L, R, T, B }
+  }
+  // matriz (filas × columnas) a color: M[fila][col] en 0..1 → mapa(v) = [r, g, b]. La fila 0 se dibuja ARRIBA salvo que `invertir` sea true.
+  // L y B son márgenes (px) a la izquierda y abajo para dibujar los ejes encima; devuelve el contexto y la zona de la imagen { x0, y0, ancho, alto }
+  function mapaCalor(cv, M, mapa, { invertir = false, L = 0, B = 0, T = 0 } = {}) {
+    const { c, w, h } = prep(cv), nf = M.length, nc = M[0].length, off = document.createElement('canvas'); off.width = nc; off.height = nf
+    const octx = off.getContext('2d'), img = octx.createImageData(nc, nf)
+    for (let j = 0; j < nf; j++) for (let i = 0; i < nc; i++) { const col = mapa(M[invertir ? nf - 1 - j : j][i]), k = 4 * (j * nc + i); img.data[k] = col[0]; img.data[k + 1] = col[1]; img.data[k + 2] = col[2]; img.data[k + 3] = 255 }
+    octx.putImageData(img, 0, 0); c.imageSmoothingEnabled = false; c.drawImage(off, L, T, w - L, h - B - T); return { c, w, h, x0: L, y0: T, ancho: w - L, alto: h - B - T }
+  }
+  // marcas «bonitas» (1, 2, 5 × 10ⁿ) entre a y b, aproximadamente n
+  function ticks(a, b, n = 5) { const r = b - a, p = 10 ** Math.floor(Math.log10(r / n)), m = [1, 2, 5, 10].find((k) => (k * p * n) >= r) * p, out = []; for (let v = Math.ceil(a / m - 1e-9) * m; v <= b + 1e-9; v += m) out.push(+v.toFixed(10)); return out }
+  function dibujaImagen(cv, data, w, h) { // RGBA (Uint8ClampedArray) a un canvas del tamaño de la imagen, escalado por CSS
+    cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0); return c
+  }
+
+  // ---- controles ---------------------------------------------------------------------------------------------------------------------------------------------------
+  // defs: [{ id, label, min, max, step, valor, fmt, log }]; devuelve { v: {id: valor}, set(id, valor, silencio) }
+  function controles(root, defs, onChange) {
+    const v = {}, outs = {}, ins = {}
+    root.innerHTML = defs.map((d) => `<div class="ctl"><label for="${d.uid ?? 'c_' + d.id}">${d.label}</label><input id="${d.uid ?? 'c_' + d.id}" type="range" min="${d.log ? Math.log10(d.min) : d.min}" max="${d.log ? Math.log10(d.max) : d.max}" step="${d.log ? 0.01 : d.step}" value="${d.log ? Math.log10(d.valor) : d.valor}"><output></output></div>`).join('')
+    const filas = root.querySelectorAll('.ctl')
+    defs.forEach((d, i) => {
+      // en la escala logarítmica se redondea a 3 cifras: evita «219» donde se pidió 220
+      const inp = filas[i].querySelector('input'), out = filas[i].querySelector('output'), leer = () => (d.log ? +(10 ** +inp.value).toPrecision(3) : +inp.value), pinta = () => { v[d.id] = leer(); out.textContent = (d.fmt ?? ((x) => f(x, 2)))(v[d.id]) }
+      outs[d.id] = out; ins[d.id] = inp; pinta(); inp.addEventListener('input', () => { pinta(); onChange?.(d.id, v) })
+    })
+    return { v, set(id, val, silencio = false) { const d = defs.find((q) => q.id === id); ins[id].value = d.log ? Math.log10(val) : val; v[id] = val; outs[id].textContent = (d.fmt ?? ((x) => f(x, 2)))(val); if (!silencio) onChange?.(id, v) } }
+  }
+  const tarjetas = (el, items) => { el.innerHTML = items.map(([t, val, sub, cl]) => `<div class="card ${cl ?? ''}"><span>${t}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ''}</div>`).join('') }
+  const leyenda = (el, items) => { el.innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('') }
+
+  // ---- registro y navegación ----------------------------------------------------------------------------------------------------------------------------------------
+  const sims = [], montados = {}; let activo = null, t0 = performance.now()
+  const registrar = (def) => sims.push(def)
+  function abrir(id) {
+    const def = sims.find((s) => s.id === id) ?? sims[0]; if (!def) return
+    if (activo) { activo.obj?.desactivar?.(); $('#s-' + activo.def.id).classList.remove('on') }
+    let sec = $('#s-' + def.id)
+    if (!sec) {
+      sec = document.createElement('section'); sec.className = 'sim'; sec.id = 's-' + def.id
+      sec.innerHTML = `<div class="cab"><h2>${sims.length > 1 ? def.num + ' · ' : ''}${def.titulo}</h2><p>${def.resumen}</p></div><div class="cuerpo"></div>${def.notas?.length ? `<details class="notas"><summary>Notas sobre el informe y límites</summary><ul>${def.notas.map((n) => `<li>${n}</li>`).join('')}</ul></details>` : ''}`
+      sec.classList.add('on'); $('#lab').appendChild(sec); montados[def.id] = def.montar($('.cuerpo', sec)) // visible ANTES de montar: los canvas necesitan su tamaño real
+    }
+    sec.classList.add('on'); activo = { def, obj: montados[def.id] }; activo.obj?.activar?.(); activo.obj?.redibujar?.()
+    document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.id === def.id)); try { history.replaceState(null, '', '#' + def.id) } catch { /* en un iframe sandbox puede fallar */ }
+    document.querySelector(`#nav button[data-id="${def.id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }
+  function iniciar() {
+    sims.sort((a, b) => a.num - b.num)
+    $('#nav').innerHTML = sims.map((s) => `<button data-id="${s.id}" title="${esc(s.titulo)}"><b>${s.num}</b>${s.corto}</button>`).join(''); $('#nav').onclick = (e) => { const b = e.target.closest('button'); if (b) abrir(b.dataset.id) }
+    if (sims.length === 1) $('#nav').style.display = 'none' // página de un solo simulador: sin pestañas
+    abrir(decodeURIComponent(location.hash.slice(1)) || sims[0].id)
+    window.addEventListener('hashchange', () => abrir(decodeURIComponent(location.hash.slice(1))))
+    let rz = null; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => activo?.obj?.redibujar?.(), 120) })
+    const bucle = (ahora) => { const dt = Math.min(0.05, (ahora - t0) / 1000); t0 = ahora; if (!document.hidden) activo?.obj?.tick?.(dt); requestAnimationFrame(bucle) }
+    requestAnimationFrame(bucle)
+  }
+  return { f, esc, $, mx, mn, clamp, debounce, prep, trazo, grafica, mapaCalor, ticks, dibujaImagen, controles, tarjetas, leyenda, registrar, abrir, iniciar, sims, montados, get activo() { return activo } }
+})()
+
+/* ---- ui/08-scada.js ---- */
+;;(() => {
+  const S = LabSCADA, { f } = LAB
+  LAB.registrar({
+    id: 'scada', num: 8, corto: 'SCADA', titulo: 'Dashboard SCADA / HMI: dos estanques, control en cascada y alarmas ISA-18.2',
+    resumen: 'Dos estanques en serie que se vacían por gravedad (ley de Torricelli) con un control en cascada: un PI maestro de nivel fija el flujo que pide un PI esclavo, que mueve la válvula. Hay cuatro alarmas con retardo, banda muerta y los estados ISA-18.2 (activa sin reconocer, activa reconocida, retorno sin reconocer), un enclavamiento por nivel muy alto y escenarios de falla para probarlos.',
+    notas: [
+      'Las ecuaciones de Torricelli, el esquema maestro-esclavo y los límites de alarma (HH 1,85 m, H 1,60 m, flujo bajo 5 L/min, temperatura alta 65 °C) son los del informe. El informe NO da áreas, orificios, válvula, constantes de tiempo ni ganancias: elegí áreas de 0,03 m², orificios de 1,4·10⁻⁴ y 1,13·10⁻⁴ m², válvula de 50 L/min con retardo de 2 s y PI sintonizados por simulación (maestro 40 L/min por m y 0,2; esclavo 3 % por L/min y 1,5).',
+      'El código del informe dice «anti-windup y saturación» pero solo satura la salida de la válvula: las integrales de los dos PI siguen creciendo. Con «anti-windup» desactivado se reproduce eso: si la bomba pierde presión y la válvula se satura, al volver el suministro el nivel rebasa el estanque (prueba: pico ≥ 1,95 m frente a 1,15 m con integración condicional).',
+      'ISA-18.2: estados NORMAL, ACTIVA-sin-reconocer, ACTIVA-reconocida y RETORNO-sin-reconocer; retardo de activación (2 a 5 s) y banda muerta para evitar el tartamudeo; la alarma de flujo bajo se suprime en manual, parada y los primeros 30 s de arranque. El enclavamiento por LAHH cierra la válvula y exige un rearme con el nivel por debajo de 1,57 m. No hay realces, desplazamientos ni «shelving».',
+      'Todo el tiempo es simulado (puedes acelerarlo hasta ×60). No hay protocolos industriales ni un servidor: es la lógica y la HMI en una página.',
+    ],
+    montar(root) {
+      root.innerHTML = `<div class="g21"><div class="panel"><h2>HMI (esquema de proceso)</h2><svg id="sc-svg" viewBox="0 0 760 400" style="width:100%;height:auto;background:#030a1a;border:1px solid var(--line);border-radius:8px"></svg>
+          <div class="row" style="margin-top:8px"><button class="mini primary" id="sc-play">Pausa</button><label>Tiempo&nbsp;</label><select id="sc-vel"><option value="1">×1</option><option value="5">×5</option><option value="20" selected>×20</option><option value="60">×60</option></select>
+            <button class="mini" id="sc-fuga">Fuga en el estanque 2</button><button class="mini" id="sc-bomba">Bomba al 30 %</button><button class="mini" id="sc-pega">Válvula pegada cerrada</button><button class="mini" id="sc-temp">Sobrecalentar fluido</button><button class="mini" id="sc-norm">Normalizar todo</button></div></div>
+        <div class="panel"><h2>Operación</h2><div class="row"><label><input type="checkbox" id="sc-auto" checked> cascada en automático</label><label><input type="checkbox" id="sc-aw" checked> anti-windup</label><label><input type="checkbox" id="sc-enc" checked> enclavamiento LAHH</label></div><div id="sc-ctl"></div>
+          <div class="row"><button class="mini" id="sc-rea">Rearmar el disparo</button><button class="mini" id="sc-ack">Reconocer todas</button><span id="sc-msg" class="note" style="padding:0"></span></div><div id="sc-cards" class="cards" style="margin-top:8px;grid-template-columns:repeat(2,1fr)"></div></div></div>
+        <div class="g2"><div class="panel"><h2>Tendencia (últimos 15 min de tiempo simulado)</h2><canvas id="sc-tr" class="medio"></canvas><div class="leyenda" id="sc-ley"></div></div><div class="panel"><h2>Alarmas (ISA-18.2)</h2><div id="sc-al"></div><h2 style="margin-top:10px">Registro de eventos</h2><div id="sc-ev" class="note" style="padding:0;font-family:var(--mono)"></div></div></div>`
+      const q = (s) => root.querySelector(s), svg = q('#sc-svg')
+      const ctl = LAB.controles(q('#sc-ctl'), [{ id: 'sp', label: 'Consigna de nivel', min: 0.2, max: 1.8, step: 0.05, valor: 1.0, fmt: (v) => f(v, 2) + ' m' }, { id: 'man', label: 'Válvula manual', min: 0, max: 100, step: 1, valor: 50, fmt: (v) => f(v, 0) + ' %' }], (id, v) => { if (id === 'sp') sis.S.sp = v.sp; else sis.S.manual = v.man })
+      let sis, vel = 20, corre = true, hist = [], fugaOn = false, ev = 0, dash = 0
+      const nuevo = (op = {}) => { sis = S.crearSistema({ h1: (S.PARAMS.a2 / S.PARAMS.a1) ** 2, h2: 1.0, sp: ctl.v.sp, antiWindup: q('#sc-aw').checked, enclavamiento: q('#sc-enc').checked, auto: q('#sc-auto').checked, equilibrio: true, ...op }); sis.S.manual = ctl.v.man; hist = []; ev = 0; fugaOn = false }
+      nuevo()
+      const A1 = 90, ALT = 240, Y0 = 330 // píxeles: base de los estanques y altura de 2 m
+      svg.innerHTML = `<defs><linearGradient id="agua" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".85"/><stop offset="1" stop-color="#0369a1" stop-opacity=".9"/></linearGradient></defs>
+        <path id="sc-t1p" d="M20 70 H265 V104" stroke="#334155" stroke-width="10" fill="none"/><path id="sc-t1f" d="M20 70 H265 V104" stroke="#38bdf8" stroke-width="4" fill="none" stroke-dasharray="8 8"/>
+        <path id="sc-t2p" d="M330 318 H385 V70 H505 V104" stroke="#334155" stroke-width="10" fill="none"/><path id="sc-t2f" d="M330 318 H385 V70 H505 V104" stroke="#38bdf8" stroke-width="4" fill="none" stroke-dasharray="8 8"/>
+        <path id="sc-t3p" d="M570 318 H740" stroke="#334155" stroke-width="10" fill="none"/><path id="sc-t3f" d="M570 318 H740" stroke="#38bdf8" stroke-width="4" fill="none" stroke-dasharray="8 8"/>
+        <g id="sc-v" transform="translate(105,70)"><path d="M-16 -14 L16 14 L16 -14 L-16 14 Z" fill="#14532d" stroke="#34d399" stroke-width="2"/><circle cx="0" cy="-22" r="7" fill="#0f172a" stroke="#94a3b8"/><text x="0" y="40" text-anchor="middle">FV-101</text><text id="sc-vt" x="0" y="54" text-anchor="middle" fill="#34d399">0 %</text></g>
+        <rect x="200" y="${Y0 - ALT}" width="130" height="${ALT}" fill="#07101f" stroke="#64748b" stroke-width="3"/><rect id="sc-a1" x="203" y="${Y0}" width="124" height="0" fill="url(#agua)"/><text x="265" y="${Y0 + 18}" text-anchor="middle">ESTANQUE 1</text><text id="sc-h1" x="265" y="${Y0 - ALT - 8}" text-anchor="middle" fill="#7dd3fc">h1</text>
+        <rect x="440" y="${Y0 - ALT}" width="130" height="${ALT}" fill="#07101f" stroke="#64748b" stroke-width="3"/><rect id="sc-a2" x="443" y="${Y0}" width="124" height="0" fill="url(#agua)"/><text x="505" y="${Y0 + 18}" text-anchor="middle">ESTANQUE 2</text>
+        <line x1="436" x2="574" y1="${Y0 - (1.85 / 2) * ALT}" y2="${Y0 - (1.85 / 2) * ALT}" stroke="#f87171" stroke-dasharray="5 4"/><text x="578" y="${Y0 - (1.85 / 2) * ALT + 4}" fill="#f87171">HH 1,85</text>
+        <line x1="436" x2="574" y1="${Y0 - (1.6 / 2) * ALT}" y2="${Y0 - (1.6 / 2) * ALT}" stroke="#f59e0b" stroke-dasharray="5 4"/><text x="578" y="${Y0 - (1.6 / 2) * ALT + 4}" fill="#f59e0b">H 1,60</text>
+        <line id="sc-sp" x1="432" x2="580" y1="0" y2="0" stroke="#34d399" stroke-width="2"/><text id="sc-spt" x="592" y="0" fill="#34d399">SP</text>
+        <text id="sc-lt" x="505" y="${Y0 - ALT - 8}" text-anchor="middle" fill="#7dd3fc" font-size="13">h2</text>
+        <text x="20" y="40" fill="#94a3b8">suministro</text><text id="sc-fit" x="20" y="165" fill="#22d3ee">FIT-101</text><text id="sc-tt" x="669" y="170" text-anchor="middle" fill="#f59e0b">TT-301</text>
+        <rect id="sc-tb" x="662" y="180" width="14" height="110" rx="7" fill="#0b1730" stroke="#64748b"/><rect id="sc-tf" x="665" y="288" width="8" height="0" fill="#f59e0b"/><text x="669" y="304" text-anchor="middle">°C</text>
+        <rect id="sc-alr" x="520" y="12" width="230" height="26" rx="6" fill="#3a1a1f" stroke="#f87171" opacity="0"/><text id="sc-alt" x="635" y="30" text-anchor="middle" fill="#fecaca" opacity="0"></text>`
+      const el = (id) => svg.querySelector('#' + id)
+      const Yn = (h) => Y0 - (h / 2) * ALT
+      function hmi() {
+        const m = sis.medidas, S_ = sis.S, a1 = (m.h1 / 2) * ALT, a2 = (m.h2 / 2) * ALT
+        el('sc-a1').setAttribute('y', Y0 - a1); el('sc-a1').setAttribute('height', a1); el('sc-a2').setAttribute('y', Y0 - a2); el('sc-a2').setAttribute('height', a2); el('sc-h1').textContent = `LT-101 h1 = ${f(m.h1, 2)} m`; el('sc-lt').textContent = `LT-201 h2 = ${f(m.h2, 2)} m`
+        el('sc-sp').setAttribute('y1', Yn(S_.sp)); el('sc-sp').setAttribute('y2', Yn(S_.sp)); el('sc-spt').setAttribute('y', Yn(S_.sp) + 4); el('sc-spt').textContent = 'SP ' + f(S_.sp, 2)
+        const col = S_.s.pos > 70 ? '#f59e0b' : '#34d399'; el('sc-v').querySelector('path').setAttribute('fill', col === '#f59e0b' ? '#78350f' : '#14532d'); el('sc-v').querySelector('path').setAttribute('stroke', col); el('sc-vt').textContent = f(S_.s.pos, 0) + ' %'; el('sc-vt').setAttribute('fill', col)
+        el('sc-fit').textContent = `FIT-101 ${f(m.flujo, 1)} L/min`; el('sc-tt').textContent = `TT-301 ${f(m.T, 1)} °C`; const th = LAB.clamp((m.T - 10) / 70, 0, 1) * 110; el('sc-tf').setAttribute('y', 290 - th); el('sc-tf').setAttribute('height', th); el('sc-tf').setAttribute('fill', m.T > 65 ? '#f87171' : '#f59e0b')
+        const q1 = Math.max(0, m.flujo) / 50, q2 = (S.PARAMS.a1 * Math.sqrt(2 * 9.81 * m.h1)) * 60000 / 50, q3 = ((S.PARAMS.a2 + S_.dist.aFuga) * Math.sqrt(2 * 9.81 * m.h2)) * 60000 / 50
+        for (const [id, qf] of [['sc-t1f', q1], ['sc-t2f', q2], ['sc-t3f', q3]]) { el(id).setAttribute('stroke-opacity', qf > 0.01 ? 1 : 0.1); el(id).setAttribute('stroke-dashoffset', -dash * (0.3 + 3 * qf)) }
+        const act = sis.alarmas.lista(), nr = act.filter((a) => a.estado === 'ACTIVA_NR' || a.estado === 'RTN_NR'); el('sc-alr').setAttribute('opacity', act.length ? 1 : 0); el('sc-alt').setAttribute('opacity', act.length ? 1 : 0); el('sc-alt').textContent = act.length ? `${act.length} alarma(s)${nr.length ? ' · ' + nr.length + ' sin reconocer' : ''}` : ''
+        el('sc-alr').setAttribute('stroke', nr.length && Math.floor(performance.now() / 400) % 2 ? '#fecaca' : '#f87171')
+      }
+      const ETQ = { NORMAL: '', ACTIVA_NR: 'ACTIVA · sin reconocer', ACTIVA_R: 'activa · reconocida', RTN_NR: 'retorno · sin reconocer' }
+      function paneles() {
+        const m = sis.medidas, S_ = sis.S, lista = sis.alarmas.lista()
+        q('#sc-al').innerHTML = `<table class="cmp"><tr><th>Etiqueta</th><th>Descripción</th><th>Prioridad</th><th>Estado</th><th></th></tr>${lista.length ? lista.map((a) => `<tr><td><b>${a.tag}</b></td><td>${a.texto}</td><td>${a.prioridad}</td><td style="color:${a.estado === 'ACTIVA_NR' ? 'var(--red)' : a.estado === 'RTN_NR' ? 'var(--amber)' : 'var(--mut)'}">${ETQ[a.estado]}</td><td>${a.estado === 'ACTIVA_NR' || a.estado === 'RTN_NR' ? `<button class="mini" data-ack="${a.tag}">Reconocer</button>` : ''}</td></tr>`).join('') : '<tr><td colspan="5" style="color:var(--green)">Sin alarmas activas</td></tr>'}</table>`
+        q('#sc-ev').innerHTML = sis.alarmas.eventos.slice(-7).reverse().map((e) => `${f(e.t / 60, 1).padStart(5)} min · ${e.tag} · ${e.evento}${e.valor !== undefined ? ' (' + f(e.valor, 2) + ')' : ''}`).join('<br>') || 'sin eventos'
+        LAB.tarjetas(q('#sc-cards'), [['Nivel h2', f(m.h2, 3) + ' m', 'error ' + f(S_.sp - m.h2, 3) + ' m', Math.abs(S_.sp - m.h2) < 0.03 ? 'ok3' : ''], ['Flujo de entrada', f(m.flujo, 1) + ' L/min', 'pedido por el maestro: ' + f(sis.ctl.ultimo.flujoSp, 1)], ['Válvula', f(S_.s.pos, 0) + ' %', S_.dist.valvulaPegada !== null ? 'PEGADA' : S_.auto ? 'automático' : 'manual', S_.dist.valvulaPegada !== null ? 'b3' : ''], ['Integral del esclavo', f(sis.ctl.integrales.iE, 0), q('#sc-aw').checked ? 'con anti-windup' : 'sin límite (informe)', Math.abs(sis.ctl.integrales.iE) > 1000 ? 'w3' : ''], ['Enclavamiento', S_.disparo ? 'DISPARADO' : 'listo', S_.disparo ? 'nivel muy alto: válvula cerrada' : '', S_.disparo ? 'b3' : 'ok3'], ['Tiempo simulado', f(S_.t / 60, 1) + ' min', '']])
+        q('#sc-al').querySelectorAll('[data-ack]').forEach((b) => (b.onclick = () => { sis.alarmas.reconocer(b.dataset.ack, sis.S.t) }))
+        const H = sis.S.hist, t1 = S_.t, i0 = H.findIndex((x) => x.t >= t1 - 900), a = i0 < 0 ? 0 : i0, x0 = Math.max(0, t1 - 900)
+        LAB.grafica(q('#sc-tr'), { x0, x1: x0 + 900, y0: 0, y1: 2, ystep: 0.5, xticks: LAB.ticks(x0, x0 + 900, 5), xfmt: (v) => f(v / 60, 0), xlab: 'min', yfmt: (v) => f(v, 1), hl: [{ y: 1.85, color: '#f87171' }, { y: 1.6, color: '#f59e0b' }], series: [{ xs: H.map((x) => x.t), ys: H.map((x) => x.sp), i0: a, color: '#34d399', w: 1.4, dash: [5, 4] }, { xs: H.map((x) => x.t), ys: H.map((x) => x.h1), i0: a, color: '#64748b', w: 1.4 }, { xs: H.map((x) => x.t), ys: H.map((x) => x.h2), i0: a, color: '#22d3ee', w: 2 }, { xs: H.map((x) => x.t), ys: H.map((x) => x.pos / 50), i0: a, color: '#e879f9', w: 1.2 }, { xs: H.map((x) => x.t), ys: H.map((x) => x.flujo / 25), i0: a, color: '#f59e0b', w: 1.2 }] })
+        LAB.leyenda(q('#sc-ley'), [['#22d3ee', 'h2 (m)'], ['#34d399', 'consigna'], ['#64748b', 'h1 (m)'], ['#e879f9', 'válvula (% / 50)'], ['#f59e0b', 'flujo (L/min / 25)']])
+      }
+      let acum = 0
+      const tick = (dt) => { if (corre) { sis.avanzar(Math.min(dt, 0.05) * vel, 2); const H = sis.S.hist; while (H.length > 1 && H[0].t < sis.S.t - 1000) H.shift() } dash += dt * 60; acum += dt; hmi(); if (acum > 0.25) { acum = 0; paneles() } }
+      const reinicia = () => { const s0 = { ...sis.S.s }, m = sis.medidas; nuevo({ h1: s0.h1, h2: s0.h2, equilibrio: false }); sis.S.s = s0; sis.ctl.precargar({ flujoSp: m.flujo, valvula: s0.pos, errNivel: sis.S.sp - s0.h2 }) }
+      q('#sc-play').onclick = () => { corre = !corre; q('#sc-play').textContent = corre ? 'Pausa' : 'Reproducir' }; q('#sc-vel').onchange = () => { vel = +q('#sc-vel').value }
+      q('#sc-auto').onchange = () => { sis.S.auto = q('#sc-auto').checked }; q('#sc-aw').onchange = reinicia; q('#sc-enc').onchange = () => { sis.S.enclavamiento = q('#sc-enc').checked }
+      q('#sc-fuga').onclick = () => { sis.S.dist.aFuga = sis.S.dist.aFuga ? 0 : 4e-5 }; q('#sc-bomba').onclick = () => { sis.S.dist.suministro = sis.S.dist.suministro < 1 ? 1 : 0.3 }
+      q('#sc-pega').onclick = () => { sis.S.dist.valvulaPegada = sis.S.dist.valvulaPegada === null ? 0 : null }; q('#sc-temp').onclick = () => { sis.S.Tsp = sis.S.Tsp > 50 ? 45 : 78 }
+      q('#sc-norm').onclick = () => { sis.S.dist = { aFuga: 0, suministro: 1, valvulaPegada: null }; sis.S.Tsp = 45; q('#sc-msg').textContent = 'perturbaciones retiradas' }
+      q('#sc-rea').onclick = () => { q('#sc-msg').textContent = sis.rearmar() ? 'rearmado' : 'no se puede rearmar: el nivel sigue por encima de 1,57 m' }; q('#sc-ack').onclick = () => { const n = sis.alarmas.reconocerTodas(sis.S.t); q('#sc-msg').textContent = n + ' alarma(s) reconocida(s)' }
+      return { tick, redibujar: () => { hmi(); paneles() }, api: { get sis() { return sis }, nuevo, hmi, paneles } }
+    },
+  })
+})()
+
+/* ---- ui/zz-inicio.js ---- */
+;LAB.iniciar()
+window.demoApi = { LAB, abrir: LAB.abrir, sim: (id) => LAB.montados[id]?.api }
+
+</script>
+</body>
+</html>
