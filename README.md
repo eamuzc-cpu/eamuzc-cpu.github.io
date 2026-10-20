@@ -1,6 +1,6 @@
 # Portafolio · Esteban Alexander Muñoz Cáceres
 
-Ingeniero Civil Electrónico (UTEM) · automatización industrial, instrumentación y software.
+Ingeniero Civil Electrónico · automatización industrial, instrumentación y software.
 Sitio: **https://eamuzc-cpu.github.io/**
 
 Casos de estudio de automatización y mantenimiento, proyectos de software y visión artificial, nueve simulaciones
