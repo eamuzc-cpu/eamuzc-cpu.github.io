@@ -1495,4 +1495,49 @@ export const projects = [
     },
     tools: { hardware: [], software: ['Docker', 'Docker Compose', 'MQTT', 'Telegraf', 'InfluxDB 2', 'Grafana', 'Node.js', 'PowerShell'] },
   },
+  {
+    slug: 'convertidor-buck-boost-sincrono',
+    title: {
+      es: 'Convertidor DC-DC buck-boost síncrono de 120 W: dimensionamiento, lazo de control digital y simulación',
+      en: 'Synchronous Buck-Boost DC-DC Converter (120 W): Sizing, Digital Control Loop and Simulation',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'embedded',
+    year: 2026,
+    image: '/projects/convertidor-buck-boost-sincrono.jpg',
+    demo: { src: '/demos/convertidor-buck-boost-sincrono/index.html' },
+    resultBadge: { es: 'Margen de fase de ~30° a 54–61° tras revisar el diseño', en: 'Phase margin from ~30° to 54–61° after reviewing the design' },
+    summary: {
+      es: 'Diseño de un convertidor de cuatro interruptores que entrega 24 V / 5 A desde una entrada de 9 a 36 V, con control digital en un STM32G474. La página reproduce el informe de ingeniería: calculadora de dimensionamiento, Bode con márgenes en vivo, sintonizador del compensador y simulación del lazo cerrado. Es un diseño con simulación propia: no existe un prototipo medido.',
+      en: 'Design of a four-switch converter that delivers 24 V / 5 A from a 9 to 36 V input, with digital control on an STM32G474. The page reproduces the engineering report: sizing calculator, live Bode plot with margins, compensator tuner and closed-loop simulation. It is a design with my own simulation: there is no measured prototype.',
+    },
+    stack: [{ es: 'Electrónica de potencia', en: 'Power electronics' }, { es: 'Control digital', en: 'Digital control' }, 'STM32G474', 'HRTIM', 'C', 'JavaScript'],
+    challenge: {
+      es: 'Mantener 24 V estables con una entrada que puede estar por encima o por debajo de la salida (batería, panel o bus automotriz) obliga a pasar de reductor a elevador sin saltos. Y en modo elevador aparece un cero en el semiplano derecho que limita el ancho de banda del lazo: un compensador mal calculado oscila o se dispara antes de arrancar.',
+      en: 'Holding 24 V steady from an input that can be above or below the output (battery, panel or automotive bus) means switching from buck to boost without jumps. In boost mode a right-half-plane zero appears that limits the loop bandwidth: a badly computed compensator oscillates or trips before it starts.',
+    },
+    impact: {
+      es: 'Reproducir el informe en simulación antes de fabricar la placa encontró seis puntos que habrían aparecido recién en el laboratorio, con el riesgo de dañar MOSFET. El diseño revisado queda con margen de fase y de ganancia en todo el rango de entrada y resiste los escenarios probados.',
+      en: 'Reproducing the report in simulation before building the board found six points that would only have shown up in the lab, at the risk of damaging MOSFETs. The revised design keeps phase and gain margin over the whole input range and survives the scenarios tested.',
+    },
+    solution: {
+      es: 'El informe de ingeniería cubre un convertidor de 120 W a 250 kHz: dimensionamiento (inductor de 6,8 µH, 470 µF de salida, pérdidas del MOSFET BSC050N04LSG), modelo de pequeña señal con el cero del semiplano derecho en 13,7 kHz, compensador de tipo III discretizado con Tustin, una variable de control única u que modula la rama buck hasta 0,9 y luego la boost, firmware en C para el STM32G474 (HRTIM de 184 ps, compensador 3P3Z en el FMAC y protección de 20 A con COMP1 + DAC), lista de materiales y protocolo de puesta en marcha. La página lo reproduce en JavaScript: calculadora que devuelve las once cifras del informe, Bode con margen de fase y de ganancia en vivo para cualquier entrada, sintonizador de ceros y polos con los coeficientes listos para el firmware, y un simulador de lazo cerrado (modelo promediado, RK4, retardo de una muestra) con arranque, escalón de carga de 0,5 a 4,5 A, escalón y barrido de entrada, cortocircuito y pérdida de carga. Al reproducirlo aparecieron seis puntos: los coeficientes del código C no son la salida del script de síntesis y, usados con el error en voltios, dejan el lazo inestable (margen de fase negativo); el margen de fase real es de 28 a 42° y no de más de 50°; el piso de u = 0,08 dispara la protección de 20 A en el arranque con 36 V; el hundimiento de 150 mV en el escalón de carga no es alcanzable con 470 µF (la simulación da unos 0,5 V); el tiempo muerto de 68 cuentas son 12,5 ns y no 50 ns; y la tabla de rizado no coincide con el cálculo. El compensador revisado da 54 a 61° de margen de fase entre 9 y 36 V y supera todos los escenarios. Las 18 pruebas comparan la síntesis con el script original ejecutado con scipy (coincide hasta el sexto dígito) y verifican cada escenario. Es un diseño y una simulación: no hay prototipo medido, y el modelo promediado no incluye pérdidas de conmutación ni saturación del inductor.',
+      en: 'The engineering report covers a 120 W converter at 250 kHz: sizing (6.8 µH inductor, 470 µF output, BSC050N04LSG MOSFET losses), a small-signal model with the right-half-plane zero at 13.7 kHz, a type III compensator discretized with Tustin, a single control variable u that modulates the buck leg up to 0.9 and then the boost leg, C firmware for the STM32G474 (184 ps HRTIM, 3P3Z compensator on the FMAC and 20 A protection with COMP1 + DAC), a bill of materials and a bring-up protocol. The page reproduces it in JavaScript: a calculator that returns the report\'s eleven figures, a Bode plot with live phase and gain margin for any input, a zero-and-pole tuner with coefficients ready for the firmware, and a closed-loop simulator (averaged model, RK4, one-sample delay) with start-up, a 0.5 to 4.5 A load step, input step and sweep, short circuit and load loss. Reproducing it surfaced six points: the C code coefficients are not the output of the synthesis script and, used with the error in volts, leave the loop unstable (negative phase margin); the real phase margin is 28 to 42°, not above 50°; the u = 0.08 floor trips the 20 A protection at start-up with 36 V; the 150 mV load-step undershoot is not reachable with 470 µF (the simulation gives about 0.5 V); the 68-tick dead time is 12.5 ns, not 50 ns; and the ripple table does not match the calculation. The revised compensator gives 54 to 61° of phase margin from 9 to 36 V and passes every scenario. The 18 tests compare the synthesis with the original script run with scipy (matching to the sixth digit) and verify each scenario. It is a design and a simulation: there is no measured prototype, and the averaged model leaves out switching losses and inductor saturation.',
+    },
+    metrics: [
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '18' },
+      { label: { es: 'Margen de fase tras la revisión', en: 'Phase margin after review' }, value: '54–61°' },
+      { label: { es: 'Prototipo medido', en: 'Measured prototype' }, value: { es: 'pendiente', en: 'pending' } },
+    ],
+    diagram: {
+      nodes: [
+        { label: 'ADC', sub: 'Vin · Vout · IL' },
+        { label: { es: 'Compensador', en: 'Compensator' }, sub: '3P3Z · FMAC' },
+        { label: 'HRTIM', sub: { es: 'PWM A/B · 184 ps', en: 'PWM A/B · 184 ps' } },
+        { label: { es: 'Etapa de potencia', en: 'Power stage' }, sub: { es: '4 MOSFET · 250 kHz', en: '4 MOSFETs · 250 kHz' } },
+      ],
+      feedback: { from: 3, to: 0, label: { es: 'sensado', en: 'sensing' } },
+    },
+    tools: { hardware: ['STM32G474RE', 'BSC050N04LSG', 'UCC27282', 'INA240'], software: ['C (LL)', 'Python (scipy)', 'JavaScript', 'Canvas', 'node:test'] },
+  },
 ]

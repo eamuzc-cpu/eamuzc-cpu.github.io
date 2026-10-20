@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convertidor DC-DC buck-boost síncrono de 120 W — dimensionamiento, lazo de control y simulación</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+.mini { padding: 4px 9px; font-size: 11px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs button.on { background: rgba(34, 211, 238, .12); }
+.tab { display: none; padding: 12px 16px; } .tab.on { display: grid; gap: 12px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .two.wide { grid-template-columns: 1.15fr 1fr; } .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; } .card span { display: block; font: 10px var(--mono); color: var(--mut); text-transform: uppercase; letter-spacing: .5px; } .card b { display: block; font: 600 20px var(--mono); margin-top: 2px; white-space: nowrap; } .card small { font: 10.5px var(--mono); color: var(--mut); }
+.card.ok3 { border-color: rgba(52, 211, 153, .6); } .card.ok3 b { color: var(--green); } .card.w3 { border-color: rgba(245, 158, 11, .6); } .card.w3 b { color: var(--amber); } .card.b3 { border-color: var(--red); } .card.b3 b { color: var(--red); }
+canvas { height: 200px; } canvas.alto { height: 260px; } canvas.bajo { height: 120px; }
+p { margin: 0 0 8px; line-height: 1.55; } ul.l { margin: 6px 0 0 16px; padding: 0; font-size: 13px; line-height: 1.5; } ul.l li { margin: 4px 0; }
+.frm { display: grid; grid-template-columns: 1fr 96px; gap: 6px 10px; align-items: center; margin-bottom: 6px; } .frm label { font: 12px var(--mono); color: var(--mut); }
+.ctl { display: grid; grid-template-columns: 110px 1fr 70px; gap: 6px 10px; align-items: center; margin-bottom: 4px; font: 12px var(--mono); } .ctl output { color: var(--cyan); text-align: right; }
+.sev { font: 600 10px var(--mono); padding: 2px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; border: 1px solid; white-space: nowrap; } .sev.alta { color: var(--red); border-color: rgba(248, 113, 113, .7); } .sev.media { color: var(--amber); border-color: rgba(245, 158, 11, .7); } .sev.baja { color: var(--cyan); border-color: rgba(34, 211, 238, .6); } .sev.ok { color: var(--green); border-color: rgba(52, 211, 153, .7); }
+.hall { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel2); } .hall + .hall { margin-top: 8px; } .hall h3 { margin: 0 0 6px; font-size: 13.5px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .hall p { font-size: 12.5px; color: #cbd5e1; margin: 0 0 4px; } .hall p b { color: var(--txt); } .hall .como { font: 11px var(--mono); color: var(--mut); }
+textarea { width: 100%; height: 84px; background: #050d1d; color: #e2e8f0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 11.5px var(--mono); }
+pre { margin: 6px 0 0; background: #050d1d; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 11.5px/1.45 var(--mono); color: #cbd5e1; overflow: auto; max-height: 340px; }
+details { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); } details + details { margin-top: 0; } summary { cursor: pointer; font: 600 12px var(--mono); letter-spacing: .5px; text-transform: uppercase; color: var(--mut); } details[open] summary { color: var(--cyan); margin-bottom: 8px; }
+table.st td:first-child { color: var(--mut); width: 38%; } td.n, th.n { text-align: right; } .dif { color: var(--mut); }
+svg { width: 100%; height: auto; display: block; } svg text { font: 11px ui-monospace, Consolas, monospace; fill: #cbd5e1; } svg .t2 { fill: #94a3b8; font-size: 10px; } svg .w { stroke: #64748b; stroke-width: 1.6; fill: none; } svg .q { fill: #0f172a; stroke: #22d3ee; stroke-width: 1.5; } svg .gr { fill: #0f172a; stroke: #e879f9; stroke-width: 1.4; } svg .mc { fill: #0b1220; stroke: #f59e0b; stroke-width: 1.5; } svg .ch { fill: #0f172a; stroke: #475569; stroke-width: 1; } svg .da { stroke: #475569; stroke-width: 1.2; stroke-dasharray: 5 4; fill: none; } svg .ar { stroke: #e879f9; stroke-width: 1.3; fill: none; marker-end: url(#fl); } svg .as { stroke: #f59e0b; stroke-width: 1.3; fill: none; stroke-dasharray: 4 3; marker-end: url(#fs); }
+.spin { color: var(--amber); font: 12px var(--mono); }
+@media (max-width: 1000px) { .two, .two.wide, .three { grid-template-columns: 1fr; } .tab { padding: 10px 10px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Convertidor DC-DC buck-boost síncrono · 120 W</h1><span class="badge">informe de diseño</span><span class="badge warn">simulación propia · sin prototipo medido</span><span class="sp"></span>
+  <nav class="tabs" id="tabs"><button data-t="resumen" class="on">Resumen</button><button data-t="dimens">Dimensionamiento</button><button data-t="lazo">Lazo de control</button><button data-t="sim">Simulación</button><button data-t="verif">Revisión del diseño</button><button data-t="fw">Firmware y BOM</button></nav>
+</div>
+
+<!-- ====================================================== RESUMEN ====================================================== -->
+<section class="tab on" id="t-resumen">
+  <div class="two wide">
+    <div class="panel">
+      <h2>De qué trata</h2>
+      <p>Un convertidor que entrega <b>24 V estables</b> a partir de una entrada de <b>9 a 36 V</b> (un banco de baterías, un panel o un bus automotriz). Usa un puente de cuatro interruptores: cuando la entrada es mayor que la salida trabaja como <b>reductor</b>; cuando es menor, como <b>elevador</b>; y una sola variable de control <i>u</i> reparte el trabajo entre las dos ramas sin saltos al cruzar de un modo al otro.</p>
+      <p>El control es digital: un STM32G474 mide la tensión y la corriente en cada periodo de 4 µs, calcula el ciclo de trabajo con un compensador de tipo III y lo escribe en un temporizador de alta resolución (184 ps). La protección de sobrecorriente no depende del software: un comparador interno corta los MOSFET en decenas de nanosegundos.</p>
+      <table class="st">
+        <tr><td>Entrada</td><td>9 – 36 V</td></tr><tr><td>Salida</td><td>24 V nominal (ajustable de 5 a 30 V)</td></tr><tr><td>Corriente</td><td>5 A continuos · 6 A de pico</td></tr><tr><td>Potencia</td><td>120 W</td></tr><tr><td>Conmutación</td><td>250 kHz · inductor de 6,8 µH · salida de 470 µF</td></tr>
+        <tr><td>Control</td><td>STM32G474RE: HRTIM, ADC inyectado, FMAC (compensador 3P3Z), COMP1 + DAC</td></tr><tr><td>Protecciones</td><td>Sobrecorriente ciclo a ciclo a 20 A (hardware) · sobretensión a 32 V (software)</td></tr>
+      </table>
+    </div>
+    <div class="panel"><h2>Arquitectura</h2>
+      <svg viewBox="0 0 640 400" role="img" aria-label="Etapa de potencia de cuatro interruptores y bloques del control digital">
+        <defs><marker id="fl" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#e879f9"/></marker><marker id="fs" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#f59e0b"/></marker></defs>
+        <rect class="da" x="118" y="30" width="146" height="142" rx="8"/><text class="t2" x="124" y="24">rama buck (A)</text>
+        <rect class="da" x="372" y="30" width="138" height="142" rx="8"/><text class="t2" x="378" y="24">rama boost (B)</text>
+        <path class="w" d="M30 60 H130 M180 60 H400 M400 60 H440 M490 60 H610"/><path class="w" d="M230 60 V105 M230 155 V185 M400 60 V105 M400 155 V185 M30 185 H610"/>
+        <rect class="q" x="130" y="45" width="50" height="30" rx="4"/><text x="146" y="64">Q1</text>
+        <rect class="q" x="215" y="105" width="30" height="50" rx="4"/><text x="222" y="134">Q2</text>
+        <rect class="q" x="385" y="105" width="30" height="50" rx="4"/><text x="392" y="134">Q3</text>
+        <rect class="q" x="440" y="45" width="50" height="30" rx="4"/><text x="456" y="64">Q4</text>
+        <rect class="ch" x="262" y="45" width="100" height="30" rx="4"/><text x="272" y="64">L 6,8 µH</text>
+        <circle cx="230" cy="60" r="3" fill="#cbd5e1"/><circle cx="400" cy="60" r="3" fill="#cbd5e1"/><text class="t2" x="216" y="92">SW1</text><text class="t2" x="406" y="92">SW2</text>
+        <path class="w" d="M70 60 V118 M58 118 H82 M58 126 H82 M70 126 V185"/><text class="t2" x="30" y="150">Cin</text><text x="30" y="52">Vin 9–36 V</text>
+        <path class="w" d="M560 60 V118 M548 118 H572 M548 126 H572 M560 126 V185"/><text class="t2" x="520" y="150">Cout</text><text x="528" y="52">Vout 24 V</text>
+        <rect class="ch" x="300" y="177" width="64" height="16" rx="3"/><text class="t2" x="306" y="189">Rshunt</text>
+        <rect class="gr" x="130" y="215" width="120" height="30" rx="5"/><text x="144" y="234">driver A · UCC27282</text>
+        <rect class="gr" x="384" y="215" width="120" height="30" rx="5"/><text x="398" y="234">driver B · UCC27282</text>
+        <path class="ar" d="M190 214 V174"/><path class="ar" d="M444 214 V174"/>
+        <rect class="mc" x="50" y="270" width="500" height="110" rx="8"/><text x="62" y="288" style="fill:#f59e0b">STM32G474RE · Cortex-M4F 170 MHz</text>
+        <rect class="ch" x="62" y="298" width="112" height="64" rx="5"/><text x="72" y="318">ADC 1/2</text><text class="t2" x="72" y="334">Vin · Vout · IL</text><text class="t2" x="72" y="348">disparo en HRTIM</text>
+        <rect class="ch" x="184" y="298" width="112" height="64" rx="5"/><text x="194" y="318">FMAC · 3P3Z</text><text class="t2" x="194" y="334">compensador tipo III</text><text class="t2" x="194" y="348">u → d1, d2</text>
+        <rect class="ch" x="306" y="298" width="112" height="64" rx="5"/><text x="316" y="318">HRTIM</text><text class="t2" x="316" y="334">PWM A / B · 184 ps</text><text class="t2" x="316" y="348">tiempo muerto</text>
+        <rect class="ch" x="428" y="298" width="112" height="64" rx="5"/><text x="438" y="318">COMP1 + DAC</text><text class="t2" x="438" y="334">OCP 20 A, ciclo a</text><text class="t2" x="438" y="348">ciclo, sin CPU</text>
+        <path class="ar" d="M362 296 V246 M362 246 H250 M362 246 H384" /><text class="t2" x="258" y="262">PWM_A / PWM_B</text>
+        <path class="as" d="M606 60 V330 H552"/><text class="t2" x="566" y="262" transform="rotate(90 566 262)">sensado Vin · Vout · IL</text>
+      </svg>
+    </div>
+  </div>
+  <div class="two">
+    <div class="panel"><h2>Variable de control unificada u → ciclos de trabajo</h2><canvas id="cvU"></canvas>
+      <div class="note" style="padding:6px 0 0">Hasta u = 0,9 solo modula la rama buck (d1 = u, d2 = 0). Pasado 0,9, d1 se queda en 0,9 y la rama boost toma el resto (d2 = u − 0,9). Los puntos marcan la u de régimen ideal (sin pérdidas) para cada tensión de entrada con salida de 24 V.</div></div>
+    <div class="panel"><h2>Qué hay en esta página</h2>
+      <ul class="l">
+        <li><b>Dimensionamiento</b>: la calculadora del informe, con tus propios datos.</li>
+        <li><b>Lazo de control</b>: modelo de pequeña señal con cero en el semiplano derecho, compensador y coeficientes del firmware.</li>
+        <li><b>Simulación</b>: el lazo cerrado en el tiempo (arranque, escalones, cortocircuito…).</li>
+        <li><b>Revisión del diseño</b>: seis puntos que aparecieron al reproducir el informe y la versión corregida.</li>
+        <li><b>Firmware y BOM</b>: estructura del código, lista de materiales y protocolo de puesta en marcha.</li>
+      </ul>
+      <div class="hall" style="margin-top:10px"><h3><span class="sev media">estado</span> Diseño y simulación, sin prototipo</h3><p>Todo lo que ves nace de un informe de ingeniería (cálculo, firmware y lista de materiales) y de una simulación propia con modelo promediado: sin pérdidas de conmutación, sin saturación del inductor y con ADC ideal. <b>No hay un prototipo medido</b>; los números son de simulación.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================= DIMENSIONAMIENTO ================================================= -->
+<section class="tab" id="t-dimens">
+  <div class="two wide">
+    <div class="panel"><h2>Resultados del dimensionamiento</h2>
+      <table id="dTabla"></table>
+      <div class="note" style="padding:6px 0 0">Convención del informe: eficiencia 96 % en modo buck y 93 % en modo boost; rizado de corriente del 25 % de la media; pérdidas del MOSFET BSC050N04LSG con una corriente eficaz de 14,4 A. «Informe» son las cifras impresas; con los datos por defecto deben coincidir.</div></div>
+    <div class="panel"><h2>Datos de entrada</h2>
+      <div class="frm"><label for="dVmin">Vin mínima [V]</label><input id="dVmin" type="number" value="9" step="0.5"></div>
+      <div class="frm"><label for="dVmax">Vin máxima [V]</label><input id="dVmax" type="number" value="36" step="0.5"></div>
+      <div class="frm"><label for="dVo">Vout [V]</label><input id="dVo" type="number" value="24" step="0.5"></div>
+      <div class="frm"><label for="dIo">Iout [A]</label><input id="dIo" type="number" value="5" step="0.5"></div>
+      <div class="frm"><label for="dFs">fsw [kHz]</label><input id="dFs" type="number" value="250" step="10"></div>
+      <div class="frm"><label for="dRz">Rizado de IL [%]</label><input id="dRz" type="number" value="25" step="1"></div>
+      <div class="row" style="margin-top:6px"><button class="mini" id="dReset">Valores del informe</button></div>
+      <h2 style="margin-top:14px">Planta en el peor caso (Vin mínima)</h2><div id="dPlanta"></div>
+      <div class="note" style="padding:6px 0 0">En modo boost el cero en el semiplano derecho limita el ancho de banda: una regla práctica es fc ≤ fRHPZ / 4.</div></div>
+  </div>
+</section>
+
+<!-- ==================================================== LAZO DE CONTROL ==================================================== -->
+<section class="tab" id="t-lazo">
+  <div class="cards" id="lCards"></div>
+  <div class="two wide">
+    <div class="panel"><h2>Respuesta en frecuencia · magnitud [dB]</h2><canvas id="cvM" class="alto"></canvas><h2 style="margin-top:10px">Fase del lazo [°]</h2><canvas id="cvF"></canvas>
+      <div class="note" style="padding:6px 0 0">Cian: planta · magenta: compensador · verde: lazo L(s). Líneas: 0 dB / −180°, frecuencia de cruce (verde) y cero en el semiplano derecho (rojo). El lazo incluye, si se marca, el retardo de una muestra del HRTIM.</div></div>
+    <div class="panel"><h2>Compensador</h2>
+      <div class="ctl"><label for="lComp">Versión</label><select id="lComp"><option value="tal_cual">Informe tal cual</option><option value="corregido">Informe corregido</option><option value="revisado" selected>Revisado</option><option value="propio">Propio (sliders)</option></select><span></span></div>
+      <div class="ctl"><label for="lVin">Vin [V]</label><input id="lVin" type="range" min="9" max="36" step="1" value="12"><output id="oVin"></output></div>
+      <label style="display:flex;gap:8px;align-items:center;margin:2px 0 8px"><input id="lRet" type="checkbox" checked> retardo de una muestra (4 µs) en el lazo</label>
+      <div class="note" style="padding:0 0 6px"><b>Propio</b>: ceros y polos del tipo III respecto a las frecuencias de la planta a 9 V.</div>
+      <div class="ctl"><label for="pFc">fc objetivo</label><input id="pFc" type="range" min="500" max="5000" step="50" value="2000"><output id="opFc"></output></div>
+      <div class="ctl"><label for="pZ1">cero 1 / fLC</label><input id="pZ1" type="range" min="0.1" max="1.5" step="0.05" value="0.3"><output id="opZ1"></output></div>
+      <div class="ctl"><label for="pZ2">cero 2 / fLC</label><input id="pZ2" type="range" min="0.1" max="1.5" step="0.05" value="0.5"><output id="opZ2"></output></div>
+      <div class="ctl"><label for="pP1">polo 1 / fRHPZ</label><input id="pP1" type="range" min="0.3" max="3" step="0.05" value="1.5"><output id="opP1"></output></div>
+      <h2 style="margin-top:10px">Coeficientes de la ecuación en diferencias</h2><div id="lCoef"></div>
+      <textarea id="lC" readonly spellcheck="false"></textarea>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== SIMULACIÓN ===================================================== -->
+<section class="tab" id="t-sim">
+  <div class="panel"><h2>Escenario</h2>
+    <div class="row">
+      <label for="sComp">Compensador</label><select id="sComp"><option value="tal_cual">Informe tal cual</option><option value="corregido">Informe corregido</option><option value="revisado" selected>Revisado</option><option value="propio">Propio</option></select>
+      <label for="sEsc">Escenario</label><select id="sEsc"><option value="arranque">Arranque en frío (soft-start 0,05 V/ms)</option><option value="carga" selected>Escalón de carga 0,5 → 4,5 A</option><option value="linea">Escalón de entrada 18 → 9 V (1 ms)</option><option value="barrido">Barrido de entrada 36 → 9 → 36 V</option><option value="corto">Cortocircuito en la salida (0,05 Ω)</option><option value="sincarga">Pérdida de carga (5 A → 0 A)</option></select>
+      <label for="sPiso">Piso de u al arrancar</label><select id="sPiso"><option value="auto">según el diseño</option><option value="0.08">0,08 (informe)</option><option value="0">0 (sin piso)</option></select>
+      <label for="sVin" id="lbVin">Vin</label><input id="sVin" type="range" min="9" max="36" step="1" value="12" style="width:140px"><output id="oSVin" style="font:12px var(--mono);color:var(--cyan)"></output>
+      <button class="primary" id="bSim">Simular</button><button class="mini" id="bVista">Ver todo</button><span class="spin" id="sEstado"></span>
+    </div>
+    <div class="cards" id="sCards" style="margin-top:10px"></div>
+    <div id="sNota" class="note" style="padding:8px 0 0"></div>
+  </div>
+  <div class="two">
+    <div class="panel"><h2>Tensión de salida [V]</h2><canvas id="cvV"></canvas><h2 style="margin-top:10px">Corriente del inductor [A]</h2><canvas id="cvI"></canvas></div>
+    <div class="panel"><h2>Ciclos de trabajo (d1 buck · d2 boost)</h2><canvas id="cvD"></canvas><h2 style="margin-top:10px" id="hVin">Tensión de entrada [V]</h2><canvas id="cvE" class="bajo"></canvas>
+      <div class="note" style="padding:6px 0 0">Modelo promediado de gran señal (RK4), un periodo de retardo en el lazo, ADC ideal. La corriente puede invertirse (conducción continua forzada). Líneas discontinuas: referencia de 24 V, límite de sobretensión (32 V) y de sobrecorriente (20 A).</div></div>
+  </div>
+</section>
+
+<!-- ================================================== REVISIÓN DEL DISEÑO ================================================== -->
+<section class="tab" id="t-verif">
+  <div class="panel"><h2>Qué aparece al llevar el informe a simulación</h2>
+    <p>El informe es una <b>primera iteración</b> de diseño. Al reproducirlo (el script de síntesis, con numpy/scipy, y un simulador propio en JavaScript que coincide con él al menos hasta el sexto dígito) aparecieron seis puntos que conviene corregir <b>antes de energizar</b> la placa. Cada número de abajo se calcula en vivo con el mismo código de esta página.</p>
+    <p id="vEstado" class="spin">Calculando…</p>
+    <div id="vLista"></div></div>
+  <div class="two">
+    <div class="panel"><h2>Lo que sí se confirmó</h2><div id="vOk"></div></div>
+    <div class="panel"><h2>Versión revisada del compensador</h2><div id="vRev"></div>
+      <div class="note" style="padding:8px 0 0">Límites de la comprobación: modelo promediado sin pérdidas de conmutación, sin saturación ni capacidad parásita del inductor, ADC ideal y un solo polo de retardo. Solo un prototipo medido puede confirmar estas cifras.</div></div>
+  </div>
+</section>
+
+<!-- ================================================== FIRMWARE Y BOM ================================================== -->
+<section class="tab" id="t-fw">
+  <details open><summary>Estructura del firmware (C, bare-metal con capa LL)</summary>
+    <ul class="l"><li><b>Reloj del HRTIM</b>: 170 MHz × 32 = 5,44 GHz → periodo de 21 760 cuentas para 250 kHz (resolución de 184 ps).</li>
+      <li><b>ISR del ADC (250 kHz)</b>: lee Vout, IL y Vin (inyectados, disparados por el HRTIM a la mitad del pulso), vigila la sobretensión, calcula el error contra la rampa, resuelve la ecuación en diferencias 3P3Z, satura <i>u</i>, la decodifica en d1/d2 y escribe los comparadores del HRTIM.</li>
+      <li><b>Tarea de 1 kHz</b>: rampa de arranque (+0,05 V por milisegundo hasta 24 V); al terminar pasa de SOFT_START a RUN.</li>
+      <li><b>Máquina de estados</b>: IDLE → SOFT_START → RUN, con FAULT_OCP y FAULT_OVP.</li>
+      <li><b>Protección por hardware</b>: el DAC fija 20 A, COMP1 compara con la salida del INA240 y dispara la línea FAULT del HRTIM sin intervención de la CPU.</li>
+      <li><b>Memoria</b>: variables del controlador en CCM SRAM para ejecución sin estados de espera.</li></ul>
+    <pre id="fwIsr"></pre></details>
+  <details><summary>Lista de materiales crítica (BOM de ingeniería)</summary>
+    <table><tr><th>Ref.</th><th>Componente</th><th>Parte sugerida</th><th>Claves</th></tr>
+      <tr><td>U1</td><td>Microcontrolador</td><td>STM32G474RET6 (ST)</td><td>Cortex-M4F 170 MHz, HRTIM 184 ps, 5 ADC de 12 bit</td></tr>
+      <tr><td>Q1–Q4</td><td>MOSFET N</td><td>BSC050N04LSG (Infineon)</td><td>40 V, 5 mΩ, Qg 22 nC, SuperSO8</td></tr>
+      <tr><td>U2, U3</td><td>Driver de medio puente</td><td>UCC27282DR (TI)</td><td>120 V de bootstrap, 3 A, anti-shoot-through</td></tr>
+      <tr><td>L1</td><td>Inductor</td><td>XAL1510-682MEB (Coilcraft)</td><td>6,8 µH, Irms 22 A, Isat 32 A, DCR 2,6 mΩ</td></tr>
+      <tr><td>Rshunt</td><td>Shunt Kelvin de 4 pines</td><td>CSS2H-2512R-L500F (Bourns)</td><td>0,5 o 2,0 mΩ, 5 W, 1 %</td></tr>
+      <tr><td>U4</td><td>Amplificador de corriente</td><td>INA240A1PWR (TI)</td><td>G = 20 V/V, rechazo de PWM, BW 400 kHz</td></tr>
+      <tr><td>Cin, Cout</td><td>Cerámicos MLCC</td><td>GRM32ER71H226KE15L (Murata)</td><td>22 µF, 50 V, X7R, 1210</td></tr>
+      <tr><td>Cbulk</td><td>Polímero híbrido</td><td>EEH-ZA1H221P (Panasonic)</td><td>220 µF, 50 V, ESR 16 mΩ</td></tr></table>
+    <div class="note" style="padding:6px 0 0">PCB de cuatro capas: potencia y desacoplo en la capa superior, plano de tierra continuo en la primera interna y ruteo Kelvin de sensado en la segunda.</div></details>
+  <details><summary>Protocolo de puesta en marcha (bring-up) con los ajustes de la revisión</summary>
+    <ol class="l" style="margin-left:20px">
+      <li><b>Lógica y drivers sin potencia</b> (Vin = 0 V, solo 3,3 V y 12 V auxiliares): forzar un 30 % de ciclo y medir el tiempo muerto en Q1/Q2, <b>en ambos flancos y con el osciloscopio</b>; el valor real depende del prescaler del generador de tiempo muerto (ver la revisión).</li>
+      <li><b>Lazo abierto con fuente limitada</b>: carga de 24 Ω, fuente de banco a 15 V / 1,5 A; comparar los datos del ADC (Vout, IL) con un multímetro y comprobar que el disparo cae a mitad del pulso, lejos del ruido de conmutación.</li>
+      <li><b>Cierre del lazo y escalón de carga</b>: habilitar la ISR y el soft-start con los coeficientes <b>revisados</b> (abajo) y un piso de <i>u</i> igual a 0 al arrancar; conmutar 0,5 → 4,5 A a 1 A/µs. Con 470 µF y fc ≈ 2 kHz, lo esperado es un hundimiento de <b>≈ 0,5 V</b> y no de 150 mV (ver la revisión).</li></ol></details>
+  <details><summary>Coeficientes revisados listos para el firmware</summary><div class="note" style="padding:0 0 4px">Calculados a Vin = 9 V (peor caso del cero en el semiplano derecho), con el error del lazo en voltios como lo calcula el código.</div><textarea id="fwC" readonly spellcheck="false" style="height:130px"></textarea></details>
+</section>
+<div class="note">Informe de diseño de un convertidor de 120 W y simulación propia con modelo promediado. No hay un prototipo medido: las cifras de rendimiento, margen de fase y respuesta transitoria son de simulación.</div>
+
+<script>
+// Convertidor DC-DC buck-boost síncrono de 4 interruptores (FSBB) de 120 W: dimensionamiento, modelo de pequeña señal,
+// síntesis y discretización (Tustin) del compensador tipo III (3P3Z), respuesta en frecuencia con márgenes y simulación
+// temporal del lazo cerrado con un modelo promediado de gran señal (soft-start, escalones de carga y de entrada, OCP y OVP).
+// Reproduce el procedimiento del informe de ingeniería del proyecto y lo verifica contra el script original (scipy).
+// Los polinomios en s van en orden DESCENDENTE (como numpy): [a2, a1, a0] = a2·s² + a1·s + a0.
+// El MISMO archivo corre en las pruebas (node --test) y dentro de index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.FsbbCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  const PI2 = 2 * Math.PI
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x))
+
+  // ---- Parámetros del informe ------------------------------------------------------------------------------------------------
+  const INFORME = {
+    Vin: { min: 9, nom: 12, max: 36 }, Vout: 24, Iout: 5, Ipico: 6, fsw: 250e3, eta: 0.94, L: 6.8e-6, Cout: 470e-6, Resr: 3.0e-3,
+    Hsense: 3.3 / 36, dIpct: 25, dVout: 0.05,
+    comp: { fc: 2.2e3, kz1: 0.7, kz2: 1.0, kp1: 0.85, fp2: 250e3 / 2.5 }, // ceros en k·f_lc, polo 1 en k·f_RHPZ, polo 2 en fsw/2,5
+    // límites de la variable de control unificada y de la rama buck (firmware del informe)
+    uMin: 0.08, uMax: 1.8, buckMax: 0.9, ocp: 20, ovp: 32,
+    // parásitos usados en la simulación (el informe da Rds(on) = 5 mΩ y DCR = 2,6 mΩ en el BOM)
+    Rds: 5e-3, DCR: 2.6e-3,
+  }
+
+  // ---- Dimensionamiento (sección 3 del informe) -------------------------------------------------------------------------------
+  function dimensionar(p = {}) {
+    const q = { ...INFORME, ...p, Vin: { ...INFORME.Vin, ...(p.Vin ?? {}) } }
+    const { Vin, Vout, Iout, fsw } = q, etaBuck = p.etaBuck ?? 0.96, etaBoost = p.etaBoost ?? 0.93
+    const Dbuck = Vout / (Vin.max * etaBuck)
+    const Dboost = 1 - (Vin.min * etaBoost) / Vout
+    const ILavg = Iout / (1 - Dboost), dIL = (q.dIpct / 100) * ILavg
+    const Lboost = (Vin.min * Dboost) / (dIL * fsw)
+    const Isat = ILavg + dIL / 2
+    const dVcap = p.dVcap ?? 0.030, dVesr = p.dVesr ?? 0.020
+    const CoutMin = (Iout * Dboost) / (dVcap * fsw), ResrMax = dVesr / Isat
+    // pérdidas del MOSFET BSC050N04LSG (Rds 5 mΩ, Qg 22 nC, tr+tf 12 ns)
+    const Rds = q.Rds, ILrms = p.ILrms ?? 14.4, alfa = 1.3, trtf = 12e-9, Qg = 22e-9, Vdr = 10
+    const Pcond = ILrms ** 2 * Rds * alfa, Psw = 0.5 * Vout * ILrms * trtf * fsw, Pgate = 4 * Qg * Vdr * fsw
+    return { Dbuck, Dboost, ILavg, dIL, Lboost, Isat, CoutMin, ResrMax, Pcond, Psw, Pgate, Ppar: 2 * Pcond + Psw + Pgate, ILpeak: Isat }
+  }
+
+  // ---- Polinomios --------------------------------------------------------------------------------------------------------------
+  const pmul = (a, b) => { const r = new Array(a.length + b.length - 1).fill(0); a.forEach((x, i) => b.forEach((y, j) => (r[i + j] += x * y))); return r }
+  const padd = (a, b) => { const n = Math.max(a.length, b.length), r = new Array(n).fill(0); a.forEach((x, i) => (r[n - a.length + i] += x)); b.forEach((x, i) => (r[n - b.length + i] += x)); return r }
+  const pscale = (a, k) => a.map((x) => x * k)
+  function peval(p, re, im) { let r = 0, i = 0; for (const c of p) { const nr = r * re - i * im + c, ni = r * im + i * re; r = nr; i = ni } return [r, i] }
+  function cdiv([a, b], [c, d]) { const den = c * c + d * d; return [(a * c + b * d) / den, (b * c - a * d) / den] }
+
+  // Transformación bilineal (Tustin) de N(s)/D(s) con periodo Ts. Devuelve { b, a }: u[n] = Σ b_k e[n-k] + Σ a_k u[n-k] (a sin el término de orden 0)
+  function bilineal(num, den, Ts) {
+    const n = Math.max(num.length, den.length) - 1, k2 = 2 / Ts
+    const nn = [...new Array(n + 1 - num.length).fill(0), ...num], dd = [...new Array(n + 1 - den.length).fill(0), ...den]
+    // (1 − z⁻¹)^j (1 + z⁻¹)^(n−j) como polinomio en z⁻¹ (orden creciente)
+    const base = (j) => { let r = [1]; for (let i = 0; i < j; i++) r = pmulC(r, [1, -1]); for (let i = 0; i < n - j; i++) r = pmulC(r, [1, 1]); return r }
+    const pmulC = (a, b) => { const r = new Array(a.length + b.length - 1).fill(0); a.forEach((x, i) => b.forEach((y, j) => (r[i + j] += x * y))); return r }
+    const conv = (c) => { const r = new Array(n + 1).fill(0); c.forEach((coef, idx) => { const j = n - idx, t = base(j); t.forEach((v, m) => (r[m] += coef * k2 ** j * v)) }); return r }
+    const N = conv(nn), D = conv(dd), a0 = D[0]
+    return { b: N.map((x) => x / a0), a: D.slice(1).map((x) => -x / a0), raw: { N, D } }
+  }
+
+  // ---- Planta de pequeña señal ------------------------------------------------------------------------------------------------
+  // Modo boost (Vin < Vout): Gvd = Vout/(1−D)·(1 − s·Leff/R)(1 + s·ESR·C) / (1 + s·Leff/R + s²·Leff·C), Leff = L/(1−D)²
+  function plantaBoost({ Vin, Vout, Iout, L, Cout, Resr, eta, kBuck = 1 }) {
+    const R = Vout / Iout, D = 1 - (Vin * kBuck * eta) / Vout, Leff = L / (1 - D) ** 2
+    const fLC = 1 / (PI2 * Math.sqrt(Leff * Cout)), fEsr = 1 / (PI2 * Resr * Cout), fRhpz = (R * (1 - D) ** 2) / (PI2 * L)
+    const G0 = Vout / (1 - D), wr = PI2 * fRhpz, we = PI2 * fEsr
+    return { modo: 'boost', D, R, Leff, fLC, fEsr, fRhpz, G0, num: pscale(pmul([-1 / wr, 1], [1 / we, 1]), G0), den: [Leff * Cout, Leff / R, 1] }
+  }
+  // Modo buck (Vin > Vout): Gvd = Vin(1 + s·ESR·C) / (1 + s(L/R + ESR·C) + s²·L·C)
+  function plantaBuck({ Vin, Vout, Iout, L, Cout, Resr, eta }) {
+    const R = Vout / Iout, D = Vout / (Vin * eta), fLC = 1 / (PI2 * Math.sqrt(L * Cout)), fEsr = 1 / (PI2 * Resr * Cout), we = PI2 * fEsr
+    return { modo: 'buck', D, R, Leff: L, fLC, fEsr, fRhpz: Infinity, G0: Vin, num: pscale([1 / we, 1], Vin), den: [L * Cout, L / R + Resr * Cout, 1] }
+  }
+  const planta = (p) => (p.Vin < p.Vout ? plantaBoost(p) : plantaBuck(p))
+
+  // ---- Compensador tipo III y su discretización -----------------------------------------------------------------------------------
+  const magAt = (num, den, w) => { const [a, b] = peval(num, 0, w), [c, d] = peval(den, 0, w); return Math.hypot(a, b) / Math.hypot(c, d) }
+  function sintetizar(pl, { fc, kz1, kz2, kp1, fp2 }, { Ts, Hsense = 1, fsw }) {
+    const wc = PI2 * fc, wz1 = kz1 * PI2 * pl.fLC, wz2 = kz2 * PI2 * pl.fLC
+    const wp1 = PI2 * kp1 * (Number.isFinite(pl.fRhpz) ? pl.fRhpz : 0.3 * fsw), wp2 = PI2 * (fp2 ?? fsw / 2.5)
+    const numB = pmul([1 / wz1, 1], [1 / wz2, 1]), denB = pmul([1, 0], pmul([1 / wp1, 1], [1 / wp2, 1]))
+    const Kc = 1 / (magAt(pl.num, pl.den, wc) * magAt(numB, denB, wc) * Hsense)
+    const num = pscale(numB, Kc), disc = bilineal(num, denB, Ts)
+    return { Kc, num, den: denB, b: disc.b, a: disc.a, wz1, wz2, wp1, wp2 }
+  }
+
+  // ---- Respuesta en frecuencia y márgenes ------------------------------------------------------------------------------------------
+  function respuesta(num, den, w, retardo = 0) {
+    const [a, b] = peval(num, 0, w), [c, d] = peval(den, 0, w), [re, im] = cdiv([a, b], [c, d])
+    const m = Math.hypot(re, im), fase = Math.atan2(im, re) - w * retardo
+    return { magDb: 20 * Math.log10(m), fase: (fase * 180) / Math.PI, re: m * Math.cos(fase), im: m * Math.sin(fase) }
+  }
+  // Curvas de planta, compensador y lazo (con desenrollado de fase) y márgenes. `H` = ganancia del sensor en el lazo y `retardo` en segundos.
+  function bode(pl, comp, { H = 1, retardo = 0, f0 = 10, f1 = 1.2e5, puntos = 400 } = {}) {
+    const f = [], p = [], c = [], l = []
+    let previo = null
+    for (let i = 0; i < puntos; i++) {
+      const fr = f0 * (f1 / f0) ** (i / (puntos - 1)), w = PI2 * fr
+      const rp = respuesta(pl.num, pl.den, w), rc = respuesta(comp.num, comp.den, w)
+      let ph = rp.fase + rc.fase - ((w * retardo) * 180) / Math.PI
+      if (previo !== null) { while (ph - previo > 180) ph -= 360; while (ph - previo < -180) ph += 360 }
+      previo = ph
+      f.push(fr); p.push(rp); c.push(rc); l.push({ magDb: rp.magDb + rc.magDb + 20 * Math.log10(H), fase: ph })
+    }
+    // cruces por 0 dB hacia abajo: fc = el más alto (el que fija el ancho de banda) y PM = el peor de todos (conservador)
+    const cruces = []
+    let f180 = null, gm = null
+    for (let i = 1; i < f.length; i++) {
+      if (l[i - 1].magDb > 0 && l[i].magDb <= 0) { const q = l[i - 1].magDb / (l[i - 1].magDb - l[i].magDb); cruces.push({ f: f[i - 1] * (f[i] / f[i - 1]) ** q, pm: 180 + (l[i - 1].fase + q * (l[i].fase - l[i - 1].fase)) }) }
+      if (f180 === null && l[i - 1].fase > -180 && l[i].fase <= -180) { const q = (l[i - 1].fase + 180) / (l[i - 1].fase - l[i].fase); f180 = f[i - 1] * (f[i] / f[i - 1]) ** q; gm = -(l[i - 1].magDb + q * (l[i].magDb - l[i - 1].magDb)) }
+    }
+    const fc = cruces.length ? cruces[cruces.length - 1].f : null, pm = cruces.length ? Math.min(...cruces.map((x) => x.pm)) : null
+    return { f, planta: p, comp: c, lazo: l, fc, pm, f180, gm, cruces }
+  }
+
+  // ---- Tres versiones del compensador para compararlas --------------------------------------------------------------------------------------
+  // tal_cual: coeficientes del script del informe (Kc con la ganancia del sensor H) usados con el error en voltios, como hace el firmware del informe
+  // corregido: el mismo diseño sin la ganancia del sensor (el error ya está en voltios)    revisado: otra ubicación de ceros y polos con margen de fase > 50°
+  const REVISADO = { fc: 2000, kz1: 0.3, kz2: 0.5, kp1: 1.5, fp2: 100e3 }
+  function compensadores(pDiseno = { Vin: INFORME.Vin.min }) {
+    const I = INFORME, Ts = 1 / I.fsw, pl = plantaBoost({ Vin: pDiseno.Vin, Vout: I.Vout, Iout: I.Iout, L: I.L, Cout: I.Cout, Resr: I.Resr, eta: I.eta })
+    return {
+      tal_cual: { nombre: 'Informe tal cual', ...sintetizar(pl, I.comp, { Ts, Hsense: I.Hsense, fsw: I.fsw }), uMinArranque: 0.08 },
+      corregido: { nombre: 'Informe corregido', ...sintetizar(pl, I.comp, { Ts, Hsense: 1, fsw: I.fsw }), uMinArranque: 0.08 },
+      revisado: { nombre: 'Revisado', ...sintetizar(pl, REVISADO, { Ts, Hsense: 1, fsw: I.fsw }), uMinArranque: 0 },
+    }
+  }
+  // Márgenes del lazo de un compensador en un Vin dado (con el retardo de una muestra del HRTIM)
+  function margenesEn(comp, Vin, { retardo = 1 } = {}) {
+    const I = INFORME, pl = planta({ Vin, Vout: I.Vout, Iout: I.Iout, L: I.L, Cout: I.Cout, Resr: I.Resr, eta: I.eta })
+    const b = bode(pl, comp, { H: 1, retardo: retardo / I.fsw })
+    return { modo: pl.modo, fc: b.fc, pm: b.pm, gm: b.gm }
+  }
+
+  // ---- Punto de operación y mapeo de la variable de control unificada --------------------------------------------------------------
+  function duties(u, cfg = INFORME) { return u <= cfg.buckMax ? { d1: u, d2: 0 } : { d1: cfg.buckMax, d2: u - cfg.buckMax } }
+  // u de régimen para un Vin con el mapeo del firmware (en boost, d1 = 0,9: la entrada efectiva es 0,9·Vin)
+  function uRegimen(Vin, Vout, eta = 1, cfg = INFORME) {
+    const buck = Vout / (Vin * eta)
+    return buck <= cfg.buckMax ? buck : cfg.buckMax + (1 - (cfg.buckMax * Vin * eta) / Vout)
+  }
+
+  // ---- Simulación temporal del lazo cerrado (modelo promediado de gran señal) -------------------------------------------------------
+  // Estados: iL (A) y vC (V), con RK4 a Ts/2. L·diL/dt = d1·Vin − (1 − d2)·vout − iL·Rs ;  C·dvC/dt = iC ;  iC = (1 − d2)·iL − iload ;  vout = vC + ESR·iC
+  // Convertidor síncrono: la corriente del inductor puede invertirse (modo de conducción continua forzado). El ADC muestrea al inicio de cada
+  // periodo, el cálculo del 3P3Z toma un periodo y los ciclos nuevos se aplican en el siguiente (retardo de una muestra del HRTIM).
+  function simular(cfgIn = {}) {
+    const c = { ...INFORME, ...cfgIn, comp: { ...INFORME.comp, ...(cfgIn.comp ?? {}) } }
+    const Ts = 1 / c.fsw, nSub = 2, dt = Ts / nSub, Rs = c.DCR + 2 * c.Rds
+    const lista = (x, def) => (x ? (Array.isArray(x[0]) ? x : [[0, x]]) : [[0, def]])
+    const VinSeq = lista(cfgIn.VinSeq ?? cfgIn.Vin, 12), cargaSeq = lista(cfgIn.carga, { tipo: 'R', valor: c.Vout / c.Iout })
+    const seq = (l, t) => { let v = l[0][1]; for (const [ti, vi] of l) if (t >= ti) v = vi; return v }
+    // la tensión de entrada es lineal por tramos entre los puntos [t, V] (un «escalón» son dos puntos muy juntos)
+    const interp = (l, t) => { if (t <= l[0][0]) return l[0][1]; for (let i = 1; i < l.length; i++) if (t <= l[i][0]) { const [t0, v0] = l[i - 1], [t1, v1] = l[i]; return t1 === t0 ? v1 : v0 + ((v1 - v0) * (t - t0)) / (t1 - t0) } return l.at(-1)[1] }
+    const dur = cfgIn.duracion ?? 0.05, soft = cfgIn.softStart ?? true, vrefFinal = cfgIn.Vref ?? c.Vout
+    const bb = cfgIn.coef?.b ?? [0, 0, 0, 0], aa = cfgIn.coef?.a ?? [0, 0, 0], decim = Math.max(1, Math.round(cfgIn.decimacion ?? 8))
+    const salidaV = (iL, vC, d2, ld) => {
+      const iin = (1 - d2) * iL
+      if (ld.tipo === 'I') { const iload = ld.valor * clamp(vC, 0, 1); const iC = iin - iload; return { vout: vC + c.Resr * iC, iC, iload } } // una carga electrónica se desconecta bajo ~1 V: no deja la salida en negativo
+      const vout = (vC + c.Resr * iin) / (1 + c.Resr / ld.valor); return { vout, iC: iin - vout / ld.valor, iload: vout / ld.valor }
+    }
+    const deriv = (iL, vC, d, vin, ld, apagado) => {
+      const o = salidaV(iL, vC, apagado ? 0 : d.d2, ld)
+      const dIL = apagado ? (iL > 0 ? -(o.vout + 1) / c.L : 0) : (d.d1 * vin - (1 - d.d2) * o.vout - iL * Rs) / c.L
+      return [dIL, o.iC / c.Cout]
+    }
+    let iL = cfgIn.iL0 ?? 0, vC = cfgIn.v0 ?? 0, vref = soft ? 0 : vrefFinal
+    const e = [0, 0, 0, 0], uh = [0, 0, 0, 0] // uh[1..3] = u[n-1..n-3]
+    let pend = duties(cfgIn.uMinArranque ?? c.uMin, c), estado = soft ? 'SOFT_START' : 'RUN', falla = null, tFalla = null
+    const out = { t: [], vout: [], iL: [], d1: [], d2: [], u: [], vin: [], iload: [] }
+    const n = Math.round(dur / Ts), tareaSoft = Math.round(1e-3 / Ts)
+    for (let k = 0; k < n; k++) {
+      const t = k * Ts, vin = interp(VinSeq, t), ld = seq(cargaSeq, t)
+      if (soft && estado === 'SOFT_START' && k % tareaSoft === 0) { vref = Math.min(vrefFinal, vref + (cfgIn.rampa ?? 0.05)); if (vref >= vrefFinal) estado = 'RUN' }
+      // 1) muestreo (estado al inicio del periodo) y ley de control; se aplica en el periodo siguiente
+      const m = salidaV(iL, vC, pend.d2, ld)
+      let siguiente = pend
+      if (falla === null && m.vout > c.ovp) { falla = 'OVP'; tFalla = t }
+      if (falla === null) {
+        e[3] = e[2]; e[2] = e[1]; e[1] = e[0]; e[0] = vref - m.vout
+        const piso = estado === 'SOFT_START' ? (cfgIn.uMinArranque ?? c.uMin) : c.uMin // el informe fija 0,08 también en el arranque
+        const u = clamp(bb[0] * e[0] + bb[1] * e[1] + bb[2] * e[2] + bb[3] * e[3] + aa[0] * uh[1] + aa[1] * uh[2] + aa[2] * uh[3], piso, c.uMax)
+        uh[3] = uh[2]; uh[2] = uh[1]; uh[1] = u; siguiente = duties(u, c)
+      } else siguiente = { d1: 0, d2: 0 }
+      // 2) integración del periodo con los ciclos calculados en el anterior
+      const d = pend
+      for (let s = 0; s < nSub; s++) {
+        const ap = falla !== null
+        const k1 = deriv(iL, vC, d, vin, ld, ap), k2 = deriv(iL + 0.5 * dt * k1[0], vC + 0.5 * dt * k1[1], d, vin, ld, ap)
+        const k3 = deriv(iL + 0.5 * dt * k2[0], vC + 0.5 * dt * k2[1], d, vin, ld, ap), k4 = deriv(iL + dt * k3[0], vC + dt * k3[1], d, vin, ld, ap)
+        iL += (dt / 6) * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]); vC += (dt / 6) * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
+        if (falla !== null && iL < 0) iL = 0
+        if (falla === null && iL > c.ocp) { falla = 'OCP'; tFalla = t + (s + 1) * dt }
+      }
+      pend = siguiente
+      if (k % decim === 0) { const o = salidaV(iL, vC, d.d2, ld); out.t.push(t); out.vout.push(o.vout); out.iL.push(iL); out.d1.push(d.d1); out.d2.push(d.d2); out.u.push(uh[1]); out.vin.push(vin); out.iload.push(o.iload) }
+    }
+    return { ...out, estado: falla ?? estado, falla, tFalla, Ts }
+  }
+
+  // Métricas de una respuesta: valor final, sobreimpulso, hundimiento tras un instante y tiempo de asentamiento (±banda)
+  function metricas(r, { desde = 0, objetivo, banda = 0.01 } = {}) {
+    const idx = r.t.findIndex((x) => x >= desde), v = r.vout.slice(idx), t = r.t.slice(idx)
+    if (!v.length) return null
+    const fin = v.slice(-Math.max(3, Math.floor(v.length / 10))).reduce((a, x) => a + x, 0) / Math.max(3, Math.floor(v.length / 10))
+    const ref = objetivo ?? fin
+    let max = -Infinity, min = Infinity // sin Math.max(...v): con cientos de miles de muestras revienta la pila
+    for (const x of v) { if (x > max) max = x; if (x < min) min = x }
+    let asent = null
+    for (let i = v.length - 1; i >= 0; i--) if (Math.abs(v[i] - ref) > banda * ref) { asent = i + 1 < v.length ? t[i + 1] - t[0] : null; break }
+    if (asent === null && v.every((x) => Math.abs(x - ref) <= banda * ref)) asent = 0
+    return { final: fin, sobreimpulso: Math.max(0, max - ref), hundimiento: Math.max(0, ref - min), asentamiento: asent, max, min }
+  }
+
+  return { INFORME, REVISADO, compensadores, margenesEn, dimensionar, pmul, padd, pscale, peval, bilineal, plantaBoost, plantaBuck, planta, sintetizar, respuesta, bode, duties, uRegimen, simular, metricas, magAt }
+})
+
+</script>
+<script>
+'use strict'
+const F = FsbbCore, I = F.INFORME, $ = (id) => document.getElementById(id)
+const f = (n, d = 1) => Number(n).toLocaleString('es-CL', { maximumFractionDigits: d, minimumFractionDigits: d })
+const mxv = (a, i0 = 0, i1 = a.length) => { let m = -Infinity; for (let i = i0; i < i1; i++) if (a[i] > m) m = a[i]; return m }
+const mnv = (a, i0 = 0, i1 = a.length) => { let m = Infinity; for (let i = i0; i < i1; i++) if (a[i] < m) m = a[i]; return m }
+const idxDe = (xs, x) => { let lo = 0, hi = xs.length; while (lo < hi) { const m = (lo + hi) >> 1; if (xs[m] < x) lo = m + 1; else hi = m } return lo }
+
+// ---- compensadores ------------------------------------------------------------------------------------------------------------------
+const BASE = F.compensadores(), plantaDiseno = F.plantaBoost({ Vin: I.Vin.min, Vout: I.Vout, Iout: I.Iout, L: I.L, Cout: I.Cout, Resr: I.Resr, eta: I.eta })
+const ctl = { fc: 2000, kz1: 0.3, kz2: 0.5, kp1: 1.5 }
+const sintePropio = () => ({ nombre: 'Propio', ...F.sintetizar(plantaDiseno, { ...ctl, fp2: 100e3 }, { Ts: 1 / I.fsw, Hsense: 1, fsw: I.fsw }), uMinArranque: 0 })
+const COMPS = { ...BASE, propio: sintePropio() }
+const plantaEn = (Vin) => F.planta({ Vin, Vout: I.Vout, Iout: I.Iout, L: I.L, Cout: I.Cout, Resr: I.Resr, eta: I.eta })
+
+// ---- dibujo -------------------------------------------------------------------------------------------------------------------------
+function prep(cv) { const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h); c.font = '10.5px ui-monospace, Consolas, monospace'; return { c, w, h } }
+function trazo(c, X, Y, xs, ys, i0, i1, color, ancho = 1.5, dash = []) {
+  c.strokeStyle = color; c.lineWidth = ancho; c.setLineDash(dash); c.beginPath()
+  const n = i1 - i0; if (n < 2) { c.setLineDash([]); return }
+  const px = Math.abs(X(xs[i1 - 1]) - X(xs[i0]))
+  if (n > 3 * px) { // muchas más muestras que píxeles: dibuja el mínimo y el máximo de cada columna
+    let col = null, lo = 0, hi = 0, ini = true
+    const cierra = () => { const x = col + 0.5; if (ini) { c.moveTo(x, Y(lo)); ini = false } else c.lineTo(x, Y(lo)); c.lineTo(x, Y(hi)) }
+    for (let i = i0; i < i1; i++) { const p = Math.round(X(xs[i])); if (p !== col) { if (col !== null) cierra(); col = p; lo = hi = ys[i] } else { if (ys[i] < lo) lo = ys[i]; if (ys[i] > hi) hi = ys[i] } }
+    cierra()
+  } else for (let i = i0; i < i1; i++) (i === i0 ? c.moveTo(X(xs[i]), Y(ys[i])) : c.lineTo(X(xs[i]), Y(ys[i])))
+  c.stroke(); c.setLineDash([])
+}
+function grafica(cv, o) {
+  const { c, w, h } = prep(cv), L = o.L ?? 48, R = 10, T = 8, B = o.sinX ? 6 : 20
+  const lx0 = o.xlog ? Math.log10(o.x0) : o.x0, lx1 = o.xlog ? Math.log10(o.x1) : o.x1
+  const X = (x) => L + (((o.xlog ? Math.log10(x) : x) - lx0) / (lx1 - lx0)) * (w - L - R), Y = (y) => T + (1 - (y - o.y0) / (o.y1 - o.y0)) * (h - T - B)
+  c.lineWidth = 1; c.strokeStyle = '#13203a'; c.fillStyle = '#64748b'; c.textAlign = 'right'
+  for (let v = o.y0; v <= o.y1 + 1e-9; v += o.ystep) { const y = Y(v); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.fillText((o.yfmt ?? ((q) => f(q, 0)))(v), L - 4, y + 3) }
+  if (!o.sinX) {
+    c.textAlign = 'center'
+    const xt = o.xlog ? [10, 100, 1e3, 1e4, 1e5].filter((v) => v >= o.x0 && v <= o.x1) : o.xticks
+    for (const v of xt) { const x = X(v); if (o.xlab && x > w - R - 34) continue; c.strokeStyle = '#0f1a2e'; c.beginPath(); c.moveTo(x, T); c.lineTo(x, h - B); c.stroke(); c.fillStyle = '#64748b'; c.fillText(o.xlog ? (v >= 1e3 ? v / 1e3 + 'k' : v) : (o.xfmt ?? ((q) => f(q, 0)))(v), x, h - 5) }
+    if (o.xlab) { c.textAlign = 'right'; c.fillText(o.xlab, w - R, h - 5) }
+  }
+  c.save(); c.beginPath(); c.rect(L, T, w - L - R, h - T - B); c.clip()
+  for (const l of o.hl ?? []) { c.strokeStyle = l.color; c.setLineDash(l.dash === false ? [] : [5, 4]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(L, Y(l.y)); c.lineTo(w - R, Y(l.y)); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, L + 4, Y(l.y) - 3) } }
+  for (const l of o.vl ?? []) { c.strokeStyle = l.color; c.setLineDash([4, 3]); c.lineWidth = 1.1; c.beginPath(); c.moveTo(X(l.x), T); c.lineTo(X(l.x), h - B); c.stroke(); c.setLineDash([]); if (l.label) { c.fillStyle = l.color; c.textAlign = 'left'; c.fillText(l.label, X(l.x) + 3, T + 10) } }
+  for (const s of o.series) trazo(c, X, Y, s.xs, s.ys, s.i0 ?? 0, s.i1 ?? s.xs.length, s.color, s.w, s.dash)
+  c.restore()
+  return { c, X, Y, w, h }
+}
+
+// ---- pestañas -----------------------------------------------------------------------------------------------------------------------
+const hechas = {}
+function abrir(t) {
+  document.querySelectorAll('.tab').forEach((s) => s.classList.toggle('on', s.id === 't-' + t)); document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t))
+  const fn = { resumen: pintarResumen, dimens: pintarDimens, lazo: pintarLazo, sim: () => { if (!hechas.sim) { hechas.sim = true; simular() } else pintarSim() }, verif: pintarVerif, fw: pintarFw }[t]
+  fn?.()
+}
+document.querySelectorAll('#tabs button').forEach((b) => (b.onclick = () => abrir(b.dataset.t)))
+window.addEventListener('resize', () => { const t = document.querySelector('.tab.on').id.slice(2); if (t !== 'verif') abrir(t) })
+
+// ---- resumen ------------------------------------------------------------------------------------------------------------------------
+function pintarResumen() {
+  const us = [], d1 = [], d2 = []; for (let u = 0; u <= 1.8001; u += 0.005) { us.push(u); const d = F.duties(u); d1.push(d.d1); d2.push(d.d2) }
+  const { c, X, Y } = grafica($('cvU'), { x0: 0, x1: 1.8, y0: 0, y1: 1, ystep: 0.25, yfmt: (v) => f(v, 2), xticks: [0, 0.3, 0.6, 0.9, 1.2, 1.5, 1.8], xfmt: (v) => f(v, 1), xlab: 'u', series: [{ xs: us, ys: d1, color: '#f59e0b', w: 2 }, { xs: us, ys: d2, color: '#22d3ee', w: 2 }], vl: [{ x: 0.9, color: '#e879f9', label: 'u = 0,9' }], hl: [{ y: 0.9, color: '#475569' }] })
+  c.fillStyle = '#f59e0b'; c.textAlign = 'left'; c.fillText('d1 (buck)', X(0.05), Y(0.14)); c.fillStyle = '#22d3ee'; c.fillText('d2 (boost)', X(1.2), Y(0.62))
+  for (const v of [36, 24, 18, 12, 9]) { const u = F.uRegimen(v, I.Vout), d = F.duties(u), y = u <= 0.9 ? d.d1 : d.d2; c.fillStyle = '#e2e8f0'; c.beginPath(); c.arc(X(u), Y(y), 3.5, 0, 7); c.fill(); c.textAlign = 'center'; c.fillText(v + ' V', X(u), Y(y) - 8) }
+}
+
+// ---- dimensionamiento ---------------------------------------------------------------------------------------------------------------
+const REF_INFORME = { Dbuck: 0.694, Dboost: 0.651, ILavg: 14.33, dIL: 3.58, Lboost: 6.54, Isat: 16.12, CoutMin: 434, ResrMax: 1.24, Pcond: 1.35, Psw: 0.52, Pgate: 0.22 }
+function pintarDimens() {
+  const n = (id) => +$(id).value, d = F.dimensionar({ Vin: { min: n('dVmin'), max: n('dVmax') }, Vout: n('dVo'), Iout: n('dIo'), fsw: n('dFs') * 1e3, dIpct: n('dRz') })
+  const filas = [['Ciclo buck (Vin máx)', '', d.Dbuck, REF_INFORME.Dbuck, 3], ['Ciclo boost (Vin mín)', '', d.Dboost, REF_INFORME.Dboost, 3], ['Corriente media del inductor', 'A', d.ILavg, REF_INFORME.ILavg, 2], ['Rizado de corriente ΔIL', 'A', d.dIL, REF_INFORME.dIL, 2], ['Inductancia mínima (boost)', 'µH', d.Lboost * 1e6, REF_INFORME.Lboost, 2], ['Corriente de saturación mínima', 'A', d.Isat, REF_INFORME.Isat, 2], ['Cout mínima (30 mV de rizado)', 'µF', d.CoutMin * 1e6, REF_INFORME.CoutMin, 0], ['ESR máxima (20 mV)', 'mΩ', d.ResrMax * 1e3, REF_INFORME.ResrMax, 2], ['Pérdida de conducción por MOSFET', 'W', d.Pcond, REF_INFORME.Pcond, 2], ['Pérdida de conmutación', 'W', d.Psw, REF_INFORME.Psw, 2], ['Pérdida de compuerta (4 MOSFET)', 'W', d.Pgate, REF_INFORME.Pgate, 2]]
+  $('dTabla').innerHTML = `<tr><th>Magnitud</th><th class="n">Calculado</th><th>Unidad</th><th class="n">Informe</th><th class="n">Δ</th></tr>` + filas.map(([nom, u, v, r, dec]) => { const dif = (v - r) / r * 100, ok = Math.abs(dif) < 1.5; return `<tr><td>${nom}</td><td class="n"><b>${f(v, dec)}</b></td><td>${u}</td><td class="n dif">${f(r, dec)}</td><td class="n ${ok ? 'ok' : 'warn'}">${ok ? '✔' : f(dif, 0) + ' %'}</td></tr>` }).join('') + `<tr><td><b>Pérdidas de semiconductores</b></td><td class="n"><b>${f(d.Ppar, 2)}</b></td><td>W</td><td class="n dif">—</td><td></td></tr>`
+  const pl = F.plantaBoost({ Vin: n('dVmin'), Vout: n('dVo'), Iout: n('dIo'), L: I.L, Cout: I.Cout, Resr: I.Resr, eta: 0.93 })
+  $('dPlanta').innerHTML = [['Ciclo boost D', f(pl.D, 3)], ['f LC (con L efectiva)', f(pl.fLC, 0) + ' Hz'], ['f del cero RHP', f(pl.fRhpz / 1e3, 2) + ' kHz'], ['fc máx. recomendada (fRHPZ/4)', f(pl.fRhpz / 4e3, 2) + ' kHz'], ['f del cero de ESR', f(pl.fEsr / 1e3, 0) + ' kHz']].map(([k, v]) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`).join('')
+}
+document.querySelectorAll('#t-dimens input').forEach((i) => i.addEventListener('input', pintarDimens))
+$('dReset').onclick = () => { ;[['dVmin', 9], ['dVmax', 36], ['dVo', 24], ['dIo', 5], ['dFs', 250], ['dRz', 25]].forEach(([id, v]) => ($(id).value = v)); pintarDimens() }
+
+// ---- lazo de control ----------------------------------------------------------------------------------------------------------------
+const coefTexto = (c, dec = 8) => `static const float B[4] = { ${c.b.map((x) => x.toFixed(dec) + 'f').join(', ')} };  // b0..b3\nstatic const float A[3] = { ${c.a.map((x) => x.toFixed(dec) + 'f').join(', ')} };  // a1..a3\n// u[n] = Σ B[k]·e[n-k] + Σ A[k-1]·u[n-k],  e = vref − vout [V]   (Kc = ${f(c.Kc, 3)})`
+function pintarLazo() {
+  const k = $('lComp').value, comp = COMPS[k], Vin = +$('lVin').value, ret = $('lRet').checked, pl = plantaEn(Vin)
+  $('oVin').textContent = Vin + ' V'; $('opFc').textContent = ctl.fc + ' Hz'; $('opZ1').textContent = f(ctl.kz1, 2); $('opZ2').textContent = f(ctl.kz2, 2); $('opP1').textContent = f(ctl.kp1, 2)
+  const b = F.bode(pl, comp, { H: 1, retardo: ret ? 1 / I.fsw : 0, f0: 10, f1: 1.2e5, puntos: 500 })
+  const mp = b.planta.map((r) => r.magDb), mc = b.comp.map((r) => r.magDb), ml = b.lazo.map((r) => r.magDb), fl = b.lazo.map((r) => r.fase)
+  const ymin = Math.floor(Math.min(mnv(mp), mnv(mc), mnv(ml), -20) / 20) * 20, ymax = Math.ceil(Math.max(mxv(mp), mxv(mc), mxv(ml), 20) / 20) * 20
+  const vl = [{ x: b.fc ?? 1, color: '#34d399', label: b.fc ? 'fc ' + f(b.fc / 1e3, 2) + ' kHz' : '' }]; if (Number.isFinite(pl.fRhpz)) vl.push({ x: pl.fRhpz, color: '#f87171', label: 'RHPZ' })
+  grafica($('cvM'), { xlog: true, x0: 10, x1: 1.2e5, y0: ymin, y1: ymax, ystep: 20, vl, hl: [{ y: 0, color: '#64748b', dash: false }], xlab: 'Hz', series: [{ xs: b.f, ys: mp, color: '#22d3ee' }, { xs: b.f, ys: mc, color: '#e879f9' }, { xs: b.f, ys: ml, color: '#34d399', w: 2.2 }] })
+  const fmin = Math.floor(Math.min(mnv(fl), -200) / 90) * 90, fmax = Math.ceil(Math.max(mxv(fl), -90) / 90) * 90
+  grafica($('cvF'), { xlog: true, x0: 10, x1: 1.2e5, y0: fmin, y1: fmax, ystep: 90, vl: vl.map((v) => ({ ...v, label: '' })), hl: [{ y: -180, color: '#f87171', label: '−180°' }], xlab: 'Hz', series: [{ xs: b.f, ys: fl, color: '#34d399', w: 2.2 }] })
+  const clase = b.pm === null ? '' : b.pm >= 45 ? 'ok3' : b.pm >= 30 ? 'w3' : 'b3', claseG = b.gm === null ? 'ok3' : b.gm >= 10 ? 'ok3' : b.gm >= 6 ? 'w3' : 'b3'
+  $('lCards').innerHTML = `<div class="card"><span>Modo</span><b>${pl.modo}</b><small>D ≈ ${f(pl.D, 3)}</small></div><div class="card"><span>Cruce fc</span><b>${b.fc ? f(b.fc / 1e3, 2) + ' kHz' : '—'}</b><small>${Number.isFinite(pl.fRhpz) ? 'fc / fRHPZ = ' + f(b.fc / pl.fRhpz, 2) : 'sin cero RHP'}</small></div><div class="card ${clase}"><span>Margen de fase</span><b>${b.pm === null ? '—' : f(b.pm, 1) + '°'}</b><small>objetivo ≥ 45–50°</small></div><div class="card ${claseG}"><span>Margen de ganancia</span><b>${b.gm === null ? '—' : f(b.gm, 1) + ' dB'}</b><small>${b.f180 ? 'a ' + f(b.f180 / 1e3, 1) + ' kHz' : ''}</small></div><div class="card"><span>f cero RHP</span><b>${Number.isFinite(pl.fRhpz) ? f(pl.fRhpz / 1e3, 1) + ' kHz' : '—'}</b><small>f LC ${f(pl.fLC, 0)} Hz</small></div>`
+  $('lCoef').innerHTML = `<table><tr><th>b0</th><th>b1</th><th>b2</th><th>b3</th></tr><tr>${comp.b.map((x) => `<td>${f(x, 5)}</td>`).join('')}</tr><tr><th>a1</th><th>a2</th><th>a3</th><th></th></tr><tr>${comp.a.map((x) => `<td>${f(x, 5)}</td>`).join('')}<td></td></tr></table>`
+  $('lC').value = coefTexto(comp)
+}
+;['lComp', 'lVin', 'lRet'].forEach((id) => $(id).addEventListener('input', pintarLazo))
+;[['pFc', 'fc'], ['pZ1', 'kz1'], ['pZ2', 'kz2'], ['pP1', 'kp1']].forEach(([id, key]) => $(id).addEventListener('input', () => { ctl[key] = +$(id).value; COMPS.propio = sintePropio(); $('lComp').value = 'propio'; pintarLazo() }))
+$('lC').onclick = () => $('lC').select()
+
+// ---- simulación ---------------------------------------------------------------------------------------------------------------------
+const ESC = {
+  arranque: { usaVin: true, ev: null, cfg: (Vin) => ({ Vin, duracion: 0.6, decimacion: 4 }) },
+  carga: { usaVin: true, ev: 0.55, win: [0.0005, 0.004], cfg: (Vin) => ({ Vin, duracion: 0.62, decimacion: 1, carga: [[0, { tipo: 'R', valor: 48 }], [0.5, { tipo: 'I', valor: 0.5 }], [0.55, { tipo: 'I', valor: 4.5 }]] }) },
+  linea: { usaVin: false, ev: 0.5, win: [0.0005, 0.004], cfg: () => ({ VinSeq: [[0, 18], [0.5, 18], [0.501, 9]], duracion: 0.6, decimacion: 1 }) },
+  barrido: { usaVin: false, ev: 0.5, win: null, cfg: () => ({ VinSeq: [[0, 36], [0.5, 36], [0.6, 9], [0.7, 9], [0.8, 36]], duracion: 0.9, decimacion: 2 }) },
+  corto: { usaVin: true, ev: 0.5, win: [0.00005, 0.0005], cfg: (Vin) => ({ Vin, duracion: 0.52, decimacion: 1, carga: [[0, { tipo: 'R', valor: 4.8 }], [0.5, { tipo: 'R', valor: 0.05 }]] }) },
+  sincarga: { usaVin: true, ev: 0.5, win: [0.0005, 0.006], cfg: (Vin) => ({ Vin, duracion: 0.56, decimacion: 1, carga: [[0, { tipo: 'R', valor: 4.8 }], [0.5, { tipo: 'I', valor: 0 }]] }) },
+}
+let corrida = null, vistaEvento = true
+function simular() {
+  const k = $('sEsc').value, e = ESC[k], comp = COMPS[$('sComp').value], Vin = +$('sVin').value
+  $('oSVin').textContent = Vin + ' V'; $('sVin').disabled = !e.usaVin; $('lbVin').style.opacity = e.usaVin ? 1 : 0.4
+  $('sEstado').textContent = 'simulando…'; $('bSim').disabled = true
+  setTimeout(() => {
+    const piso = $('sPiso').value === 'auto' ? comp.uMinArranque : +$('sPiso').value
+    const t0 = performance.now(), r = F.simular({ coef: { b: comp.b, a: comp.a }, uMinArranque: piso, ...e.cfg(Vin) })
+    r.tms = r.t.map((x) => x * 1e3); corrida = { r, k, e, comp, Vin, piso, ms: performance.now() - t0 }
+    $('sEstado').textContent = ''; $('bSim').disabled = false; vistaEvento = !!e.win; $('bVista').style.display = e.win ? '' : 'none'; $('bVista').textContent = 'Ver todo'; pintarSim()
+  }, 15)
+}
+function resumenSim() {
+  const { r, k, e } = corrida, cards = [], falla = r.falla
+  const cardEstado = `<div class="card ${falla ? 'b3' : 'ok3'}"><span>Estado final</span><b>${r.estado}</b><small>${falla ? 'a los ' + f(r.tFalla * 1e3, 3) + ' ms' : 'sin fallas'}</small></div>`
+  let nota = ''
+  if (falla && e.ev && r.tFalla < e.ev - 1e-6) nota = `Falló en el arranque (a los ${f(r.tFalla * 1e3, 3)} ms), antes del evento: el escenario no llegó a ejecutarse.`
+  if (k === 'arranque') {
+    const i = r.vout.findIndex((v) => v >= 0.99 * I.Vout), mx = mxv(r.vout)
+    cards.push(cardEstado, `<div class="card"><span>Llega al 99 %</span><b>${i >= 0 ? f(r.t[i] * 1e3, 0) + ' ms' : '—'}</b><small>rampa de 0,05 V/ms</small></div>`, `<div class="card ${mx > 24.5 ? 'w3' : ''}"><span>Sobreimpulso</span><b>${f(Math.max(0, mx - I.Vout) * 1e3, 0)} mV</b></div>`, `<div class="card ${mxv(r.iL) > 15 ? 'w3' : ''}"><span>Corriente máx.</span><b>${f(mxv(r.iL), 1)} A</b><small>límite OCP 20 A</small></div>`, `<div class="card"><span>Vout final</span><b>${f(r.vout.at(-1), 2)} V</b></div>`)
+  } else if (k === 'corto') {
+    cards.push(cardEstado, `<div class="card ${falla && r.tFalla - 0.5 < 20e-6 ? 'ok3' : 'b3'}"><span>Corte tras el corto</span><b>${falla && r.tFalla >= 0.5 ? f((r.tFalla - 0.5) * 1e6, 1) + ' µs' : '—'}</b><small>por la protección de 20 A</small></div>`, `<div class="card"><span>Corriente de pico</span><b>${f(mxv(r.iL), 1)} A</b></div>`, `<div class="card"><span>Vout final</span><b>${f(r.vout.at(-1), 2)} V</b></div>`)
+    nota = nota || 'El modelo revisa el límite de 20 A cada 2 µs, así que el pico y el tiempo de corte son conservadores: el comparador real actúa en decenas de nanosegundos (el informe indica menos de 30 ns).'
+  } else if (falla) { // con el convertidor apagado, hundimiento y asentamiento ya no significan nada
+    const i0 = idxDe(r.t, e.ev)
+    cards.push(cardEstado, `<div class="card b3"><span>${r.tFalla >= e.ev ? 'Falla tras el evento' : 'Falla antes del evento'}</span><b>${r.tFalla >= e.ev ? f((r.tFalla - e.ev) * 1e3, 3) + ' ms' : '—'}</b></div>`, `<div class="card"><span>Corriente de pico</span><b>${f(mxv(r.iL, Math.max(0, i0 - 1)), 1)} A</b></div>`)
+  } else {
+    const i0 = idxDe(r.t, e.ev), mn = mnv(r.vout, i0), mx = mxv(r.vout, i0), m = F.metricas(r, { desde: e.ev, objetivo: I.Vout, banda: 0.005 })
+    cards.push(cardEstado, `<div class="card"><span>Hundimiento</span><b>${f(Math.max(0, I.Vout - mn) * 1e3, 0)} mV</b><small>mínimo ${f(mn, 2)} V</small></div>`, `<div class="card"><span>Sobreimpulso</span><b>${f(Math.max(0, mx - I.Vout) * 1e3, 0)} mV</b><small>máximo ${f(mx, 2)} V</small></div>`)
+    cards.push(`<div class="card"><span>Asentamiento ±0,5 %</span><b>${m.asentamiento === null ? 'no asienta' : f(m.asentamiento * 1e3, 2) + ' ms'}</b></div>`)
+    cards.push(`<div class="card"><span>Corriente</span><b>${f(mnv(r.iL, i0), 1)} … ${f(mxv(r.iL, i0), 1)} A</b></div>`)
+    if (k === 'carga' && !falla) nota = `Previsión simple ΔV ≈ ΔI / (2π·fc·Cout): con el cruce del diseño es ${f(4 / (2 * Math.PI * F.margenesEn(corrida.comp, corrida.Vin).fc * I.Cout) * 1e3, 0)} mV. El criterio de 150 mV del protocolo no se alcanza con 470 µF.`
+    if (k === 'sincarga' && !falla) nota = 'El convertidor es síncrono: la corriente del inductor se invierte (conducción continua forzada) y devuelve la energía a la entrada, así la salida no se dispara.'
+    if (k === 'linea' && !falla) nota = 'Prueba de estrés: −9 V en 1 ms con la carga plena. El hundimiento lo impone el cero en el semiplano derecho, que limita el ancho de banda del lazo; con una caída más lenta (el barrido) la salida casi no se mueve.'
+    if (k === 'barrido' && !falla) nota = 'Atraviesa la frontera entre modo buck y modo boost (alrededor de 24–25 V) sin perder la regulación.'
+  }
+  $('sCards').innerHTML = cards.join(''); $('sNota').textContent = nota
+}
+function pintarSim() {
+  if (!corrida) return
+  const { r, e } = corrida, win = vistaEvento && e.win ? [e.ev - e.win[0], e.ev + e.win[1]] : [0, r.t.at(-1)]
+  const x0 = win[0] * 1e3, x1 = win[1] * 1e3, i0 = Math.max(0, idxDe(r.tms, x0) - 1), i1 = Math.min(r.tms.length, idxDe(r.tms, x1) + 1)
+  const paso = (x1 - x0) > 100 ? 100 : (x1 - x0) > 20 ? 5 : (x1 - x0) > 4 ? 1 : (x1 - x0) > 1 ? 0.5 : 0.1
+  const xticks = []; for (let v = Math.ceil(x0 / paso) * paso; v <= x1 + 1e-9; v += paso) xticks.push(+v.toFixed(4)); const xfmt = (v) => f(v, paso < 1 ? 1 : 0)
+  const xl = r.estado === 'RUN' || r.estado === 'SOFT_START' ? 'ms' : 'ms'
+  const lo = mnv(r.vout, i0, i1), hi = mxv(r.vout, i0, i1), falla = !!r.falla
+  const vy0 = falla || lo < 14 ? 0 : Math.floor(lo - 0.5), vy1 = falla || hi > 28 ? 36 : Math.ceil(hi + 0.5)
+  grafica($('cvV'), { x0, x1, y0: vy0, y1: vy1, ystep: Math.max(1, Math.round((vy1 - vy0) / 6)), xticks, xfmt, xlab: xl, hl: [{ y: 24, color: '#64748b' }, { y: 32, color: '#f87171', label: 'OVP 32 V' }], series: [{ xs: r.tms, ys: r.vout, i0, i1, color: '#22d3ee', w: 1.8 }] })
+  const il0 = mnv(r.iL, i0, i1), il1 = mxv(r.iL, i0, i1), iy0 = Math.min(0, Math.floor(il0 / 5) * 5), iy1 = Math.max(Math.ceil((il1 + 1) / 5) * 5, il1 > 14 ? 25 : 5)
+  grafica($('cvI'), { x0, x1, y0: iy0, y1: iy1, ystep: Math.max(5, Math.round((iy1 - iy0) / 5 / 5) * 5), xticks, xfmt, xlab: xl, hl: [{ y: 20, color: '#f87171', label: 'OCP 20 A' }, { y: 0, color: '#334155', dash: false }], series: [{ xs: r.tms, ys: r.iL, i0, i1, color: '#34d399', w: 1.6 }] })
+  grafica($('cvD'), { x0, x1, y0: 0, y1: 1, ystep: 0.25, yfmt: (v) => f(v, 2), xticks, xfmt, xlab: xl, series: [{ xs: r.tms, ys: r.d1, i0, i1, color: '#f59e0b', w: 1.6 }, { xs: r.tms, ys: r.d2, i0, i1, color: '#22d3ee', w: 1.6 }] })
+  const varia = mxv(r.vin) - mnv(r.vin) > 0.01; $('cvE').style.display = varia ? 'block' : 'none'; $('hVin').style.display = varia ? '' : 'none'
+  if (varia) grafica($('cvE'), { x0, x1, y0: 0, y1: 40, ystep: 10, xticks, xfmt, xlab: xl, series: [{ xs: r.tms, ys: r.vin, i0, i1, color: '#e879f9', w: 1.6 }] })
+  resumenSim()
+}
+$('bSim').onclick = simular; $('sEsc').onchange = () => { const e = ESC[$('sEsc').value]; $('sVin').disabled = !e.usaVin; $('lbVin').style.opacity = e.usaVin ? 1 : 0.4; simular() }
+;['sComp', 'sPiso'].forEach((id) => ($(id).onchange = simular)); $('sVin').addEventListener('input', () => ($('oSVin').textContent = $('sVin').value + ' V')); $('sVin').addEventListener('change', simular)
+$('bVista').onclick = () => { vistaEvento = !vistaEvento; $('bVista').textContent = vistaEvento ? 'Ver todo' : 'Ver el evento'; pintarSim() }
+
+// ---- revisión del diseño ------------------------------------------------------------------------------------------------------------
+let verifDatos = null
+function calcularVerif() {
+  const sim = (comp, extra) => F.simular({ coef: { b: comp.b, a: comp.a }, uMinArranque: comp.uMinArranque, ...extra })
+  const v = {}
+  v.corr9 = F.margenesEn(BASE.corregido, 9, { retardo: 0 }); v.corr9d = F.margenesEn(BASE.corregido, 9)
+  v.tc9 = F.margenesEn(BASE.tal_cual, 9); v.tcMin = Math.max(...[9, 12, 18, 30, 36].map((x) => F.margenesEn(BASE.tal_cual, x).pm))
+  v.tcSim = sim(BASE.tal_cual, { Vin: 12, duracion: 0.6, decimacion: 16 })
+  v.arr36 = sim(BASE.revisado, { Vin: 36, duracion: 0.1, decimacion: 16, uMinArranque: 0.08 }); v.arr36ok = sim(BASE.revisado, { Vin: 36, duracion: 0.6, decimacion: 16, uMinArranque: 0 })
+  const carga = { Vin: 12, duracion: 0.62, decimacion: 1, carga: [[0, { tipo: 'R', valor: 48 }], [0.5, { tipo: 'I', valor: 0.5 }], [0.55, { tipo: 'I', valor: 4.5 }]] }
+  v.cargaRev = F.metricas(sim(BASE.revisado, carga), { desde: 0.55, objetivo: I.Vout, banda: 0.005 }); v.fc12 = F.margenesEn(BASE.revisado, 12).fc
+  v.margRev = [9, 12, 18, 30, 36].map((x) => ({ Vin: x, ...F.margenesEn(BASE.revisado, x) })); v.margCorr = [9, 12, 18, 30, 36].map((x) => ({ Vin: x, ...F.margenesEn(BASE.corregido, x) }))
+  v.barrido = sim(BASE.revisado, { VinSeq: [[0, 36], [0.5, 36], [0.6, 9], [0.7, 9], [0.8, 36]], duracion: 0.9, decimacion: 4, uMinArranque: 0 })
+  v.corto = sim(BASE.revisado, { Vin: 12, duracion: 0.52, decimacion: 1, carga: [[0, { tipo: 'R', valor: 4.8 }], [0.5, { tipo: 'R', valor: 0.05 }]] })
+  v.sinCarga = sim(BASE.revisado, { Vin: 12, duracion: 0.56, decimacion: 4, carga: [[0, { tipo: 'R', valor: 4.8 }], [0.5, { tipo: 'I', valor: 0 }]] })
+  v.plMin = plantaEn(9); v.dim = F.dimensionar()
+  return v
+}
+function pintarVerif() {
+  if (verifDatos) return
+  setTimeout(() => { verifDatos = calcularVerif(); renderVerif(verifDatos) }, 20)
+}
+function renderVerif(v) {
+  const H = (sev, titulo, informe, resultado, como) => `<div class="hall"><h3><span class="sev ${sev}">${sev}</span>${titulo}</h3><p><b>Informe:</b> ${informe}</p><p><b>Al reproducirlo:</b> ${resultado}</p><p class="como">${como}</p></div>`
+  const fcN = (1 / (2 * Math.PI * v.fc12 * I.Cout)) * 4, cNeed = 4 / (2 * Math.PI * v.fc12 * 0.15), fNeed = 4 / (2 * Math.PI * I.Cout * 0.15)
+  const iA = v.arr36.tFalla, dtNs = 68 / 5.44, dI30 = (0.3 * v.dim.ILavg) / (1 - 0.15), L30 = ((I.Vin.min * v.dim.Dboost) / (dI30 * I.fsw)) * 1e6
+  $('vLista').innerHTML =
+    H('alta', 'El compensador del firmware no cierra el lazo', 'coeficientes b0 = 0,3125 … a1 = 1,652 … en el código C; el script de síntesis calcula Kc incluyendo la ganancia del sensor (3,3/36).', `esos coeficientes no son la salida del script (que da b0 = ${f(BASE.tal_cual.b[0], 4)} y a1 = ${f(BASE.tal_cual.a[0], 4)}), y el firmware calcula el error en <b>voltios</b>, no en cuentas del sensor: la ganancia del lazo queda ×10,9 mayor. Con los coeficientes del script el cruce sube a <b>${f(v.tc9.fc / 1e3, 1)} kHz</b> con margen de fase <b>${f(v.tc9.pm, 0)}°</b> (inestable para todo el rango de entrada) y en la simulación dispara la protección de 20 A a los <b>${f(v.tcSim.tFalla * 1e3, 0)} ms</b> del arranque.`, 'Cómo se comprobó: mismo script ejecutado con scipy y su portado a JavaScript (coinciden hasta el sexto dígito); lazo con H = 1 y retardo de una muestra; simulación temporal a Vin = 12 V.') +
+    H('media', 'El margen de fase es de ~30°, no de más de 50°', 'la regla fc ≤ fRHPZ/4 «para garantizar estabilidad robusta con margen de fase > 50°», con el compensador tipo III cruzando en 2,2 kHz.', `con el error ya en voltios (sin la ganancia del sensor) el margen de fase a 9 V es <b>${f(v.corr9.pm, 1)}°</b> (${f(v.corr9d.pm, 1)}° con el retardo de una muestra del HRTIM) y no pasa de 42° en ningún punto del rango de entrada; la regla da un límite para fc, pero los ceros y polos elegidos restan fase a 2,2 kHz.`, 'Cómo se comprobó: respuesta en frecuencia de planta × compensador, cruce por 0 dB y 180° + fase del lazo (Vin de 9 a 36 V).') +
+    H('alta', 'Arrancar con u ≥ 0,08 dispara la protección con entrada alta', 'piso de la variable de control u = 0,08, también durante el soft-start.', `con la salida en 0 V el ciclo mínimo de 8 % aplica 0,08·Vin directo al inductor: con 36 V la corriente supera los 20 A en <b>${f(iA * 1e6, 0)} µs</b> y el convertidor se apaga antes de arrancar. Con el piso en 0 durante el arranque, a 36 V la corriente máxima es de <b>${f(mxv(v.arr36ok.iL), 1)} A</b> y llega a 24 V.`, 'Cómo se comprobó: simulación del arranque en frío con el compensador revisado a Vin = 36 V, con y sin piso.') +
+    H('media', 'El hundimiento de 150 mV del escalón de carga no se alcanza', 'escalón de 0,5 a 4,5 A con undershoot menor a 150 mV.', `la simulación da <b>${f(v.cargaRev.hundimiento * 1e3, 0)} mV</b> (Vin = 12 V, asienta en ${f(v.cargaRev.asentamiento * 1e3, 2)} ms), coherente con ΔV ≈ ΔI / (2π·fc·Cout) = ${f(fcN * 1e3, 0)} mV. Para 150 mV harían falta ≈ <b>${f(cNeed * 1e3, 1)} mF</b> de salida, o un cruce de ≈ ${f(fNeed / 1e3, 1)} kHz que supera con creces el límite fRHPZ/4 = ${f(v.plMin.fRhpz / 4e3, 1)} kHz.`, 'Cómo se comprobó: escalón de carga en el simulador de lazo cerrado y la regla de la carga en el condensador de salida.') +
+    H('baja', 'El tiempo muerto de «50 ns» son 12,5 ns', 'DEADTIME = 68 cuentas, «~50 ns».', `con el reloj de 5,44 GHz una cuenta dura 184 ps: 68 cuentas son <b>${f(dtNs, 1)} ns</b> y para 50 ns harían falta 272. Depende del prescaler del generador de tiempo muerto del HRTIM, que el código del informe no configura.`, 'Cómo se comprobó: aritmética del reloj; el protocolo de puesta en marcha ya pide medirlo con el osciloscopio.') +
+    H('baja', 'La tabla de especificaciones y el cálculo no usan el mismo rizado', 'tabla con ΔIL = «30 % de IL,max».', `el dimensionamiento usa el 25 % de la corriente media (ΔIL = ${f(v.dim.dIL, 2)} A, L mínima 6,54 µH); con la definición de la tabla ΔIL sería ${f(dI30, 2)} A y la L mínima ${f(L30, 2)} µH. No cambia el resultado (se elige 6,8 µH), pero conviene dejar una sola definición.`, 'Cómo se comprobó: relectura de la tabla de especificaciones y de la sección 3 del informe.')
+  const ok = (t) => `<div class="hall"><h3><span class="sev ok">ok</span>${t[0]}</h3><p>${t[1]}</p></div>`
+  $('vOk').innerHTML = [
+    ['El dimensionamiento coincide', `las once cifras de la sección 3 (D buck 0,694 · D boost 0,651 · IL 14,33 A · L 6,54 µH · Cout 434 µF · pérdidas…) salen iguales; ver la pestaña Dimensionamiento.`],
+    ['El cero en el semiplano derecho', `${f(F.plantaBoost({ Vin: 9, Vout: 24, Iout: 5, L: I.L, Cout: I.Cout, Resr: I.Resr, eta: 0.93 }).fRhpz / 1e3, 2)} kHz con el ciclo del informe (13,68 kHz), y fc ≤ fRHPZ/4 ≈ 3,4 kHz.`],
+    ['La transición buck ↔ boost', `en el barrido 36 → 9 → 36 V la salida se mantiene entre ${f(mnv(v.barrido.vout, idxDe(v.barrido.t, 0.5)), 2)} y ${f(mxv(v.barrido.vout, idxDe(v.barrido.t, 0.5)), 2)} V.`],
+    ['El cortocircuito', `el límite de 20 A corta en ${f((v.corto.tFalla - 0.5) * 1e6, 0)} µs en el modelo, que revisa el límite cada 2 µs (el comparador real actúa en menos de 30 ns según el informe).`],
+    ['La pérdida de carga', `la salida llega a ${f(mxv(v.sinCarga.vout, idxDe(v.sinCarga.t, 0.5)), 1)} V como máximo (la protección es de 32 V), porque el puente síncrono devuelve la energía a la entrada.`],
+  ].map(ok).join('')
+  const R = BASE.revisado
+  $('vRev').innerHTML = `<p>Cambios: cruce a 2 kHz, ceros en 0,3 y 0,5 de fLC, polo 1 en 1,5·fRHPZ (no 0,85), segundo polo en 100 kHz, error en voltios y <b>piso de u en 0 durante el arranque</b>.</p><table><tr><th>Vin</th><th class="n">PM corregido</th><th class="n">PM revisado</th><th class="n">GM revisado</th></tr>${v.margRev.map((r, i) => `<tr><td>${r.Vin} V</td><td class="n ${v.margCorr[i].pm < 45 ? 'warn' : 'ok'}">${f(v.margCorr[i].pm, 1)}°</td><td class="n ${r.pm >= 50 ? 'ok' : 'warn'}"><b>${f(r.pm, 1)}°</b></td><td class="n">${f(r.gm, 1)} dB</td></tr>`).join('')}</table><div class="note" style="padding:6px 0 0">Márgenes con el retardo de una muestra. «Corregido» = el diseño del informe con el error en voltios (sin la ganancia del sensor).</div>`
+  $('vEstado').textContent = ''
+}
+
+// ---- firmware ----------------------------------------------------------------------------------------------------------------------
+function pintarFw() {
+  $('fwIsr').textContent = `void ADC1_2_IRQHandler(void)            // cada 4 µs, disparada por TIMA_CMP3
+{
+    psu.v_out      = raw_vout * ADC_TO_VOLTS_VOUT;   // 36 V / 4095
+    psu.i_inductor = raw_il   * ADC_TO_AMPS_IL;      // 25 A / 4095
+    psu.v_in       = raw_vin  * ADC_TO_VOLTS_VIN;    // 45 V / 4095
+    if (psu.v_out > 32.0f) { /* apaga TA1,TA2,TB1,TB2 */ psu.state = STATE_FAULT_OVP; return; }
+    if (psu.state != STATE_RUN && psu.state != STATE_SOFT_START) return;
+
+    v_ctrl.e[0] = psu.v_ref_slewed - psu.v_out;      // error en voltios
+    u_out = b0*e[0] + b1*e[1] + b2*e[2] + b3*e[3]    // ecuación en diferencias 3P3Z
+          + a1*u[1] + a2*u[2] + a3*u[3];
+    u_out = clamp(u_out, CTRL_U_MIN /*0,08*/, CTRL_U_MAX /*1,80*/);
+
+    if (u_out <= BUCK_MAX_DUTY /*0,9*/) { duty_buck = u_out;      duty_boost = 0; }
+    else                                { duty_buck = BUCK_MAX_DUTY; duty_boost = u_out - 0.9f; }
+    SetCompare1(TIMER_A, duty_buck  * 21760);        // rama buck
+    SetCompare1(TIMER_B, duty_boost * 21760);        // rama boost
+}`
+  const R = BASE.revisado
+  $('fwC').value = `// Compensador revisado (diseñado a Vin = 9 V, fs = 250 kHz, Tustin)\n${coefTexto(R, 8)}\n#define CTRL_U_MIN_ARRANQUE 0.00f   // piso de u durante SOFT_START (el informe usa 0,08)`
+}
+document.addEventListener('DOMContentLoaded', () => {})
+pintarResumen()
+window.demoApi = { F, COMPS, abrir, simular, corrida: () => corrida, verif: () => verifDatos, ESC, set(id, v) { $(id).value = v; $(id).dispatchEvent(new Event('input')); $(id).dispatchEvent(new Event('change')) } }
+</script>
+</body>
+</html>

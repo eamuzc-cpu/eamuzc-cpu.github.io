@@ -20,3 +20,6 @@ prompt-claude-code-portfolio-azul.md
 
 # configuración local del firmware (Wi-Fi y claves)
 proyectos/**/config.h
+
+# informes fuente (PDF): no se publican, solo alimentan las paginas
+informes/
