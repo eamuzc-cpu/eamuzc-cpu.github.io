@@ -1,0 +1,153 @@
+export default {
+  status: { es: 'Simulado en el navegador (autenticación solo ilustrativa)', en: 'Simulated in the browser (illustrative authentication only)' },
+  related: ['pid-pasteurizador', 'alarmas-isa182', 'scada-dos-estanques-isa182'],
+  es: {
+    lead: 'Un SCADA web de un pasteurizador HTST con sinóptico, lazo de temperatura, válvula de desvío de flujo, alarmas y tendencias. Cada acción del usuario, permitida o denegada, queda en una bitácora encadenada según su rol.',
+    context: [
+      'Un SCADA no es solo pantallas: debe impedir que cualquiera cambie una consigna crítica, dejar rastro de quién hizo qué y no esconder los picos al mostrar tendencias largas.',
+      'En alimentos, saber quién cambió una consigna y cuándo es parte de la trazabilidad; y la válvula de desvío protege al producto cuando la temperatura o el tiempo de retención no cumplen. Este proyecto junta esas piezas: proceso, control, alarmas, permisos y auditoría.',
+    ],
+    how: [
+      { t: 'El proceso HTST', d: 'Un pasteurizador de alta temperatura y corto tiempo: un intercambiador calienta el producto y un tubo de retención lo mantiene 15 s a 72 °C.' },
+      { t: 'La válvula de desvío de flujo', d: 'Si la temperatura baja del mínimo, la válvula desvía el producto de inmediato; solo vuelve a avanzar cuando la condición se cumple de forma continua durante 5 s. Es la protección del producto.' },
+      { t: 'El lazo de temperatura y las alarmas', d: 'Un PI regula la temperatura. Cinco alarmas con retardo y reconocimiento avisan de desviaciones.' },
+      { t: 'Histórico y reporte', d: 'Un histórico de 2 h que, al reducir los datos para graficar, conserva los mínimos y máximos de cada tramo, para que un pico no desaparezca. Un reporte de turno resume lo ocurrido.' },
+      { t: 'Roles, permisos y rangos', d: 'Tres roles (operador, supervisor, ingeniero) con ocho permisos y rangos propios para lo que se puede escribir: por ejemplo, la consigna de temperatura va de 70 a 78 °C para un supervisor y de 60 a 85 °C para un ingeniero.' },
+      { t: 'Toda acción pasa por el mismo camino', d: 'Sesión → permiso → rango → ejecución → bitácora. Si algo falla en el camino, la acción se deniega y también se registra.' },
+      { t: 'Bitácora encadenada', d: 'Cada registro guarda el hash del anterior. Editar o borrar uno rompe la cadena en ese punto exacto, y la verificación indica en qué registro está la discrepancia.' },
+    ],
+    concepts: [
+      { t: 'HTST', d: 'Pasteurización de alta temperatura y corto tiempo: típicamente 72 °C durante 15 s para la leche.' },
+      { t: 'Válvula de desvío de flujo (FDV)', d: 'Válvula que, si el producto no cumple temperatura o tiempo, lo devuelve a tratamiento en lugar de dejarlo avanzar.' },
+      { t: 'Control de acceso por roles (RBAC)', d: 'Cada usuario tiene un rol y cada rol, una lista de permisos. Se autoriza por rol, no por persona.' },
+      { t: 'Bitácora encadenada', d: 'Registro en que cada entrada incluye una huella de la anterior; así cualquier cambio posterior se detecta, como en una cadena de bloques simple.' },
+      { t: 'Reducción que conserva extremos', d: 'Al mostrar mucho historial en poco espacio, se guardan el mínimo y el máximo de cada tramo en lugar de un promedio, para no esconder picos.' },
+    ],
+    decisions: [
+      { t: 'Denegar también deja rastro', d: 'Un intento fallido de cambiar una consigna es información de auditoría tan valiosa como una acción exitosa.' },
+      { t: 'Validar rango además de permiso', d: 'Tener permiso para cambiar la consigna no significa poder poner cualquier valor. Cada rol tiene un rango propio.' },
+      { t: 'Mínimos y máximos en las tendencias', d: 'Un promedio puede esconder justo el pico que importaba; conservar los extremos evita ese engaño visual.' },
+      { t: 'Que la válvula favorezca al producto', d: 'Desvía de inmediato y solo avanza tras 5 s cumpliendo: ante la duda, se protege la inocuidad, no la producción.' },
+      { t: 'Selector de rol siempre visible', d: 'Cambiar de rol en la demo es un clic, y la pantalla muestra qué puede y qué no puede hacer cada rol.' },
+    ],
+    tour: [
+      'Cambia de rol con los botones de rol y fíjate en cómo cambian los controles habilitados y el panel «Permisos por rol».',
+      'Como operador, intenta aplicar una consigna de temperatura: se deniega y queda anotado en la bitácora.',
+      'Como supervisor, aplica una consigna dentro de su rango (70–78 °C) y luego una fuera del rango: se deniega.',
+      'Con el «Simulador de proceso» provoca una desviación de temperatura y observa cómo actúa la válvula de desvío y cuánto tarda en volver a avanzar.',
+      'Abre la bitácora con «Abrir», pulsa «Verificar integridad» y luego «Simular manipulación»: la verificación señala el registro exacto alterado.',
+    ],
+    verified: [
+      '3 roles, 8 permisos y rangos por rol; todas las acciones (OK y denegadas) quedan en la bitácora.',
+      '15 pruebas automáticas: permisos, rangos, bitácora, lógica de la válvula de desvío, conservación de litros y el histórico.',
+    ],
+    limits: [
+      'La autenticación de la demo es solo ilustrativa: no hay servidor ni contraseñas.',
+      'La bitácora usa un hash no criptográfico (FNV): detecta ediciones y borrados accidentales o simples, pero no resiste a quien recalcula toda la cadena.',
+      'Es una simulación del proceso; no se conecta a PLC ni a instrumentos reales.',
+    ],
+    next: [
+      'Sustituir el hash por uno criptográfico y guardar la bitácora en un servidor aparte.',
+      'Agregar un mecanismo de dos personas (doble firma) para cambios críticos de consigna.',
+    ],
+  },
+  en: {
+    lead: 'A web SCADA for an HTST pasteurizer with a mimic diagram, temperature loop, flow diversion valve, alarms and trends. Every user action, allowed or denied, is recorded in a chained audit log according to the user’s role.',
+    context: [
+      'A SCADA is not just screens: it must keep anyone from changing a critical setpoint, leave a trail of who did what, and not hide peaks when showing long trends.',
+      'In food, knowing who changed a setpoint and when is part of traceability; and the diversion valve protects the product when temperature or holding time fail. This project brings those pieces together: process, control, alarms, permissions and audit.',
+    ],
+    how: [
+      { t: 'The HTST process', d: 'A high-temperature short-time pasteurizer: a heat exchanger warms the product and a holding tube keeps it at 72 °C for 15 s.' },
+      { t: 'The flow diversion valve', d: 'If temperature falls below the minimum, the valve diverts the product immediately; it only advances again once the condition holds continuously for 5 s. It is the product’s protection.' },
+      { t: 'The temperature loop and alarms', d: 'A PI regulates temperature. Five alarms with delay and acknowledgement flag deviations.' },
+      { t: 'History and report', d: 'A 2 h history which, when data is reduced for plotting, keeps the minimum and maximum of each span so a peak does not disappear. A shift report summarises what happened.' },
+      { t: 'Roles, permissions and ranges', d: 'Three roles (operator, supervisor, engineer) with eight permissions and their own ranges for what can be written: for example, the temperature setpoint runs from 70 to 78 °C for a supervisor and from 60 to 85 °C for an engineer.' },
+      { t: 'Every action takes the same path', d: 'Session → permission → range → execution → log. If anything fails along the way, the action is denied and also recorded.' },
+      { t: 'Chained audit log', d: 'Each record stores the previous record’s hash. Editing or deleting one breaks the chain at that exact point, and verification says which record the discrepancy is in.' },
+    ],
+    concepts: [
+      { t: 'HTST', d: 'High-temperature short-time pasteurization: typically 72 °C for 15 s for milk.' },
+      { t: 'Flow diversion valve (FDV)', d: 'A valve that, if the product fails temperature or time, sends it back for treatment instead of letting it advance.' },
+      { t: 'Role-based access control (RBAC)', d: 'Each user has a role and each role a list of permissions. Authorisation is by role, not by person.' },
+      { t: 'Chained log', d: 'A record in which each entry includes a fingerprint of the previous one; any later change is therefore detected, like a simple blockchain.' },
+      { t: 'Extreme-preserving reduction', d: 'When showing a lot of history in little space, each span’s minimum and maximum are kept instead of an average, so peaks are not hidden.' },
+    ],
+    decisions: [
+      { t: 'A denial also leaves a trace', d: 'A failed attempt to change a setpoint is audit information as valuable as a successful action.' },
+      { t: 'Validate range as well as permission', d: 'Having permission to change the setpoint does not mean being able to enter any value. Each role has its own range.' },
+      { t: 'Min and max in trends', d: 'An average can hide exactly the peak that mattered; keeping the extremes avoids that visual deception.' },
+      { t: 'Make the valve favour the product', d: 'It diverts immediately and only advances after 5 s of compliance: when in doubt, food safety is protected, not output.' },
+      { t: 'Role selector always visible', d: 'Switching role in the demo is one click, and the screen shows what each role can and cannot do.' },
+    ],
+    tour: [
+      'Switch role with the role buttons and notice how the enabled controls and the "Permisos por rol" (permissions by role) panel change.',
+      'As operator, try to apply a temperature setpoint: it is denied and noted in the log.',
+      'As supervisor, apply a setpoint within its range (70–78 °C) and then one outside the range: it is denied.',
+      'With the "Simulador de proceso" (process simulator), cause a temperature deviation and watch how the diversion valve acts and how long it takes to advance again.',
+      'Open the log with "Abrir", press "Verificar integridad" (verify integrity) and then "Simular manipulación" (simulate tampering): the verification points at the exact altered record.',
+    ],
+    verified: [
+      '3 roles, 8 permissions and per-role ranges; every action (OK and denied) goes into the log.',
+      '15 automated tests: permissions, ranges, the log, diversion-valve logic, litre conservation and the history.',
+    ],
+    limits: [
+      'The demo’s authentication is illustrative only: there is no server or passwords.',
+      'The log uses a non-cryptographic hash (FNV): it detects accidental or simple edits and deletions, but does not withstand someone who recomputes the whole chain.',
+      'It is a simulation of the process; it does not connect to real PLCs or instruments.',
+    ],
+    next: [
+      'Replace the hash with a cryptographic one and store the log on a separate server.',
+      'Add a two-person mechanism (double sign-off) for critical setpoint changes.',
+    ],
+  },
+  diagrams: [
+    {
+      kind: 'graph',
+      placement: 'how-top',
+      title: { es: 'El pasteurizador y su SCADA', en: 'The pasteurizer and its SCADA' },
+      caption: {
+        es: 'El lazo y la válvula de desvío protegen el producto; el SCADA muestra, permite o deniega, y la bitácora deja constancia de todo. Las consignas vuelven al lazo solo si el rol lo permite.',
+        en: 'The loop and the diversion valve protect the product; the SCADA displays, allows or denies, and the log records everything. Setpoints go back to the loop only if the role permits.',
+      },
+      nodes: [
+        { id: 'pr', label: { es: 'Proceso HTST', en: 'HTST process' }, sub: '72 °C · 15 s', col: 0, row: 0, tone: 'emerald' },
+        { id: 'lz', label: { es: 'Lazo PI + FDV', en: 'PI loop + FDV' }, sub: { es: 'válvula de desvío', en: 'diversion valve' }, col: 1, row: 0, tone: 'magenta' },
+        { id: 'sc', label: 'SCADA', sub: { es: 'sinóptico · alarmas', en: 'mimic · alarms' }, col: 2, row: 0 },
+        { id: 'bi', label: { es: 'Bitácora', en: 'Audit log' }, sub: { es: 'hash encadenado', en: 'chained hash' }, col: 3, row: 0, tone: 'amber' },
+      ],
+      edges: [
+        { from: 'pr', to: 'lz', label: '°C' },
+        { from: 'lz', to: 'sc', label: { es: 'estado', en: 'state' } },
+        { from: 'sc', to: 'bi', label: { es: 'registro', en: 'record' } },
+        { from: 'sc', to: 'lz', loop: true, dashed: true, label: { es: 'consignas con permiso', en: 'setpoints with permission' } },
+      ],
+    },
+    {
+      kind: 'graph',
+      placement: 'decisions',
+      title: { es: 'El camino de una acción', en: 'The path of an action' },
+      caption: {
+        es: 'Una acción debe superar cuatro controles en orden. Si falla alguno, no se ejecuta, pero el intento igual queda en la bitácora.',
+        en: 'An action must pass four checks in order. If any fails, it does not run, but the attempt is still recorded in the log.',
+      },
+      nodes: [
+        { id: 'ses', label: { es: 'Sesión', en: 'Session' }, sub: { es: 'rol activo', en: 'active role' }, col: 0, row: 0 },
+        { id: 'per', label: { es: 'Permiso', en: 'Permission' }, sub: { es: '8 acciones', en: '8 actions' }, col: 1, row: 0, tone: 'amber' },
+        { id: 'ran', label: { es: 'Rango', en: 'Range' }, sub: { es: 'según el rol', en: 'per role' }, col: 2, row: 0, tone: 'amber' },
+        { id: 'eje', label: { es: 'Ejecución', en: 'Execution' }, col: 3, row: 0, tone: 'emerald' },
+        { id: 'bit', label: { es: 'Bitácora', en: 'Audit log' }, col: 4, row: 0 },
+        { id: 'den', label: { es: 'Denegada', en: 'Denied' }, sub: { es: 'queda registrada', en: 'is recorded' }, col: 2, row: 1, tone: 'magenta' },
+      ],
+      edges: [
+        { from: 'ses', to: 'per', label: { es: 'ok', en: 'ok' } },
+        { from: 'per', to: 'ran', label: { es: 'ok', en: 'ok' } },
+        { from: 'ran', to: 'eje', label: { es: 'ok', en: 'ok' } },
+        { from: 'eje', to: 'bit' },
+        { from: 'per', to: 'den', v: true, label: { es: 'sin permiso', en: 'no permission' }, tone: 'magenta' },
+        { from: 'ran', to: 'den', label: { es: 'fuera de rango', en: 'out of range' }, tone: 'magenta' },
+        { from: 'den', to: 'bit', tone: 'magenta' },
+      ],
+    },
+  ],
+}

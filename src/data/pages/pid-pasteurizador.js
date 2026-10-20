@@ -34,11 +34,11 @@ export default {
       { t: 'Ruido determinista', d: 'El ruido de medición usa una semilla fija: cada comparación es reproducible y las pruebas automáticas pueden afirmar resultados exactos.' },
     ],
     tour: [
-      'Deja el modelo exacto y compara las cuatro sintonías: lambda no sobrepasa la consigna (0 %), mientras Ziegler-Nichols PI sobrepasa cerca de 8,5 %.',
-      'Activa el error de modelo (θ +50 %, K +30 %): Ziegler-Nichols y Cohen-Coon dejan de asentarse; lambda sigue estable y se asienta en unos 172 s.',
-      'Haz un escalón grande, de 40 a 110 °C, que sature la válvula, y alterna el anti-windup: sin él, el sobreimpulso es 14,2 % y el asentamiento 836 s; con él, 0 % y 199 s.',
-      'Sube el ruido de medición y baja el límite del actuador para ver cómo cambian la salida y las métricas.',
-      'Mira la tabla de IAE e ITAE: el método con menor sobreimpulso no siempre es el de menor error acumulado.',
+      'Con el escenario «Escalón 40→72 °C» y el modelo exacto, cambia el «Método de sintonía» y compara: lambda no sobrepasa la consigna (0 %), mientras Ziegler-Nichols PI sobrepasa cerca de 8,5 %.',
+      'Sube «Error de modelo: θ real» a +50 % y «Error de modelo: K real» a +30 %: Ziegler-Nichols y Cohen-Coon dejan de asentarse; lambda sigue estable y se asienta en unos 172 s.',
+      'Elige el escenario «Escalón grande 40→110 °C (satura)» y alterna la casilla de anti-windup: sin él, el sobreimpulso es 14,2 % y el asentamiento 836 s; con él, 0 % y 199 s.',
+      'Sube el «Ruido de medición» y baja el «Límite superior del actuador» para ver cómo cambian la salida y las métricas.',
+      'Mira la tabla «Comparación de sintonías»: el método con menor sobreimpulso no siempre es el de menor error acumulado (IAE e ITAE).',
     ],
     verified: [
       'La planta alcanza Tamb + K·u en régimen permanente y el tiempo muerto retrasa exactamente θ segundos la respuesta.',
@@ -89,11 +89,11 @@ export default {
       { t: 'Deterministic noise', d: 'Measurement noise uses a fixed seed: every comparison is reproducible and the automated tests can assert exact results.' },
     ],
     tour: [
-      'Leave the model exact and compare the four tunings: lambda does not overshoot the setpoint (0 %), while Ziegler-Nichols PI overshoots by about 8.5 %.',
-      'Turn on model error (θ +50 %, K +30 %): Ziegler-Nichols and Cohen-Coon stop settling; lambda stays stable and settles in about 172 s.',
-      'Make a large step, from 40 to 110 °C, that saturates the valve, and toggle the anti-windup: without it overshoot is 14.2 % and settling 836 s; with it, 0 % and 199 s.',
-      'Raise the measurement noise and lower the actuator limit to see how the output and the metrics change.',
-      'Look at the IAE and ITAE table: the method with the least overshoot is not always the one with the least accumulated error.',
+      'With the "Escalón 40→72 °C" scenario and the exact model, change the "Método de sintonía" (tuning method) and compare: lambda does not overshoot the setpoint (0 %), while Ziegler-Nichols PI overshoots by about 8.5 %.',
+      'Raise "Error de modelo: θ real" to +50 % and "Error de modelo: K real" to +30 %: Ziegler-Nichols and Cohen-Coon stop settling; lambda stays stable and settles in about 172 s.',
+      'Pick the "Escalón grande 40→110 °C (satura)" scenario and toggle the anti-windup checkbox: without it overshoot is 14.2 % and settling 836 s; with it, 0 % and 199 s.',
+      'Raise the "Ruido de medición" (measurement noise) and lower the "Límite superior del actuador" (actuator upper limit) to see how the output and the metrics change.',
+      'Look at the "Comparación de sintonías" table: the method with the least overshoot is not always the one with the least accumulated error (IAE and ITAE).',
     ],
     verified: [
       'The plant reaches Tamb + K·u at steady state and the dead time delays the response by exactly θ seconds.',

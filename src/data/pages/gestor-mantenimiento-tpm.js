@@ -1,0 +1,150 @@
+export default {
+  status: { es: 'Funcional en el navegador con datos sintéticos (se guarda en el navegador)', en: 'Working in the browser with synthetic data (saved in the browser)' },
+  related: ['oee-modbus', 'gemelo-digital-envasado', 'vibracion-predictivo'],
+  es: {
+    lead: 'Una aplicación de mantenimiento (CMMS / TPM) con equipos y criticidad, plan preventivo, órdenes de trabajo con ciclo de vida validado, repuestos con clasificación ABC y un tablero de KPI. Se guarda en el navegador y viene con datos sintéticos de 180 días.',
+    context: [
+      'El mantenimiento de una planta se gestiona con muchos datos sueltos (fallas, horas, repuestos, planes) y se decide por intuición: qué equipo es crítico, cuánto del trabajo es planificado, qué causa concentra las paradas, qué repuesto conviene tener en bodega.',
+      'Con indicadores claros se pasa de apagar incendios a planificar: se ve dónde se pierden las horas de parada, se prioriza el preventivo en los equipos críticos y se compra lo que se está acabando antes de que una falla deje la línea detenida.',
+    ],
+    how: [
+      { t: 'Equipos y criticidad', d: 'Cada equipo tiene una criticidad = frecuencia de falla × la mayor consecuencia (producción, seguridad, calidad o costo). Una matriz la clasifica en A, B o C.' },
+      { t: 'Plan preventivo', d: 'Cada plan tiene una fecha de vencimiento. Un botón genera las órdenes de trabajo de los planes vencidos y próximos.' },
+      { t: 'Órdenes de trabajo con ciclo de vida', d: 'Una orden pasa por abierta, asignada, en curso y cerrada, y el sistema rechaza los saltos de etapa, los términos anteriores al inicio, las paradas negativas, las correctivas sin código de falla y los repuestos sin stock.' },
+      { t: 'Cerrar una preventiva reinicia el plan', d: 'Al cerrar una orden preventiva, la fecha del próximo vencimiento de su plan se recalcula desde ese cierre.' },
+      { t: 'KPI', d: 'El tablero calcula MTBF, MTTR y disponibilidad por equipo, el porcentaje de trabajo planificado, el cumplimiento del plan con 2 días de tolerancia, el Pareto de causas con sus pocos vitales y el ranking de peores actores.' },
+      { t: 'Repuestos', d: 'Los repuestos se clasifican en ABC por valor de consumo anual y generan sugerencias de compra; hay un botón para recibir la compra y reponer hasta el máximo.' },
+      { t: 'Todo en el navegador', d: 'Los datos se guardan en el almacenamiento del navegador. Se generaron con una semilla: 12 equipos, 16 planes, 14 repuestos y 247 órdenes de 180 días.' },
+    ],
+    concepts: [
+      { t: 'CMMS', d: 'Sistema computarizado de gestión del mantenimiento: equipos, órdenes, planes y repuestos en un solo lugar.' },
+      { t: 'TPM', d: 'Mantenimiento productivo total: mantenimiento planificado más cuidado diario por el propio operador, para mejorar la disponibilidad de los equipos.' },
+      { t: 'Criticidad A/B/C', d: 'Clasificación de equipos según cuánto duele que fallen. Define dónde se justifica el preventivo y dónde basta reparar al fallar.' },
+      { t: 'Pareto y «pocos vitales»', d: 'Pocas causas explican la mayor parte de las paradas. Atacar esas es lo más rentable.' },
+      { t: 'ABC de repuestos', d: 'Los pocos repuestos de mayor valor de consumo (A) merecen más control que los muchos de poco valor (C).' },
+    ],
+    decisions: [
+      { t: 'Validar las órdenes', d: 'Las reglas del ciclo de vida hacen que los datos sean confiables: una correctiva sin código de falla ensucia el Pareto; una parada negativa arruina el MTTR.' },
+      { t: 'Datos sintéticos con semilla', d: 'Permiten una demostración repetible y probar las fórmulas con un caso conocido, sin exponer datos de ninguna planta.' },
+      { t: 'KPI con definiciones claras', d: 'El trabajo planificado, el cumplimiento del plan con tolerancia de 2 días y la disponibilidad se definen explícitamente, para que dos personas obtengan el mismo número.' },
+      { t: 'Que el repuesto sin stock bloquee la orden', d: 'No tiene sentido cerrar una orden con un repuesto que, según el inventario, no existe.' },
+    ],
+    tour: [
+      'Empieza en la pestaña «Tablero»: cambia el periodo (30, 90 o 180 días) y mira el Pareto de causas, los peores actores y el MTBF, MTTR y disponibilidad por equipo.',
+      'En «Equipos y criticidad», revisa la matriz y qué equipos salen A, B y C.',
+      'En «Plan preventivo», pulsa «Generar órdenes de los vencidos y próximos» y luego ve a «Órdenes de trabajo» para verlas.',
+      'En «Órdenes de trabajo», crea una orden con «Crear» y avánzala con «Asignar», «Iniciar» y «Cerrar…»; prueba saltarte una etapa o cerrar una correctiva sin código de falla.',
+      'En «Repuestos», mira la clasificación ABC y las sugerencias de compra, y pulsa «Recibir la compra».',
+      'Usa «+1 día» y «+7 días» para avanzar el tiempo, y «Restablecer datos» para volver a los datos de ejemplo.',
+    ],
+    verified: [
+      'Caso hecho a mano: 3 fallas de 60, 120 y 30 minutos en 600 horas dan un MTBF de 198,8 h y un MTTR de 1,33 h.',
+      '15 pruebas: fórmulas, reglas del ciclo de vida y coherencia de los KPI con los datos de ejemplo.',
+      '247 órdenes de ejemplo analizadas (12 equipos, 16 planes, 14 repuestos).',
+    ],
+    limits: [
+      'Los datos son sintéticos y se guardan solo en el navegador: no hay servidor, usuarios ni sincronización entre equipos.',
+      'No se integra con un sistema de planta ni con el PLC; las órdenes y las fallas se ingresan a mano.',
+      'Los KPI valen lo que valga el dato ingresado: una causa mal codificada sesga el Pareto.',
+    ],
+    next: [
+      'Conectar las fallas al proyecto de OEE para que los paros generen órdenes automáticamente.',
+      'Agregar usuarios y un servidor para compartir los datos entre varios equipos.',
+    ],
+  },
+  en: {
+    lead: 'A maintenance application (CMMS / TPM) with equipment and criticality, a preventive plan, work orders with a validated life cycle, spare parts with ABC classification and a KPI dashboard. It is saved in the browser and ships with 180 days of synthetic data.',
+    context: [
+      'A plant’s maintenance is managed with lots of loose data (failures, hours, spares, plans) and decided by intuition: which equipment is critical, how much of the work is planned, which cause concentrates the stops, which spare to keep in store.',
+      'With clear indicators you move from firefighting to planning: you see where downtime hours are lost, prioritise preventive work on critical equipment and buy what is running out before a failure leaves the line stopped.',
+    ],
+    how: [
+      { t: 'Equipment and criticality', d: 'Each machine has a criticality = failure frequency × the greatest consequence (production, safety, quality or cost). A matrix classifies it as A, B or C.' },
+      { t: 'Preventive plan', d: 'Each plan has a due date. A button generates the work orders for overdue and upcoming plans.' },
+      { t: 'Work orders with a life cycle', d: 'An order goes through open, assigned, in progress and closed, and the system rejects stage skips, end times before the start, negative stoppages, corrective orders without a failure code and spares out of stock.' },
+      { t: 'Closing a preventive resets the plan', d: 'When a preventive order is closed, the plan’s next due date is recomputed from that closing.' },
+      { t: 'KPIs', d: 'The dashboard computes MTBF, MTTR and availability per machine, the percentage of planned work, plan compliance with a 2-day tolerance, the cause Pareto with its vital few and the worst-actor ranking.' },
+      { t: 'Spares', d: 'Spares are classified ABC by annual consumption value and generate purchase suggestions; a button receives the purchase and restocks to the maximum.' },
+      { t: 'All in the browser', d: 'Data is stored in the browser’s storage. It was generated with a seed: 12 machines, 16 plans, 14 spares and 247 orders over 180 days.' },
+    ],
+    concepts: [
+      { t: 'CMMS', d: 'Computerised maintenance management system: equipment, orders, plans and spares in one place.' },
+      { t: 'TPM', d: 'Total productive maintenance: planned maintenance plus daily care by the operator, to improve equipment availability.' },
+      { t: 'A/B/C criticality', d: 'A classification of equipment by how much it hurts when it fails. It sets where preventive work is justified and where repairing on failure is enough.' },
+      { t: 'Pareto and the "vital few"', d: 'A few causes explain most of the stops. Tackling those is the most profitable.' },
+      { t: 'Spares ABC', d: 'The few spares with the highest consumption value (A) deserve more control than the many low-value ones (C).' },
+    ],
+    decisions: [
+      { t: 'Validate the orders', d: 'Life-cycle rules make the data trustworthy: a corrective without a failure code pollutes the Pareto; a negative stoppage ruins the MTTR.' },
+      { t: 'Seeded synthetic data', d: 'It allows a repeatable demo and testing formulas against a known case, without exposing any plant’s data.' },
+      { t: 'KPIs with clear definitions', d: 'Planned work, plan compliance with a 2-day tolerance and availability are defined explicitly, so two people get the same number.' },
+      { t: 'Let an out-of-stock spare block the order', d: 'There is no point closing an order with a spare that, according to inventory, does not exist.' },
+    ],
+    tour: [
+      'Start in the "Tablero" (dashboard) tab: change the period (30, 90 or 180 days) and look at the cause Pareto, worst actors and MTBF, MTTR and availability per machine.',
+      'In "Equipos y criticidad" (equipment and criticality), review the matrix and which machines come out A, B and C.',
+      'In "Plan preventivo" (preventive plan), press "Generar órdenes de los vencidos y próximos" (generate orders for overdue and upcoming) and then go to "Órdenes de trabajo" to see them.',
+      'In "Órdenes de trabajo" (work orders), create an order with "Crear" and advance it with "Asignar", "Iniciar" and "Cerrar…"; try skipping a stage or closing a corrective without a failure code.',
+      'In "Repuestos" (spares), look at the ABC classification and purchase suggestions, and press "Recibir la compra" (receive the purchase).',
+      'Use "+1 día" and "+7 días" to advance time, and "Restablecer datos" (reset data) to go back to the sample data.',
+    ],
+    verified: [
+      'Hand-worked case: 3 failures of 60, 120 and 30 minutes over 600 hours give an MTBF of 198.8 h and an MTTR of 1.33 h.',
+      '15 tests: formulas, life-cycle rules and KPI consistency with the sample data.',
+      '247 sample orders analysed (12 machines, 16 plans, 14 spares).',
+    ],
+    limits: [
+      'The data is synthetic and stored only in the browser: there is no server, users or syncing between computers.',
+      'It does not integrate with a plant system or the PLC; orders and failures are entered by hand.',
+      'KPIs are only as good as the data entered: a wrongly coded cause biases the Pareto.',
+    ],
+    next: [
+      'Connect failures to the OEE project so stoppages generate orders automatically.',
+      'Add users and a server to share data across several computers.',
+    ],
+  },
+  diagrams: [
+    {
+      kind: 'graph',
+      placement: 'how-top',
+      title: { es: 'Del equipo al indicador', en: 'From equipment to indicator' },
+      caption: {
+        es: 'La criticidad decide dónde se justifica el preventivo; el plan genera órdenes; las órdenes cerradas alimentan los KPI, y los KPI vuelven a decir qué priorizar.',
+        en: 'Criticality decides where preventive work is justified; the plan generates orders; closed orders feed the KPIs, and the KPIs say again what to prioritise.',
+      },
+      nodes: [
+        { id: 'eq', label: { es: 'Equipos', en: 'Equipment' }, sub: { es: 'criticidad A · B · C', en: 'criticality A · B · C' }, col: 0, row: 0 },
+        { id: 'pl', label: { es: 'Plan preventivo', en: 'Preventive plan' }, sub: { es: 'vence · genera OT', en: 'due · creates WO' }, col: 1, row: 0, tone: 'amber' },
+        { id: 'ot', label: { es: 'Órdenes de trabajo', en: 'Work orders' }, sub: { es: 'abierta → cerrada', en: 'open → closed' }, col: 2, row: 0, tone: 'magenta' },
+        { id: 'kp', label: 'KPI', sub: 'MTBF · MTTR · Pareto', col: 3, row: 0, tone: 'emerald' },
+      ],
+      edges: [
+        { from: 'eq', to: 'pl' },
+        { from: 'pl', to: 'ot', label: 'OT' },
+        { from: 'ot', to: 'kp' },
+        { from: 'kp', to: 'eq', loop: true, dashed: true, label: { es: 'priorizar', en: 'prioritise' } },
+      ],
+    },
+    {
+      kind: 'graph',
+      placement: 'concepts',
+      title: { es: 'El ciclo de vida de una orden', en: 'A work order’s life cycle' },
+      caption: {
+        es: 'No se puede saltar una etapa. Al cerrar una orden preventiva, la fecha del próximo vencimiento de su plan se recalcula.',
+        en: 'A stage cannot be skipped. When a preventive order is closed, its plan’s next due date is recomputed.',
+      },
+      nodes: [
+        { id: 'ab', label: { es: 'Abierta', en: 'Open' }, col: 0, row: 0 },
+        { id: 'as', label: { es: 'Asignada', en: 'Assigned' }, col: 1, row: 0 },
+        { id: 'en', label: { es: 'En curso', en: 'In progress' }, col: 2, row: 0, tone: 'amber' },
+        { id: 'ce', label: { es: 'Cerrada', en: 'Closed' }, sub: { es: 'con validaciones', en: 'with validations' }, col: 3, row: 0, tone: 'emerald' },
+      ],
+      edges: [
+        { from: 'ab', to: 'as', label: { es: 'asignar', en: 'assign' } },
+        { from: 'as', to: 'en', label: { es: 'iniciar', en: 'start' } },
+        { from: 'en', to: 'ce', label: { es: 'cerrar', en: 'close' } },
+        { from: 'ce', to: 'ab', loopTop: true, dashed: true, label: { es: 'preventiva: reinicia el plan', en: 'preventive: resets the plan' } },
+      ],
+    },
+  ],
+}

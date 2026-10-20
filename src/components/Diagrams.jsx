@@ -112,8 +112,8 @@ function GraphDiagram({ diagram }) {
     <div className="overflow-x-auto">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-auto w-full"
-        style={{ minWidth: Math.min(width, Math.round(width * 0.8)) }}
+        className="mx-auto h-auto w-full"
+        style={{ minWidth: Math.round(width * 0.8), maxWidth: Math.round(width * 1.2) }}
         role="img"
         aria-label={label}
       >

@@ -1,0 +1,152 @@
+export default {
+  status: { es: 'Simulado: intérprete propio de Ladder en el navegador', en: 'Simulated: own Ladder interpreter in the browser' },
+  related: ['linea-envasado-grafcet', 'gemelo-digital-envasado', 'simulador-logica-digital'],
+  es: {
+    lead: 'Un intérprete de lógica Ladder en el navegador: se escribe la escalera en texto, se ve el flujo de energía peldaño a peldaño, se ejecuta con el ciclo de scan de un PLC, se grafica el diagrama de tiempos y se obtiene el equivalente en Texto Estructurado IEC 61131-3.',
+    context: [
+      'La lógica de un PLC no se lee como un programa normal: se ejecuta en ciclos de scan, un peldaño ve el valor nuevo de los de arriba y el viejo de los de abajo, y los temporizadores y contadores tienen reglas propias. Entender eso en papel es difícil, y depurarlo en un PLC real exige hardware.',
+      'Los errores de lógica en una línea de producción (un sello mal hecho, un temporizador que se reinicia, un contador que cuenta tiempo en vez de flancos) detienen máquinas. Verlos en un simulador antes de descargar el programa ahorra paros.',
+    ],
+    how: [
+      { t: 'Ladder como texto', d: 'La escalera se escribe un peldaño por línea. Eso permite editarla rápido y, sobre todo, compilarla y reportar errores con el número de línea.' },
+      { t: 'Compilador de 19 instrucciones', d: 'Contactos, bobinas con retención, TON, TOF, CTU, RES, ONS, comparaciones, MOV, ADD y SUB, con ramas en paralelo anidadas.' },
+      { t: 'El ciclo de scan', d: 'Cada ciclo lee las entradas, resuelve los peldaños de arriba hacia abajo y escribe las salidas. El tiempo de ciclo es configurable (5, 10, 50 o 100 ms).' },
+      { t: 'La escalera con flujo de energía', d: 'La demo dibuja la escalera y marca en verde dónde hay «flujo de energía», es decir, qué contactos están cerrados y qué bobinas se activan.' },
+      { t: 'Temporizadores, contadores y tiempos', d: 'Se muestra el acumulado de cada temporizador y contador, y un diagrama de tiempos con la evolución de entradas y salidas.' },
+      { t: 'Traducción a Texto Estructurado', d: 'El mismo programa se traduce a Texto Estructurado con sus declaraciones; por ejemplo, un sello se vuelve motor := (marcha OR motor) AND NOT paro;.' },
+    ],
+    concepts: [
+      { t: 'Ladder (LD)', d: 'Lenguaje gráfico de PLC heredado de los diagramas de relés: contactos a la izquierda, bobinas a la derecha, energía que fluye de un riel al otro.' },
+      { t: 'Ciclo de scan', d: 'Un peldaño ve el valor nuevo de lo que se calculó arriba en el mismo ciclo, y el valor del ciclo anterior de lo que se calculará abajo. De ahí el «retardo de un scan entre peldaños».' },
+      { t: 'Sello con paro dominante', d: 'Circuito de autorretención donde el botón de marcha activa una bobina que se mantiene a sí misma; el paro tiene prioridad y la apaga.' },
+      { t: 'TON, TOF, CTU', d: 'Temporizador a la conexión, temporizador a la desconexión y contador ascendente. Un TON activa su bit DN cuando se cumple el tiempo.' },
+      { t: 'Flanco (ONS)', d: 'Detecta solo el cambio de una señal, de modo que una acción ocurra una vez por pulsación y no mientras se mantenga pulsada.' },
+    ],
+    decisions: [
+      { t: 'Ladder en texto', d: 'Programar con el ratón es lento; un texto se escribe, se guarda y se compila con mensajes de error con línea. La escalera dibujada es el resultado, no la entrada.' },
+      { t: 'Copiar el orden de ejecución de un PLC', d: 'El simulador respeta el orden de arriba hacia abajo y el retardo de un scan, aunque eso sorprenda a quien viene de la programación normal.' },
+      { t: 'Verificar con casos de manual', d: 'Un sello, un TON que activa DN en el scan exacto, un contador que cuenta flancos y no tiempo: los casos clásicos están cubiertos por pruebas.' },
+      { t: 'Mostrar el equivalente en ST', d: 'Ver la misma lógica en Texto Estructurado ayuda a entender qué hace cada peldaño y a pasar de un lenguaje a otro.' },
+    ],
+    tour: [
+      'Carga uno de los programas de ejemplo con los botones de ejemplos y pulsa «pulsar» en una entrada para ver el flujo de energía en la escalera.',
+      'Prueba el sello: activa la marcha, suéltala y mira cómo la salida se mantiene; luego activa el paro.',
+      'Mira el diagrama de tiempos de la luz intermitente (50 % de ciclo útil) y del semáforo de 5 s, 2 s y 3 s.',
+      'Usa «Un scan» para avanzar ciclo a ciclo y ver el retardo de un scan entre peldaños.',
+      'Cambia el tiempo de ciclo y mira cómo cambia la resolución de los temporizadores.',
+      'Provoca un error de sintaxis en el programa y lee el mensaje con número de línea; revisa el «Equivalente en Texto Estructurado».',
+    ],
+    verified: [
+      '17 pruebas: sello con paro dominante, TON que activa DN en el scan exacto, retardo de un scan entre peldaños y contador que cuenta flancos y no tiempo.',
+      'Una luz intermitente con 50 % de ciclo útil y un semáforo de 5 s, 2 s y 3 s con error menor a 30 ms.',
+      'Una histéresis de nivel que mantiene el tanque entre 28 % y 83 % con una planta simulada.',
+      '19 instrucciones soportadas y 6 programas de ejemplo.',
+    ],
+    limits: [
+      'No es el firmware de ningún PLC: es un intérprete propio, con las 19 instrucciones indicadas y su sintaxis de texto.',
+      'No implementa bloques de función de fabricante, comunicaciones ni E/S reales.',
+      'La traducción a ST cubre las instrucciones soportadas; no es un compilador de ST completo.',
+    ],
+    next: [
+      'Agregar bloques de función definidos por el usuario y llamadas entre ellos.',
+      'Conectar el intérprete con la línea de envasado simulada para probar una secuencia completa en Ladder.',
+    ],
+  },
+  en: {
+    lead: 'A Ladder logic interpreter in the browser: the ladder is written as text, energy flow is seen rung by rung, it runs with a PLC scan cycle, a timing diagram is plotted and the IEC 61131-3 Structured Text equivalent is produced.',
+    context: [
+      'PLC logic does not read like a normal program: it runs in scan cycles, a rung sees the new value of the rungs above and the old value of those below, and timers and counters have their own rules. Understanding that on paper is hard, and debugging it on a real PLC needs hardware.',
+      'Logic errors on a production line (a badly made seal-in, a timer that resets, a counter that counts time instead of edges) stop machines. Seeing them in a simulator before downloading the program saves stops.',
+    ],
+    how: [
+      { t: 'Ladder as text', d: 'The ladder is written one rung per line. That allows editing it quickly and, above all, compiling it and reporting errors with the line number.' },
+      { t: 'A 19-instruction compiler', d: 'Contacts, latching coils, TON, TOF, CTU, RES, ONS, comparisons, MOV, ADD and SUB, with nested parallel branches.' },
+      { t: 'The scan cycle', d: 'Each cycle reads inputs, solves the rungs from top to bottom and writes the outputs. Cycle time is configurable (5, 10, 50 or 100 ms).' },
+      { t: 'The ladder with energy flow', d: 'The demo draws the ladder and marks in green where there is "energy flow", that is, which contacts are closed and which coils activate.' },
+      { t: 'Timers, counters and timing', d: 'Each timer’s and counter’s accumulated value is shown, and a timing diagram with the evolution of inputs and outputs.' },
+      { t: 'Translation to Structured Text', d: 'The same program is translated to Structured Text with its declarations; for example, a seal-in becomes motor := (marcha OR motor) AND NOT paro;.' },
+    ],
+    concepts: [
+      { t: 'Ladder (LD)', d: 'A graphical PLC language inherited from relay diagrams: contacts on the left, coils on the right, energy flowing from one rail to the other.' },
+      { t: 'Scan cycle', d: 'A rung sees the new value of what was computed above in the same cycle, and the previous cycle’s value of what will be computed below. Hence the "one-scan delay between rungs".' },
+      { t: 'Seal-in with dominant stop', d: 'A self-holding circuit where the start button activates a coil that holds itself; the stop takes priority and turns it off.' },
+      { t: 'TON, TOF, CTU', d: 'On-delay timer, off-delay timer and up counter. A TON activates its DN bit when the time is reached.' },
+      { t: 'Edge (ONS)', d: 'Detects only a signal’s change, so that an action happens once per press and not while it is held.' },
+    ],
+    decisions: [
+      { t: 'Ladder in text', d: 'Programming with the mouse is slow; text is written, saved and compiled with error messages carrying a line. The drawn ladder is the result, not the input.' },
+      { t: 'Copy a PLC’s execution order', d: 'The simulator respects top-to-bottom order and the one-scan delay, even if that surprises someone coming from ordinary programming.' },
+      { t: 'Verify with textbook cases', d: 'A seal-in, a TON that activates DN on the exact scan, a counter that counts edges rather than time: the classic cases are covered by tests.' },
+      { t: 'Show the ST equivalent', d: 'Seeing the same logic in Structured Text helps understand what each rung does and move from one language to the other.' },
+    ],
+    tour: [
+      'Load one of the example programs with the example buttons and press "pulsar" (press) on an input to see energy flow in the ladder.',
+      'Try the seal-in: activate start, release it and watch the output hold; then activate the stop.',
+      'Look at the timing diagram of the flashing light (50 % duty cycle) and the 5 s, 2 s and 3 s traffic light.',
+      'Use "Un scan" (one scan) to step cycle by cycle and see the one-scan delay between rungs.',
+      'Change the cycle time and see how the timers’ resolution changes.',
+      'Cause a syntax error in the program and read the message with a line number; review the "Equivalente en Texto Estructurado" (Structured Text equivalent).',
+    ],
+    verified: [
+      '17 tests: seal-in with dominant stop, TON activating DN on the exact scan, one-scan delay between rungs and a counter that counts edges rather than time.',
+      'A flashing light with 50 % duty cycle and a 5 s, 2 s and 3 s traffic light with error under 30 ms.',
+      'A level hysteresis that keeps the tank between 28 % and 83 % with a simulated plant.',
+      '19 supported instructions and 6 example programs.',
+    ],
+    limits: [
+      'It is not any PLC’s firmware: it is an own interpreter, with the 19 listed instructions and its text syntax.',
+      'It does not implement vendor function blocks, communications or real I/O.',
+      'The ST translation covers the supported instructions; it is not a full ST compiler.',
+    ],
+    next: [
+      'Add user-defined function blocks and calls between them.',
+      'Connect the interpreter to the simulated packaging line to test a full sequence in Ladder.',
+    ],
+  },
+  diagrams: [
+    {
+      kind: 'graph',
+      placement: 'how-top',
+      title: { es: 'Del texto a las vistas', en: 'From text to views' },
+      caption: {
+        es: 'El texto se compila una vez; el ciclo de scan lo ejecuta una y otra vez. Cada vista (escalera, tiempos, ST) sale del mismo programa compilado.',
+        en: 'The text is compiled once; the scan cycle runs it over and over. Each view (ladder, timing, ST) comes from the same compiled program.',
+      },
+      nodes: [
+        { id: 'txt', label: { es: 'Texto Ladder', en: 'Ladder text' }, sub: { es: 'un peldaño por línea', en: 'one rung per line' }, col: 0, row: 0 },
+        { id: 'cmp', label: { es: 'Compilador', en: 'Compiler' }, sub: { es: 'errores con línea', en: 'errors with line' }, col: 1, row: 0, tone: 'magenta' },
+        { id: 'scn', label: { es: 'Ciclo de scan', en: 'Scan cycle' }, sub: { es: 'entradas · peldaños', en: 'inputs · rungs' }, col: 2, row: 0, tone: 'emerald' },
+        { id: 'vis', label: { es: 'Vistas', en: 'Views' }, sub: { es: 'escalera · tiempos · ST', en: 'ladder · timing · ST' }, col: 3, row: 0 },
+      ],
+      edges: [
+        { from: 'txt', to: 'cmp' },
+        { from: 'cmp', to: 'scn', label: { es: 'programa', en: 'program' } },
+        { from: 'scn', to: 'vis' },
+        { from: 'vis', to: 'txt', loop: true, dashed: true, label: { es: 'editar y repetir', en: 'edit and repeat' } },
+      ],
+    },
+    {
+      kind: 'graph',
+      placement: 'concepts',
+      title: { es: 'Un scan, peldaño por peldaño', en: 'One scan, rung by rung' },
+      caption: {
+        es: 'Dentro de un scan las salidas no cambian hasta el final. Un peldaño ve ya el resultado de los de arriba, pero de los de abajo ve el valor del scan anterior.',
+        en: 'Within a scan the outputs do not change until the end. A rung already sees the result of those above it, but of those below it sees the previous scan’s value.',
+      },
+      nodes: [
+        { id: 'in', label: { es: 'Leer entradas', en: 'Read inputs' }, col: 0, row: 0 },
+        { id: 'p1', label: { es: 'Peldaño 1', en: 'Rung 1' }, sub: { es: 'arriba', en: 'top' }, col: 1, row: 0, tone: 'magenta' },
+        { id: 'p2', label: { es: 'Peldaño 2', en: 'Rung 2' }, sub: { es: 've el nuevo del 1', en: 'sees the new rung 1' }, col: 2, row: 0, tone: 'magenta' },
+        { id: 'pn', label: { es: 'Peldaño N', en: 'Rung N' }, sub: { es: 'abajo', en: 'bottom' }, col: 3, row: 0, tone: 'magenta' },
+        { id: 'out', label: { es: 'Escribir salidas', en: 'Write outputs' }, col: 4, row: 0, tone: 'emerald' },
+      ],
+      edges: [
+        { from: 'in', to: 'p1' },
+        { from: 'p1', to: 'p2' },
+        { from: 'p2', to: 'pn' },
+        { from: 'pn', to: 'out' },
+        { from: 'out', to: 'in', loop: true, dashed: true, label: { es: 'siguiente scan', en: 'next scan' } },
+      ],
+    },
+  ],
+}

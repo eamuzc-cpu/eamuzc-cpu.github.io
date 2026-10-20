@@ -1,0 +1,130 @@
+export default {
+  status: { es: 'Demo interactiva en el navegador (un solo archivo HTML)', en: 'Interactive browser demo (a single HTML file)' },
+  related: ['filtros-imagen-canny', 'ethereal-jewelry', 'visor-gerber-pcb'],
+  es: {
+    lead: 'Un explorador de 15 sistemas fractales que corre en una sola página del navegador: la ecuación cambia en vivo mientras se mueve un parámetro, con 8 paletas, 12 semillas famosas, zoom hacia el cursor y un modo evolución. No hay nada que instalar.',
+    context: [
+      'Los fractales del plano complejo exigen cientos de iteraciones por cada píxel de la pantalla, y hacerlo en tiempo real parece reservado a programas de escritorio. Además, los fractales no son una sola familia: hay conjuntos del plano complejo, atractores caóticos, curvas recursivas y sistemas de funciones iteradas, y cada uno se calcula de una forma distinta.',
+      'El reto era reunir todo eso bajo una sola interfaz de parámetros y color, en un archivo que se abra con un doble clic. Ver cambiar la ecuación y la imagen al mismo tiempo mientras se mueve un parámetro hace tangibles la dinámica compleja y el caos.',
+    ],
+    how: [
+      { t: 'Cada sistema declara sus parámetros', d: 'En lugar de programar una pantalla por fractal, cada sistema describe qué parámetros tiene (nombre, rango, valor inicial). La interfaz genera sola los deslizadores y la ecuación con los valores actuales.' },
+      { t: 'Siete sistemas en la GPU', d: 'Mandelbrot y Multibrot, Julia, Burning Ship, Phoenix, Newton-Raphson, Tricornio y Celtic, y una ecuación híbrida se calculan como shaders GLSL con WebGL. Cada píxel itera su propia fórmula en paralelo hasta que «escapa» o se agota el número de iteraciones.' },
+      { t: 'Ocho sistemas en Canvas 2D', d: 'El árbol recursivo, los atractores de Clifford y de Peter de Jong, el copo de Koch/Cesàro, la curva del dragón, el helecho de Barnsley, Sierpinski y las espirales de polígonos se dibujan puntos y líneas en un Canvas 2D, porque no calculan «un valor por píxel» sino una trayectoria o una construcción.' },
+      { t: 'Color procedural', d: 'El color se calcula a partir del número de iteraciones con una de 8 paletas procedurales; se controlan su frecuencia, fase, brillo y resplandor, así que una paleta se vuelve cientos de variantes.' },
+      { t: 'Navegar la imagen', d: 'La rueda hace zoom hacia el cursor (el punto bajo el ratón queda fijo) y arrastrar desplaza la vista.' },
+      { t: 'Modos que mueven los parámetros', d: 'Un modo mueve la semilla de Julia con el ratón; el modo evolución oscila los parámetros solo; la mutación aleatoria los cambia al azar. Hay captura en PNG y modo inmersivo.' },
+    ],
+    concepts: [
+      { t: 'Conjuntos de Mandelbrot y de Julia', d: 'Ambos iteran z → z² + c. En Mandelbrot se fija el punto inicial y se varía c; en Julia, c es fijo y se varía el punto inicial. De ahí la gracia de «mover la semilla de Julia con el ratón».' },
+      { t: 'Tiempo de escape', d: 'Se cuenta cuántas iteraciones tarda un punto en alejarse más allá de un radio. Ese número, suavizado, es lo que se convierte en color.' },
+      { t: 'Shader GLSL', d: 'Pequeño programa que la GPU ejecuta para cada píxel a la vez. Es lo que permite calcular cientos de iteraciones por píxel en tiempo real.' },
+      { t: 'Atractores de Clifford y Peter de Jong', d: 'Dos funciones simples de seno y coseno que se aplican una y otra vez a un punto; los miles de puntos que resultan dibujan una figura caótica pero estable.' },
+      { t: 'Sistema de funciones iteradas (IFS)', d: 'Un conjunto de transformaciones que se aplican al azar a un punto; el helecho de Barnsley y el triángulo de Sierpinski salen así.' },
+      { t: 'Fractal de Newton', d: 'Colorea cada punto según a qué raíz de un polinomio converge el método de Newton, lo que produce fronteras con detalle infinito.' },
+    ],
+    decisions: [
+      { t: 'GPU para lo que es «un valor por píxel»', d: 'Los sistemas del plano complejo son pesados pero idénticos píxel a píxel, justo lo que una GPU hace bien. Dejarlos a JavaScript sería lento.' },
+      { t: 'Canvas 2D para lo que es una trayectoria', d: 'Un atractor o un helecho no tiene sentido como «valor por píxel»: se dibujan puntos. Forzarlos a un shader complicaría todo sin ganancia.' },
+      { t: 'Sistemas declarativos', d: 'Agregar un fractal nuevo es describir sus parámetros y su fórmula, no escribir otra pantalla. Por eso hay 15 sistemas en un solo archivo.' },
+      { t: 'Zoom hacia el cursor', d: 'Un zoom que se aleja del punto de interés frustra. Mantener fijo lo que está bajo el ratón hace que explorar sea natural.' },
+    ],
+    tour: [
+      'Cambia de sistema y mira cómo la ecuación mostrada se reescribe con los valores de cada deslizador.',
+      'En Mandelbrot, acércate con la rueda a la frontera del conjunto y arrastra para recorrerla.',
+      'Activa el modo que mueve la semilla de Julia con el ratón y observa cómo la forma cambia de «conexa» a «polvo».',
+      'Prueba el modo evolución y la mutación aleatoria; cuando salga algo que te guste, guárdalo con la captura PNG.',
+      'Cambia la paleta y mueve frecuencia, fase y resplandor: la misma forma se ve muy distinta.',
+      'Carga alguna de las 12 semillas famosas como punto de partida.',
+    ],
+    verified: [
+      '15 sistemas fractales, 8 paletas procedurales y 12 semillas famosas en un solo archivo.',
+      'Siete sistemas se calculan en la GPU con shaders y ocho se dibujan en Canvas 2D.',
+    ],
+    limits: [
+      'Necesita un navegador con WebGL, y por ser un archivo único carga Tailwind, las fuentes y los iconos desde CDN, por lo que sin internet puede verse sin estilos.',
+      'Como cualquier shader de precisión simple, a zooms muy profundos la imagen se pixela por el límite de la aritmética de la GPU.',
+      'Es una demostración visual y de exploración: no pretende ser una herramienta de investigación matemática.',
+    ],
+    next: [
+      'Agregar zoom profundo con aritmética de precisión extendida en los sistemas del plano complejo.',
+      'Permitir guardar y compartir la configuración (sistema, parámetros y paleta) como un enlace.',
+    ],
+  },
+  en: {
+    lead: 'An explorer of 15 fractal systems that runs on a single browser page: the equation changes live as you move a parameter, with 8 palettes, 12 famous seeds, zoom towards the cursor and an evolution mode. There is nothing to install.',
+    context: [
+      'Complex-plane fractals need hundreds of iterations for every pixel on screen, and doing that in real time seems reserved for desktop programs. Also, fractals are not one family: there are complex-plane sets, chaotic attractors, recursive curves and iterated function systems, and each is computed differently.',
+      'The challenge was to bring all of that under a single interface of parameters and colour, in a file that opens with a double-click. Watching the equation and the image change together as you move a parameter makes complex dynamics and chaos tangible.',
+    ],
+    how: [
+      { t: 'Each system declares its parameters', d: 'Instead of programming a screen per fractal, each system describes what parameters it has (name, range, initial value). The interface generates the sliders and the equation with the current values on its own.' },
+      { t: 'Seven systems on the GPU', d: 'Mandelbrot and Multibrot, Julia, Burning Ship, Phoenix, Newton-Raphson, Tricorn and Celtic, and a hybrid equation are computed as GLSL shaders with WebGL. Every pixel iterates its own formula in parallel until it "escapes" or the iteration count runs out.' },
+      { t: 'Eight systems on Canvas 2D', d: 'The recursive tree, the Clifford and Peter de Jong attractors, the Koch/Cesàro snowflake, the dragon curve, Barnsley’s fern, Sierpinski and polygon spirals draw points and lines on a 2D Canvas, because they do not compute "one value per pixel" but a trajectory or a construction.' },
+      { t: 'Procedural colour', d: 'Colour is computed from the iteration count with one of 8 procedural palettes; their frequency, phase, brightness and glow are adjustable, so one palette becomes hundreds of variants.' },
+      { t: 'Navigating the image', d: 'The wheel zooms towards the cursor (the point under the mouse stays fixed) and dragging pans the view.' },
+      { t: 'Modes that move the parameters', d: 'One mode moves the Julia seed with the mouse; evolution mode oscillates the parameters by itself; random mutation changes them at random. There is PNG capture and an immersive mode.' },
+    ],
+    concepts: [
+      { t: 'Mandelbrot and Julia sets', d: 'Both iterate z → z² + c. In Mandelbrot the starting point is fixed and c varies; in Julia, c is fixed and the starting point varies. Hence the appeal of "moving the Julia seed with the mouse".' },
+      { t: 'Escape time', d: 'It counts how many iterations a point takes to move beyond a radius. That number, smoothed, is what becomes colour.' },
+      { t: 'GLSL shader', d: 'A small program the GPU runs for every pixel at once. It is what allows hundreds of iterations per pixel in real time.' },
+      { t: 'Clifford and Peter de Jong attractors', d: 'Two simple sine-and-cosine functions applied over and over to a point; the thousands of resulting points draw a chaotic yet stable figure.' },
+      { t: 'Iterated function system (IFS)', d: 'A set of transformations applied at random to a point; Barnsley’s fern and the Sierpinski triangle come out of this.' },
+      { t: 'Newton fractal', d: 'It colours each point by which root of a polynomial Newton’s method converges to, producing boundaries with infinite detail.' },
+    ],
+    decisions: [
+      { t: 'GPU for what is "one value per pixel"', d: 'Complex-plane systems are heavy but identical pixel to pixel, exactly what a GPU does well. Leaving them to JavaScript would be slow.' },
+      { t: 'Canvas 2D for what is a trajectory', d: 'An attractor or a fern does not make sense as "one value per pixel": points are drawn. Forcing them into a shader would complicate everything for no gain.' },
+      { t: 'Declarative systems', d: 'Adding a new fractal means describing its parameters and formula, not writing another screen. That is why there are 15 systems in a single file.' },
+      { t: 'Zoom towards the cursor', d: 'A zoom that drifts away from the point of interest is frustrating. Keeping what is under the mouse fixed makes exploring natural.' },
+    ],
+    tour: [
+      'Switch system and watch the displayed equation rewrite itself with each slider’s values.',
+      'In Mandelbrot, zoom in with the wheel to the set’s boundary and drag to roam along it.',
+      'Turn on the mode that moves the Julia seed with the mouse and watch the shape change from "connected" to "dust".',
+      'Try evolution mode and random mutation; when something you like appears, keep it with the PNG capture.',
+      'Change the palette and move frequency, phase and glow: the same shape looks very different.',
+      'Load one of the 12 famous seeds as a starting point.',
+    ],
+    verified: [
+      '15 fractal systems, 8 procedural palettes and 12 famous seeds in a single file.',
+      'Seven systems are computed on the GPU with shaders and eight are drawn on Canvas 2D.',
+    ],
+    limits: [
+      'It needs a browser with WebGL, and being a single file it loads Tailwind, fonts and icons from a CDN, so without internet it may appear unstyled.',
+      'Like any single-precision shader, at very deep zooms the image pixelates because of the limit of GPU arithmetic.',
+      'It is a visual, exploratory demo: it does not aim to be a tool for mathematical research.',
+    ],
+    next: [
+      'Add deep zoom with extended-precision arithmetic for the complex-plane systems.',
+      'Allow saving and sharing the configuration (system, parameters and palette) as a link.',
+    ],
+  },
+  diagrams: [
+    {
+      kind: 'graph',
+      placement: 'how-top',
+      title: { es: 'Dos motores, una interfaz', en: 'Two engines, one interface' },
+      caption: {
+        es: 'Según la naturaleza del fractal, se calcula en la GPU (un valor por píxel) o se dibuja en Canvas 2D (una trayectoria). Ambos pasan por la misma paleta y llegan al mismo lienzo.',
+        en: 'Depending on the fractal’s nature, it is computed on the GPU (one value per pixel) or drawn on Canvas 2D (a trajectory). Both go through the same palette and reach the same canvas.',
+      },
+      nodes: [
+        { id: 'par', label: { es: 'Parámetros', en: 'Parameters' }, sub: { es: 'deslizadores · ratón', en: 'sliders · mouse' }, col: 0, row: 0 },
+        { id: 'gpu', label: 'WebGL (GLSL)', sub: { es: '7 sistemas', en: '7 systems' }, col: 1, row: 0, tone: 'magenta' },
+        { id: 'c2d', label: 'Canvas 2D', sub: { es: '8 sistemas', en: '8 systems' }, col: 1, row: 1, tone: 'amber' },
+        { id: 'pal', label: { es: 'Paleta', en: 'Palette' }, sub: { es: '8 procedurales', en: '8 procedural' }, col: 2, row: 0 },
+        { id: 'lie', label: { es: 'Lienzo', en: 'Canvas' }, sub: { es: 'ecuación en vivo', en: 'live equation' }, col: 3, row: 0, tone: 'emerald' },
+      ],
+      edges: [
+        { from: 'par', to: 'gpu' },
+        { from: 'par', to: 'c2d' },
+        { from: 'gpu', to: 'pal', label: { es: 'nº iter.', en: 'iter.' } },
+        { from: 'c2d', to: 'pal' },
+        { from: 'pal', to: 'lie' },
+        { from: 'lie', to: 'par', loopTop: true, dashed: true, label: { es: 'zoom · arrastre', en: 'zoom · drag' } },
+      ],
+    },
+  ],
+}

@@ -1,0 +1,151 @@
+export default {
+  status: { es: 'Simulado: tablas de referencia (verificar con RIC / NCh Elec. 4/2003)', en: 'Simulated: reference tables (verify against RIC / NCh Elec. 4/2003)' },
+  related: ['tablero-electrico', 'variador-vdf-motor', 'seguridad-funcional-loto'],
+  es: {
+    lead: 'Una calculadora paso a paso de un circuito de fuerza: corriente de proyecto, interruptor, sección por capacidad, caída de tensión, resistencia térmica y alcance del disparo magnético, con las curvas de disparo del interruptor frente al daño del cable.',
+    context: [
+      'Dimensionar un circuito no es elegir un cable por amperes. Hay que cumplir a la vez la capacidad de corriente, la caída de tensión, la resistencia térmica al cortocircuito y el disparo seguro ante una falla a tierra al final de la línea. Basta que falle uno para que el circuito sea inseguro o inútil.',
+      'En planta, un cable largo con el interruptor equivocado puede no disparar ante una falla a tierra, y uno subdimensionado se calienta o provoca caídas de tensión que detienen motores en el arranque. La calculadora explica cada verificación para que se entienda qué criterio manda.',
+    ],
+    how: [
+      { t: 'Corriente de proyecto', d: 'Desde la potencia, el factor de potencia y el rendimiento de la carga se calcula la corriente que circulará en servicio normal.' },
+      { t: 'Interruptor normalizado', d: 'Se elige el interruptor cuya corriente nominal cubre esa corriente de proyecto, con una curva de disparo B, C o D.' },
+      { t: 'Sección por capacidad de corriente', d: 'Se elige la sección mínima cuya capacidad, corregida por temperatura ambiente y por circuitos agrupados, supera la corriente del interruptor.' },
+      { t: 'Caída de tensión', d: 'Se verifica que la caída de tensión en servicio, y también durante el arranque del motor, quede bajo el límite configurado.' },
+      { t: 'Resistencia térmica k²S² ≥ I²t', d: 'En un cortocircuito el cable se calienta sin tiempo de disipar: la energía que deja pasar el interruptor (I²t) no debe superar la que el cable aguanta (k²S²).' },
+      { t: 'Longitud máxima por disparo magnético', d: 'En esquema TN, una falla a tierra al final de la línea debe tener una corriente suficiente para que el interruptor dispare de inmediato. Cuanto más largo el cable, menor esa corriente.' },
+      { t: 'Poder de corte y coordinación', d: 'Se comprueba que el interruptor aguanta la corriente de cortocircuito del origen (Icu) y que su curva de disparo queda por debajo de la curva de daño del cable.' },
+    ],
+    concepts: [
+      { t: 'Ib, In, Iz', d: 'Corriente de proyecto (Ib), corriente nominal del interruptor (In) y capacidad del cable (Iz). Debe cumplirse Ib ≤ In ≤ Iz.' },
+      { t: 'Factores de temperatura y agrupamiento', d: 'Reducen la capacidad de un cable cuando hace más calor del de referencia o cuando varios cables van juntos.' },
+      { t: 'Curvas B, C y D', d: 'Definen cuántas veces la corriente nominal debe circular para que el disparo magnético actúe de inmediato: B de 3 a 5 ×In, C de 5 a 10 ×In y D de 10 a 20 ×In.' },
+      { t: 'Esquema TN', d: 'Régimen de puesta a tierra en que el neutro de la fuente está a tierra y las masas se conectan a él; una falla a tierra se comporta como un cortocircuito y debe disparar el interruptor.' },
+      { t: 'k²S²', d: 'Medida de la energía térmica máxima que soporta un cable de sección S antes de dañarse; k depende del material y del aislamiento.' },
+    ],
+    decisions: [
+      { t: 'Explicar cada paso con su fórmula', d: 'Una calculadora que solo entrega un número esconde el criterio. Mostrar qué criterio manda la sección enseña a elegir el cable.' },
+      { t: 'Graficar interruptor contra cable', d: 'Ver la banda de disparo del interruptor frente a la curva de daño del cable muestra con claridad si el cable queda protegido en todo el rango.' },
+      { t: 'Límites configurables', d: 'Las tablas y los límites (caída máxima, Icc, etc.) son parámetros que se pueden ajustar a la norma o al catálogo del fabricante.' },
+      { t: 'Descargar la memoria de cálculo', d: 'Un resultado sin su justificación no sirve en un expediente. La memoria de cálculo deja constancia de cada paso.' },
+    ],
+    tour: [
+      'Usa los botones de ejemplos para cargar un circuito de referencia, como un motor de 7,5 kW.',
+      'Revisa «Paso a paso» y «Resultado»: la sección elegida indica qué criterio la mandó.',
+      'Alarga el «Largo del cable» hasta que el alcance del disparo magnético falle y el programa pida cambiar de interruptor o de sección.',
+      'Cambia la «Curva del interruptor» (B, C o D) y observa «Curvas tiempo–corriente: interruptor vs. daño del cable».',
+      'Mira «Qué pasa con otras secciones» para ver por qué una sección menor o mayor no es la elegida.',
+      'Pulsa «Descargar memoria de cálculo (.txt)».',
+    ],
+    verified: [
+      'Contrastada con cálculos a mano: un C16 con 2,5 mm² alcanza 53,2 m con U₀ de 230 V; un motor de 7,5 kW da 15,2 A, interruptor de 16 A y 6 mm² con 40 °C y 3 circuitos agrupados.',
+      '400 circuitos aleatorios comprueban que, cuando no hay advertencias, se cumplen todos los criterios.',
+      '16 pruebas automáticas con node:test.',
+    ],
+    limits: [
+      'Usa tablas de referencia tipo IEC 60364-5-52 y límites configurables: hay que verificarlos con el pliego RIC / NCh Elec. 4/2003 vigente y el catálogo del fabricante.',
+      'No reemplaza el proyecto firmado por un profesional competente.',
+      'Cubre un circuito a la vez, sin estudio de selectividad entre varios niveles de protección.',
+    ],
+    next: [
+      'Agregar la verificación de selectividad entre el interruptor general y los de cada circuito.',
+      'Conectar los resultados con el proyecto del tablero eléctrico para dimensionar varios circuitos y el general en una sola vista.',
+    ],
+  },
+  en: {
+    lead: 'A step-by-step calculator of a power circuit: design current, breaker, section by current capacity, voltage drop, thermal withstand and magnetic-trip reach, with the breaker’s trip curves against the cable’s damage curve.',
+    context: [
+      'Sizing a circuit is not choosing a cable by amps. Current capacity, voltage drop, short-circuit thermal withstand and safe tripping on an earth fault at the end of the line must all be met at once. If just one fails, the circuit is unsafe or useless.',
+      'On a plant floor, a long cable with the wrong breaker may not trip on an earth fault, and an undersized one heats up or causes voltage drops that stall motors at start. The calculator explains each check so you can see which criterion decides.',
+    ],
+    how: [
+      { t: 'Design current', d: 'From the load’s power, power factor and efficiency, the current that will flow in normal service is computed.' },
+      { t: 'Standard breaker', d: 'The breaker whose rated current covers that design current is chosen, with a B, C or D trip curve.' },
+      { t: 'Section by current capacity', d: 'The minimum section is chosen whose capacity, corrected for ambient temperature and grouped circuits, exceeds the breaker’s current.' },
+      { t: 'Voltage drop', d: 'It is checked that the voltage drop in service, and also during motor starting, stays under the configured limit.' },
+      { t: 'Thermal withstand k²S² ≥ I²t', d: 'In a short circuit the cable heats with no time to dissipate: the energy the breaker lets through (I²t) must not exceed what the cable can take (k²S²).' },
+      { t: 'Maximum length for magnetic trip', d: 'In a TN system, an earth fault at the end of the line must have enough current for the breaker to trip instantly. The longer the cable, the lower that current.' },
+      { t: 'Breaking capacity and coordination', d: 'It is checked that the breaker withstands the short-circuit current at the origin (Icu) and that its trip curve lies below the cable’s damage curve.' },
+    ],
+    concepts: [
+      { t: 'Ib, In, Iz', d: 'Design current (Ib), breaker rated current (In) and cable capacity (Iz). It must hold that Ib ≤ In ≤ Iz.' },
+      { t: 'Temperature and grouping factors', d: 'They reduce a cable’s capacity when it is hotter than the reference or when several cables run together.' },
+      { t: 'B, C and D curves', d: 'They define how many times the rated current must flow for the magnetic trip to act instantly: B 3 to 5 ×In, C 5 to 10 ×In and D 10 to 20 ×In.' },
+      { t: 'TN system', d: 'An earthing arrangement where the source neutral is earthed and exposed parts are connected to it; an earth fault behaves like a short circuit and must trip the breaker.' },
+      { t: 'k²S²', d: 'A measure of the maximum thermal energy a cable of section S can take before damage; k depends on the material and insulation.' },
+    ],
+    decisions: [
+      { t: 'Explain each step with its formula', d: 'A calculator that only delivers a number hides the criterion. Showing which criterion decides the section teaches how to choose the cable.' },
+      { t: 'Plot breaker against cable', d: 'Seeing the breaker’s trip band against the cable’s damage curve shows clearly whether the cable is protected across the whole range.' },
+      { t: 'Configurable limits', d: 'The tables and limits (maximum drop, Icc, etc.) are parameters that can be adjusted to the standard or the manufacturer’s catalogue.' },
+      { t: 'Download the calculation memo', d: 'A result without its justification is no use in a file. The memo records each step.' },
+    ],
+    tour: [
+      'Use the example buttons to load a reference circuit, such as a 7.5 kW motor.',
+      'Review "Paso a paso" (step by step) and "Resultado": the chosen section tells you which criterion set it.',
+      'Lengthen the "Largo del cable" (cable length) until the magnetic-trip reach fails and the program asks for a different breaker or section.',
+      'Change the "Curva del interruptor" (B, C or D) and watch "Curvas tiempo–corriente: interruptor vs. daño del cable".',
+      'Look at "Qué pasa con otras secciones" (what happens with other sections) to see why a smaller or larger section was not chosen.',
+      'Press "Descargar memoria de cálculo (.txt)" (download calculation memo).',
+    ],
+    verified: [
+      'Contrasted with hand calculations: a C16 with 2.5 mm² reaches 53.2 m with U₀ of 230 V; a 7.5 kW motor gives 15.2 A, a 16 A breaker and 6 mm² at 40 °C with 3 grouped circuits.',
+      '400 random circuits check that, when there are no warnings, all the criteria are met.',
+      '16 automated tests with node:test.',
+    ],
+    limits: [
+      'It uses IEC 60364-5-52-style reference tables and configurable limits: they must be verified against the current RIC / NCh Elec. 4/2003 rules and the manufacturer’s catalogue.',
+      'It does not replace the project signed by a competent professional.',
+      'It covers one circuit at a time, with no selectivity study across several protection levels.',
+    ],
+    next: [
+      'Add the selectivity check between the main breaker and each circuit’s.',
+      'Connect the results to the electrical-panel project to size several circuits and the main in one view.',
+    ],
+  },
+  diagrams: [
+    {
+      kind: 'graph',
+      placement: 'how-top',
+      title: { es: 'La cadena de verificaciones', en: 'The chain of checks' },
+      caption: {
+        es: 'Si alguna verificación falla, la sección sube y se recalcula todo. El resultado final es la sección más chica que cumple todas.',
+        en: 'If any check fails, the section goes up and everything is recomputed. The final result is the smallest section that meets them all.',
+      },
+      nodes: [
+        { id: 'car', label: { es: 'Carga', en: 'Load' }, sub: 'P · cosφ · largo', col: 0, row: 0, tone: 'emerald' },
+        { id: 'int', label: { es: 'Corriente e interruptor', en: 'Current and breaker' }, sub: 'Ib · In · curva', col: 1, row: 0, tone: 'magenta' },
+        { id: 'sec', label: { es: 'Sección', en: 'Section' }, sub: { es: 'capacidad · caída · k²S²', en: 'capacity · drop · k²S²' }, col: 2, row: 0, tone: 'amber' },
+        { id: 'ver', label: { es: 'Verificación', en: 'Verification' }, sub: { es: 'magnético · Icc · curvas', en: 'magnetic · Icc · curves' }, col: 3, row: 0 },
+      ],
+      edges: [
+        { from: 'car', to: 'int', label: 'Ib' },
+        { from: 'int', to: 'sec', label: 'In' },
+        { from: 'sec', to: 'ver' },
+        { from: 'ver', to: 'sec', loop: true, dashed: true, label: { es: 'sección ↑ si falla', en: 'section ↑ if it fails' } },
+      ],
+    },
+    {
+      kind: 'graph',
+      placement: 'decisions',
+      title: { es: 'Quién manda la sección', en: 'What sets the section' },
+      caption: {
+        es: 'Se evalúan los criterios por separado y manda el más exigente: la sección final es la mayor de las que pide cada uno.',
+        en: 'The criteria are evaluated separately and the most demanding one rules: the final section is the largest of those each one asks for.',
+      },
+      nodes: [
+        { id: 'cap', label: { es: 'Capacidad de corriente', en: 'Current capacity' }, col: 0, row: 0 },
+        { id: 'cai', label: { es: 'Caída de tensión', en: 'Voltage drop' }, col: 0, row: 1 },
+        { id: 'ter', label: { es: 'Resistencia térmica', en: 'Thermal withstand' }, sub: 'k²S² ≥ I²t', col: 0, row: 2 },
+        { id: 'mag', label: { es: 'Disparo magnético', en: 'Magnetic trip' }, sub: { es: 'alcance en TN', en: 'reach in TN' }, col: 0, row: 3 },
+        { id: 'sel', label: { es: 'Sección elegida', en: 'Chosen section' }, sub: { es: 'la mayor de las cuatro', en: 'the largest of the four' }, col: 1, row: 1, tone: 'emerald' },
+      ],
+      edges: [
+        { from: 'cap', to: 'sel' },
+        { from: 'cai', to: 'sel' },
+        { from: 'ter', to: 'sel' },
+        { from: 'mag', to: 'sel' },
+      ],
+    },
+  ],
+}
