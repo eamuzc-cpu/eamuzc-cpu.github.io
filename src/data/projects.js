@@ -1540,4 +1540,49 @@ export const projects = [
     },
     tools: { hardware: ['STM32G474RE', 'BSC050N04LSG', 'UCC27282', 'INA240'], software: ['C (LL)', 'Python (scipy)', 'JavaScript', 'Canvas', 'node:test'] },
   },
+  {
+    slug: 'laboratorio-14-simuladores',
+    title: {
+      es: 'Laboratorio de 14 simuladores de ingeniería: control, señales, visión, RF, lógica digital y robótica',
+      en: 'Engineering Lab: 14 Interactive Simulators for Control, Signals, Vision, RF, Digital Logic and Robotics',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'automation',
+    year: 2026,
+    image: '/projects/laboratorio-14-simuladores.jpg',
+    demo: { src: '/demos/laboratorio-14-simuladores/index.html' },
+    resultBadge: { es: '14 simuladores, 180 pruebas y 6 correcciones al documento de origen', en: '14 simulators, 180 tests and 6 corrections to the source document' },
+    summary: {
+      es: 'Catorce simuladores interactivos en JavaScript puro, sin librerías, escritos a partir de un documento de especificación: péndulo invertido (PID frente a LQR), sintonizador de Bode y Nyquist, brazo robótico de 4 GDL, convertidor DC-DC, espectrograma FFT, comandos de voz con MFCC, gemelo digital IoT, SCADA con alarmas ISA-18.2, filtros de imagen, distorsión de lente, visor Gerber, lógica digital, carta de Smith y planificación de rutas.',
+      en: 'Fourteen interactive simulators in plain JavaScript, with no libraries, written from a specification document: inverted pendulum (PID vs LQR), Bode and Nyquist tuner, 4-DOF robot arm, DC-DC converter, FFT spectrogram, MFCC voice commands, IoT digital twin, SCADA with ISA-18.2 alarms, image filters, lens distortion, Gerber viewer, digital logic, Smith chart and path planning.',
+    },
+    stack: ['JavaScript', 'Canvas 2D', 'node:test', { es: 'Teoría de control', en: 'Control theory' }, { es: 'Procesamiento de señales', en: 'Signal processing' }, { es: 'Radiofrecuencia', en: 'RF' }],
+    challenge: {
+      es: 'Un documento con ecuaciones y fragmentos de código no demuestra que el sistema funcione: para entenderlo hay que ejecutarlo, moverle los parámetros, romperlo y ver por qué. Con catorce temas distintos, la dificultad es que cada núcleo sea correcto y se pueda comprobar.',
+      en: 'A document with equations and code fragments does not prove the system works: to understand it you have to run it, move its parameters, break it and see why. With fourteen different topics, the difficulty is making every core correct and checkable.',
+    },
+    impact: {
+      es: 'Pasar de la especificación al código encontró seis puntos del documento que estaban mal o incompletos, y dejó catorce herramientas de práctica que se abren en el navegador sin instalar nada.',
+      en: 'Going from the specification to code found six points in the document that were wrong or incomplete, and left fourteen practice tools that open in the browser with nothing to install.',
+    },
+    solution: {
+      es: 'Cada simulador tiene su núcleo en JavaScript puro, probado con node:test (180 pruebas), y una interfaz en Canvas. 1) Péndulo: física no lineal con RK4 a 500 Hz, control a 100 Hz, LQR por Riccati y PID; la prueba de energía confirma el modelo. 2) Bode/Nyquist: polos y ceros arrastrables, márgenes, lazo cerrado y escalón por exponencial de matriz. 3) Brazo de 4 GDL: Denavit-Hartenberg y cinemática inversa DLS (≥ 99 % de 300 destinos a menos de 0,5 mm). 4) DC-DC: buck y boost con parásitos, CCM/DCM y balance de energía a 1 %. 5) Espectrograma: FFT radix-2 verificada contra la DFT y ventana Blackman-Harris (lóbulos < −90 dB). 6) Comandos de voz: MFCC como en el informe (49 × 10) con un clasificador softmax entrenado con sonidos sintéticos. 7) Gemelo IoT: filtro complementario, térmico RC y telemetría binaria 6 veces más corta que JSON. 8) SCADA: dos estanques, cascada con y sin anti-windup y alarmas ISA-18.2. 9) Filtros de imagen: BT.709, Sobel, Gauss y Canny. 10) Lente: modelo de Brown-Conrady, corrección con tabla inversa y calibración por mínimos cuadrados. 11) Gerber: analizador RS-274X con regiones y arcos y vista de capas. 12) Lógica: simulador por eventos de 4 valores con setup y hold. 13) RF: carta de Smith, red en L verificada y microstrip. 14) Rutas: A*, RRT y Pure Pursuit con replanificación. Seis correcciones al documento: la tabla de Γ de la carga 25 + j25 (116,6° y 6,99 dB, no 126,8° y 6,93 dB); los vecinos diagonales de la supresión de no-máximos de Canny; el jacobiano mal dimensionado en la IK; el analizador Gerber con escala fija de 10⁵; el «anti-windup» que solo satura la salida; y la resolución de 23,4 Hz con 11,6 ms que mezcla 48 y 44,1 kHz. Límites: no usa Three.js, WebGL ni Web Audio; la red DS-CNN del informe no está (el clasificador de voz es mucho más simple y se entrena con sonidos sintéticos, no con voz humana); no hay hardware ni protocolos reales; todo es simulado.',
+      en: 'Each simulator has its core in plain JavaScript, tested with node:test (180 tests), and a Canvas interface. 1) Pendulum: nonlinear physics with RK4 at 500 Hz, 100 Hz control, LQR via Riccati and PID; an energy test confirms the model. 2) Bode/Nyquist: draggable poles and zeros, margins, closed loop and step response by matrix exponential. 3) 4-DOF arm: Denavit-Hartenberg and DLS inverse kinematics (≥ 99 % of 300 targets within 0.5 mm). 4) DC-DC: buck and boost with parasitics, CCM/DCM and a 1 % energy balance. 5) Spectrogram: radix-2 FFT verified against the DFT and a Blackman-Harris window (sidelobes < −90 dB). 6) Voice commands: MFCC as in the report (49 × 10) with a softmax classifier trained on synthetic sounds. 7) IoT twin: complementary filter, RC thermal model and binary telemetry 6 times shorter than JSON. 8) SCADA: two tanks, cascade control with and without anti-windup and ISA-18.2 alarms. 9) Image filters: BT.709, Sobel, Gauss and Canny. 10) Lens: Brown-Conrady model, inverse-table correction and least-squares calibration. 11) Gerber: RS-274X parser with regions and arcs and a layer view. 12) Logic: 4-value event-driven simulator with setup and hold. 13) RF: Smith chart, a verified L-match and microstrip. 14) Paths: A*, RRT and Pure Pursuit with replanning. Six corrections to the document: the reflection-coefficient table row for 25 + j25 (116.6° and 6.99 dB, not 126.8° and 6.93 dB); the diagonal neighbours of the Canny non-maximum suppression; the wrongly dimensioned Jacobian in the IK; the Gerber parser with a fixed 10⁵ scale; the «anti-windup» that only saturates the output; and the 23.4 Hz resolution with 11.6 ms that mixes 48 and 44.1 kHz. Limits: it does not use Three.js, WebGL or Web Audio; the report\'s DS-CNN is not there (the voice classifier is much simpler and is trained on synthetic sounds, not human speech); there is no hardware or real protocol; everything is simulated.',
+    },
+    metrics: [
+      { label: { es: 'Simuladores', en: 'Simulators' }, value: '14' },
+      { label: { es: 'Pruebas automáticas', en: 'Automated tests' }, value: '180' },
+      { label: { es: 'Correcciones al documento de origen', en: 'Corrections to the source document' }, value: '6' },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Especificación', en: 'Specification' }, sub: { es: 'ecuaciones y código', en: 'equations and code' } },
+        { label: { es: 'Núcleo en JS', en: 'JS core' }, sub: { es: 'sin librerías', en: 'no libraries' } },
+        { label: { es: 'Pruebas', en: 'Tests' }, sub: 'node:test' },
+        { label: { es: 'Simulador', en: 'Simulator' }, sub: 'Canvas 2D' },
+      ],
+      feedback: { from: 2, to: 0, label: { es: 'correcciones', en: 'corrections' } },
+    },
+    tools: { hardware: [], software: ['JavaScript', 'Canvas 2D', 'node:test', 'Python (scipy, solo como referencia)'] },
+  },
 ]
