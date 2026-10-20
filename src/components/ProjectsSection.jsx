@@ -9,11 +9,16 @@ import { useLang } from '../i18n'
 // Cuántos proyectos se ven de entrada: los marcados `featured` (n = puesto) en projects.js.
 const VISIBLE = projects.filter((p) => p.featured).length
 
+// Filtro y "Ver más" sobreviven a un paseo por la página de un proyecto (la portada se vuelve a montar).
+const memo = { category: 'all', expanded: false }
+
 export default function ProjectsSection() {
   const { t } = useLang()
-  const [category, setCategory] = useState('all')
+  const [category, setCategoryState] = useState(memo.category)
   const [selected, setSelected] = useState(null)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpandedState] = useState(memo.expanded)
+  const setCategory = (v) => setCategoryState((memo.category = v))
+  const setExpanded = (v) => setExpandedState((memo.expanded = v))
 
   // Destacados primero, por puesto (el sort es estable: el resto conserva el orden de projects.js).
   const filtered = useMemo(() => {

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { X, TriangleAlert, ShieldCheck, Cpu, ChartBar, Wrench, Play, ExternalLink } from 'lucide-react'
+import { X, TriangleAlert, ShieldCheck, Cpu, ChartBar, Wrench, Play, ExternalLink, ArrowRight } from 'lucide-react'
 import { categoryLabel } from '../data/projects'
 import { ui } from '../data/ui'
 import { useLang } from '../i18n'
 import { FlowDiagram, ProjectCover } from './ProjectVisuals'
+import { pageUi } from '../data/pageUi'
+import { projectHref } from '../lib/route'
 
 const TABS = [
   { id: 'desafio', label: ui.projects.tabs.challenge, icon: TriangleAlert },
@@ -118,6 +120,19 @@ export default function ProjectModal({ project, onClose }) {
                 </div>
               )}
               {project && (
+                <a
+                  href={projectHref(project.slug)}
+                  onClick={onClose}
+                  className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-line bg-void/50 p-4 transition-colors hover:border-cyan/50"
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-slate-50">{t(pageUi.fullPage)}</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-slate-400">{t(pageUi.fullPageHint)}</span>
+                  </span>
+                  <ArrowRight className="h-5 w-5 shrink-0 text-cyan-soft" strokeWidth={2} />
+                </a>
+              )}
+              {project && (
                 <TabContent tab={tab} project={project} />
               )}
             </div>
@@ -132,7 +147,7 @@ export default function ProjectModal({ project, onClose }) {
 }
 
 // Demo a pantalla completa: iframe de una página estática propia (public/). Esc cierra solo la demo.
-function DemoOverlay({ demo, title, onClose }) {
+export function DemoOverlay({ demo, title, onClose }) {
   const { t } = useLang()
 
   useEffect(() => {

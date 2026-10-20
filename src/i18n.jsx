@@ -19,6 +19,8 @@ const META = {
   },
 }
 
+export const siteMeta = (lang) => META[lang] ?? META.es
+
 function detectLang() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)

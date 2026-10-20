@@ -1,0 +1,120 @@
+export default {
+  status: { es: 'Sistema embebido de uso diario (Raspberry Pi)', en: 'Embedded system for daily use (Raspberry Pi)' },
+  related: ['axiom-2', 'esp32-alarma-mp3', 'red-sensores-mqtt'],
+  es: {
+    lead: 'Un asistente de voz que corre 24/7 en una Raspberry Pi: se despierta con una palabra clave sin internet, entiende comandos, controla la casa de verdad y se administra desde Telegram y un panel web. La versión 3 es una reescritura para dejarlo seguro y confiable, no solo vistoso.',
+    context: [
+      'La versión anterior funcionaba en la demostración pero tenía problemas de fondo: credenciales escritas en el código, una inyección de comandos real, latencia alta por depender de la nube en cada frase y funciones simuladas (la domótica fingía éxito y las alarmas se perdían al reiniciar).',
+      'Un asistente que vive en casa, con el micrófono abierto y acceso al sistema, tiene que ser seguro y confiable antes que vistoso. La reescritura lo convierte en un sistema embebido de uso diario y no en una demo.',
+    ],
+    how: [
+      { t: 'Escuchar sin internet', d: 'La palabra de activación (wake word) y el reconocimiento de voz corren offline con Vosk. El micrófono está siempre abierto, pero nada sale de la placa hasta que se detecta la palabra clave.' },
+      { t: 'Resolver lo simple en local', d: 'Los comandos triviales («hora», «apaga la luz»…) se resuelven localmente sin consultar a ningún modelo de lenguaje. Eso baja la latencia y evita gastar una llamada a la nube para algo que no la necesita.' },
+      { t: 'Router de modelos', d: 'Lo que no es trivial pasa a un router multi-modelo que puede usar Gemini, OpenAI u Ollama. El modelo recibe la lista de herramientas disponibles y decide cuál llamar.' },
+      { t: 'Herramientas auto-descubiertas', d: 'Las 47 herramientas se descubren solas: agregar una capacidad es agregar un módulo, sin editar el núcleo. Hay herramientas de domótica, alarmas, consultas y control del sistema.' },
+      { t: 'Domótica y alarmas reales', d: 'Las órdenes de domótica salen por HTTP a dispositivos Tasmota y a Home Assistant. Las alarmas se guardan en disco, así que sobreviven a un reinicio.' },
+      { t: 'Responder con voz y cara', d: 'La respuesta se dice en voz alta (TTS) y una cara animada, servida por WebSocket, muestra el estado del asistente.' },
+      { t: 'Operarlo a distancia', d: 'Un bot de Telegram con lista blanca, un panel de administración web y un servicio systemd con reinicio automático permiten dejarlo funcionando sin vigilarlo.' },
+    ],
+    concepts: [
+      { t: 'Wake word', d: 'Palabra de activación. Un modelo pequeño y siempre encendido que solo decide «¿se dijo la palabra?»; el resto del audio no se procesa.' },
+      { t: 'STT offline (Vosk)', d: 'Reconocimiento de voz que corre en la propia Raspberry Pi, sin enviar audio a un servicio externo.' },
+      { t: 'Llamada a herramientas', d: 'Mecanismo por el que un modelo de lenguaje, en lugar de solo responder texto, pide ejecutar una función concreta con ciertos argumentos.' },
+      { t: 'Tasmota y Home Assistant', d: 'Tasmota es firmware libre para enchufes y relés con WiFi; Home Assistant es una plataforma de domótica. Ambos aceptan órdenes por HTTP.' },
+      { t: 'systemd', d: 'Gestor de servicios de Linux. Arranca el asistente al encender la placa y lo reinicia si se cae.' },
+      { t: 'Lista blanca', d: 'Solo las cuentas de Telegram permitidas explícitamente pueden darle órdenes al bot.' },
+    ],
+    decisions: [
+      { t: 'Offline primero', d: 'Lo que puede resolverse en la placa se resuelve en la placa: es más rápido, funciona sin internet y mantiene la voz en casa.' },
+      { t: 'Seguridad antes que funciones', d: 'Se sacaron las credenciales del código y se corrigió la inyección de comandos. El bot de Telegram solo acepta cuentas de la lista blanca.' },
+      { t: 'Nada simulado', d: 'La domótica ejecuta órdenes reales y las alarmas persisten en disco. Una función que finge éxito es peor que una que no existe, porque da una falsa sensación de seguridad.' },
+      { t: 'Varios proveedores de modelo', d: 'El router admite tres proveedores (Gemini, OpenAI, Ollama), así que el asistente no queda inutilizado si uno falla o cambia de condiciones.' },
+    ],
+    verified: [
+      '47 herramientas disponibles para el modelo y 3 proveedores de LLM soportados.',
+      '12 módulos de pruebas unitarias.',
+    ],
+    limits: [
+      'Corre sobre hardware y dispositivos propios (micrófono, Raspberry Pi, enchufes), por eso no hay demo en el navegador.',
+      'Solo la activación, el reconocimiento de voz y los comandos triviales son completamente offline; las respuestas abiertas dependen del proveedor elegido (Gemini y OpenAI usan internet; Ollama puede correr en red local).',
+      'Es un proyecto personal: no se ofrece como producto ni con garantías de seguridad más allá de las correcciones descritas.',
+    ],
+    next: [
+      'Agregar pruebas de integración con dispositivos simulados para la domótica.',
+      'Medir la latencia de extremo a extremo (palabra clave → respuesta) con y sin resolución local.',
+    ],
+  },
+  en: {
+    lead: 'A voice assistant that runs 24/7 on a Raspberry Pi: it wakes on a keyword with no internet, understands commands, controls the home for real and is managed from Telegram and a web panel. Version 3 is a rewrite to make it secure and dependable, not just flashy.',
+    context: [
+      'The previous version worked in a demo but had deep problems: credentials written in the code, a real command injection, high latency from relying on the cloud for every phrase, and simulated features (home automation faked success and alarms were lost on reboot).',
+      'An assistant that lives at home, with an open microphone and access to the system, has to be secure and dependable before it is flashy. The rewrite turns it into an embedded system for daily use rather than a demo.',
+    ],
+    how: [
+      { t: 'Listen without internet', d: 'The wake word and speech recognition run offline with Vosk. The microphone is always open, but nothing leaves the board until the keyword is detected.' },
+      { t: 'Resolve the simple things locally', d: 'Trivial commands ("what time is it", "turn off the light"…) are resolved locally without querying any language model. That lowers latency and avoids spending a cloud call on something that does not need one.' },
+      { t: 'Model router', d: 'Anything non-trivial goes to a multi-model router that can use Gemini, OpenAI or Ollama. The model receives the list of available tools and decides which one to call.' },
+      { t: 'Auto-discovered tools', d: 'The 47 tools are discovered automatically: adding a capability means adding a module, without editing the core. There are tools for home automation, alarms, queries and system control.' },
+      { t: 'Real home automation and alarms', d: 'Home-automation commands go over HTTP to Tasmota devices and to Home Assistant. Alarms are stored on disk, so they survive a reboot.' },
+      { t: 'Answer with voice and a face', d: 'The answer is spoken aloud (TTS) and an animated face, served over WebSocket, shows the assistant’s state.' },
+      { t: 'Run it remotely', d: 'A Telegram bot with an allow-list, a web admin panel and a systemd service with automatic restart let it run without babysitting.' },
+    ],
+    concepts: [
+      { t: 'Wake word', d: 'A small, always-on model that only decides "was the keyword said?"; the rest of the audio is not processed.' },
+      { t: 'Offline STT (Vosk)', d: 'Speech recognition that runs on the Raspberry Pi itself, without sending audio to an external service.' },
+      { t: 'Tool calling', d: 'The mechanism by which a language model, instead of only answering text, asks to run a specific function with given arguments.' },
+      { t: 'Tasmota and Home Assistant', d: 'Tasmota is open firmware for WiFi plugs and relays; Home Assistant is a home-automation platform. Both accept commands over HTTP.' },
+      { t: 'systemd', d: 'The Linux service manager. It starts the assistant when the board powers up and restarts it if it crashes.' },
+      { t: 'Allow-list', d: 'Only Telegram accounts explicitly permitted can give the bot orders.' },
+    ],
+    decisions: [
+      { t: 'Offline first', d: 'What can be solved on the board is solved on the board: it is faster, works without internet and keeps the voice at home.' },
+      { t: 'Security before features', d: 'Credentials were removed from the code and the command injection was fixed. The Telegram bot only accepts allow-listed accounts.' },
+      { t: 'Nothing simulated', d: 'Home automation executes real commands and alarms persist on disk. A feature that fakes success is worse than one that does not exist, because it gives a false sense of safety.' },
+      { t: 'Several model providers', d: 'The router supports three providers (Gemini, OpenAI, Ollama), so the assistant is not stranded if one fails or changes its terms.' },
+    ],
+    verified: [
+      '47 tools available to the model and 3 supported LLM providers.',
+      '12 unit-test modules.',
+    ],
+    limits: [
+      'It runs on its own hardware and devices (microphone, Raspberry Pi, plugs), which is why there is no browser demo.',
+      'Only activation, speech recognition and trivial commands are fully offline; open-ended answers depend on the chosen provider (Gemini and OpenAI use the internet; Ollama can run on the local network).',
+      'It is a personal project: it is not offered as a product nor with security guarantees beyond the fixes described.',
+    ],
+    next: [
+      'Add integration tests with simulated devices for home automation.',
+      'Measure end-to-end latency (keyword → answer) with and without local resolution.',
+    ],
+  },
+  diagrams: [
+    {
+      kind: 'graph',
+      placement: 'how-top',
+      title: { es: 'De la voz a la acción', en: 'From voice to action' },
+      caption: {
+        es: 'Lo trivial se resuelve en local (fila de abajo) y no pasa por el modelo. El bot de Telegram entrega órdenes a las mismas herramientas, y el resultado de cada herramienta vuelve al router para que el asistente lo explique.',
+        en: 'Trivial things are solved locally (bottom row) and never reach the model. The Telegram bot hands orders to the same tools, and each tool’s result goes back to the router so the assistant can explain it.',
+      },
+      nodes: [
+        { id: 'mic', label: { es: 'Micrófono', en: 'Microphone' }, sub: 'wake word', col: 0, row: 0 },
+        { id: 'stt', label: 'Vosk STT', sub: 'offline', col: 1, row: 0, tone: 'emerald' },
+        { id: 'rt', label: { es: 'Router de LLM', en: 'LLM router' }, sub: 'Gemini · OpenAI · Ollama', col: 2, row: 0, tone: 'magenta' },
+        { id: 'tools', label: { es: 'Herramientas', en: 'Tools' }, sub: { es: '47 plugins', en: '47 plugins' }, col: 3, row: 0, tone: 'amber' },
+        { id: 'out', label: { es: 'Voz + cara', en: 'Voice + face' }, sub: 'TTS · WebSocket', col: 4, row: 0 },
+        { id: 'loc', label: { es: 'Comandos locales', en: 'Local commands' }, sub: { es: 'sin LLM', en: 'no LLM' }, col: 2, row: 1, tone: 'emerald' },
+        { id: 'tg', label: 'Telegram', sub: { es: 'lista blanca', en: 'allow-list' }, col: 3, row: 1 },
+      ],
+      edges: [
+        { from: 'mic', to: 'stt', label: 'audio' },
+        { from: 'stt', to: 'rt', label: { es: 'texto', en: 'text' } },
+        { from: 'rt', to: 'tools', label: { es: 'llamada', en: 'call' } },
+        { from: 'tools', to: 'out' },
+        { from: 'tools', to: 'rt', loopTop: true, dashed: true, label: { es: 'resultado de la herramienta', en: 'tool result' } },
+        { from: 'stt', to: 'loc', v: true, label: { es: 'trivial', en: 'trivial' } },
+        { from: 'loc', to: 'tools', label: { es: 'ejecuta', en: 'runs' } },
+        { from: 'tg', to: 'tools', label: { es: 'órdenes', en: 'orders' } },
+      ],
+    },
+  ],
+}

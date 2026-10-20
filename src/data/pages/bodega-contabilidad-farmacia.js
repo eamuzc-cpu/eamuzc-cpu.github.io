@@ -1,0 +1,119 @@
+export default {
+  status: { es: 'Sistema funcional para piloto en una farmacia (148 pruebas)', en: 'Working system for a pharmacy pilot (148 tests)' },
+  related: ['ethereal-jewelry', 'gestor-mantenimiento-tpm', 'tablero-electrico'],
+  es: {
+    lead: 'Un sistema de caja, inventario con vencimientos, boleta electrónica y panel del dueño para una farmacia de barrio. Se instala con doble clic en un PC Windows, aguanta cortes de internet y se respalda solo.',
+    context: [
+      'Una farmacia de barrio necesita vender con escáner, controlar lotes con fecha de vencimiento y emitir boleta electrónica, pero no tiene equipo de TI. El sistema debe instalarse solo, aguantar cortes de internet y respaldarse sin que nadie lo recuerde.',
+      'Los riesgos son concretos: un producto vencido en el mostrador es un riesgo sanitario y legal; una boleta que no sale por falta de internet frena la venta; y sin arqueo de caja las diferencias no se detectan.',
+    ],
+    how: [
+      { t: 'Caja con escáner', d: 'La cajera vende con un lector de códigos USB. Acepta efectivo, tarjeta y transferencia, calcula el vuelto y hace el arqueo por cajera y por turno.' },
+      { t: 'Inventario por lotes', d: 'Cada compra entra por lotes con fecha de vencimiento. El sistema alerta cuando el stock baja del mínimo o cuando un lote está por vencer, y permite importar el catálogo desde CSV.' },
+      { t: 'Compras con IVA', d: 'Las compras se registran con IVA, de modo que el panel puede calcular márgenes y el IVA del periodo.' },
+      { t: 'Boleta electrónica que no depende de internet', d: 'La boleta se emite vía OpenFactura. Si no hay internet, se reintenta cada 5 minutos hasta por 23 horas; al anular una venta se genera la nota de crédito.' },
+      { t: 'Panel del dueño', d: 'El dueño ve IVA, margen y gastos, y descarga planillas CSV para el contador.' },
+      { t: 'Respaldo y acceso remoto', d: 'Hay respaldo diario local y en OneDrive, un resumen por Telegram y acceso remoto por Tailscale para consultar el sistema desde el celular.' },
+      { t: 'Instalación sin TI', d: 'La aplicación (Django 5.2 con HTMX y SQLite en modo WAL, servida con waitress) se empaqueta como Farmacia.exe con un instalador INSTALAR.bat.' },
+    ],
+    concepts: [
+      { t: 'Lotes con vencimiento', d: 'Un mismo producto puede tener varias partidas con fechas distintas. Controlar el vencimiento por lote evita vender un producto vencido.' },
+      { t: 'Arqueo de caja', d: 'Contar el dinero al cierre del turno y compararlo con lo que el sistema dice que debería haber. La diferencia revela errores o pérdidas.' },
+      { t: 'Boleta electrónica y nota de crédito', d: 'En Chile, las ventas se documentan con boleta electrónica; una anulación se corrige con una nota de crédito.' },
+      { t: 'HTMX', d: 'Librería que actualiza partes de la página con HTML recibido del servidor, sin escribir una aplicación JavaScript completa.' },
+      { t: 'SQLite en modo WAL', d: 'Base de datos de un solo archivo; el modo WAL permite leer mientras se escribe, lo que aguanta mejor el uso concurrente de una caja.' },
+    ],
+    decisions: [
+      { t: 'Que funcione sin internet', d: 'La venta no se detiene si no hay conexión: la boleta queda pendiente y se reintenta sola, con una ventana de 23 horas.' },
+      { t: 'Una base de datos de un archivo', d: 'SQLite hace que el sistema sea un solo programa y un solo archivo de datos, muy fácil de respaldar y de instalar en un PC común.' },
+      { t: 'Instalar con doble clic', d: 'Sin equipo de TI, el instalador y el .exe son parte del producto, no un detalle.' },
+      { t: 'Respaldar sin acordarse', d: 'Un respaldo que depende de que alguien lo haga se pierde. Se automatiza, local y en la nube.' },
+      { t: 'Probar mucho', d: 'Con 148 pruebas automáticas, un cambio en caja o inventario se verifica antes de llegar al mostrador.' },
+    ],
+    verified: [
+      '148 pruebas automáticas en verde.',
+      'Reintento de boleta sin internet cada 5 minutos, hasta 23 horas.',
+      'Variante multitienda adaptada a 14 rubros.',
+    ],
+    limits: [
+      'Es un sistema pensado para un piloto en una farmacia; no se publica la demo porque trabaja con datos del negocio.',
+      'La emisión real de boletas depende del servicio OpenFactura y de sus credenciales.',
+      'Esta página no incluye datos de la farmacia ni de sus ventas.',
+    ],
+    next: [
+      'Medir tiempos de venta en caja con un lector real durante una jornada.',
+      'Agregar un tablero de lotes por vencer ordenado por valor en riesgo.',
+    ],
+  },
+  en: {
+    lead: 'A cash-register, expiry-tracked inventory, electronic receipt and owner dashboard system for a neighbourhood pharmacy. It installs with a double-click on a Windows PC, survives internet outages and backs itself up.',
+    context: [
+      'A neighbourhood pharmacy needs to sell with a scanner, control batches with expiry dates and issue electronic receipts, but it has no IT staff. The system must install itself, survive internet outages and back up without anyone remembering.',
+      'The risks are concrete: an expired product on the counter is a health and legal risk; a receipt that fails to issue for lack of internet stops the sale; and without a cash count, differences go undetected.',
+    ],
+    how: [
+      { t: 'Checkout with a scanner', d: 'The cashier sells with a USB barcode reader. It accepts cash, card and transfer, computes change and does the cash count per cashier and per shift.' },
+      { t: 'Batch inventory', d: 'Each purchase comes in by batch with an expiry date. The system alerts when stock drops below the minimum or when a batch is about to expire, and lets you import the catalogue from CSV.' },
+      { t: 'Purchases with VAT', d: 'Purchases are recorded with VAT, so the dashboard can compute margins and the period’s VAT.' },
+      { t: 'An electronic receipt that does not depend on the internet', d: 'The receipt is issued via OpenFactura. With no internet, it is retried every 5 minutes for up to 23 hours; cancelling a sale generates the credit note.' },
+      { t: 'Owner dashboard', d: 'The owner sees VAT, margin and expenses, and downloads CSV sheets for the accountant.' },
+      { t: 'Backup and remote access', d: 'There is a daily backup, local and to OneDrive, a Telegram summary and remote access through Tailscale to check the system from a phone.' },
+      { t: 'Installation without IT', d: 'The application (Django 5.2 with HTMX and SQLite in WAL mode, served with waitress) is packaged as Farmacia.exe with an INSTALAR.bat installer.' },
+    ],
+    concepts: [
+      { t: 'Batches with expiry', d: 'One product can have several lots with different dates. Controlling expiry per batch avoids selling an expired product.' },
+      { t: 'Cash count', d: 'Counting the money at shift close and comparing it with what the system says should be there. The difference reveals errors or losses.' },
+      { t: 'Electronic receipt and credit note', d: 'In Chile, sales are documented with an electronic receipt; a cancellation is corrected with a credit note.' },
+      { t: 'HTMX', d: 'A library that updates parts of the page with HTML received from the server, without writing a full JavaScript application.' },
+      { t: 'SQLite in WAL mode', d: 'A single-file database; WAL mode allows reading while writing, which copes better with a till’s concurrent use.' },
+    ],
+    decisions: [
+      { t: 'Work without internet', d: 'Selling does not stop without a connection: the receipt stays pending and retries on its own, with a 23-hour window.' },
+      { t: 'A one-file database', d: 'SQLite makes the system a single program and a single data file, very easy to back up and to install on an ordinary PC.' },
+      { t: 'Install with a double-click', d: 'Without IT staff, the installer and the .exe are part of the product, not a detail.' },
+      { t: 'Back up without remembering', d: 'A backup that depends on someone doing it gets lost. It is automated, local and in the cloud.' },
+      { t: 'Test a lot', d: 'With 148 automated tests, a change in checkout or inventory is checked before it reaches the counter.' },
+    ],
+    verified: [
+      '148 automated tests passing.',
+      'Receipt retry without internet every 5 minutes, up to 23 hours.',
+      'A multi-store variant adapted to 14 business types.',
+    ],
+    limits: [
+      'It is a system built for a pilot in a pharmacy; the demo is not published because it works with the business’s data.',
+      'Real receipt issuing depends on the OpenFactura service and its credentials.',
+      'This page includes no data from the pharmacy or its sales.',
+    ],
+    next: [
+      'Time sales at the till with a real reader over a working day.',
+      'Add a dashboard of batches about to expire, ordered by value at risk.',
+    ],
+  },
+  diagrams: [
+    {
+      kind: 'graph',
+      placement: 'how-top',
+      title: { es: 'De la venta a la boleta', en: 'From sale to receipt' },
+      caption: {
+        es: 'La venta se guarda primero en la base local; la boleta electrónica se pide después y, si no hay internet, se reintenta sola cada 5 minutos.',
+        en: 'The sale is saved first in the local database; the electronic receipt is requested afterwards and, with no internet, it retries on its own every 5 minutes.',
+      },
+      nodes: [
+        { id: 'caja', label: { es: 'Caja', en: 'Checkout' }, sub: { es: 'lector USB', en: 'USB reader' }, col: 0, row: 0 },
+        { id: 'dj', label: 'Django + HTMX', sub: { es: 'inventario · lotes', en: 'stock · batches' }, col: 1, row: 0, tone: 'magenta' },
+        { id: 'of', label: 'OpenFactura', sub: { es: 'boleta electrónica', en: 'e-receipt' }, col: 2, row: 0, tone: 'amber' },
+        { id: 'own', label: { es: 'Panel del dueño', en: 'Owner dashboard' }, sub: { es: 'IVA · margen', en: 'VAT · margin' }, col: 2, row: 1, tone: 'emerald' },
+        { id: 'db', label: 'SQLite (WAL)', sub: { es: 'respaldo diario', en: 'daily backup' }, col: 1, row: 1 },
+        { id: 'tg', label: { es: 'Telegram + CSV', en: 'Telegram + CSV' }, sub: { es: 'resumen · contador', en: 'summary · accountant' }, col: 3, row: 1 },
+      ],
+      edges: [
+        { from: 'caja', to: 'dj', label: { es: 'venta', en: 'sale' } },
+        { from: 'dj', to: 'of', label: { es: 'boleta', en: 'receipt' } },
+        { from: 'of', to: 'dj', loopTop: true, dashed: true, label: { es: 'reintento cada 5 min', en: 'retry every 5 min' } },
+        { from: 'dj', to: 'db', label: { es: 'datos', en: 'data' } },
+        { from: 'db', to: 'own', label: { es: 'consulta', en: 'queries' } },
+        { from: 'own', to: 'tg', label: { es: 'resumen', en: 'summary' } },
+      ],
+    },
+  ],
+}

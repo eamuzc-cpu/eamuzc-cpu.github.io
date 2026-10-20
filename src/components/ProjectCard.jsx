@@ -1,7 +1,9 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { ArrowUpRight, Play } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Play } from 'lucide-react'
 import { categoryLabel } from '../data/projects'
 import { ui } from '../data/ui'
+import { pageUi } from '../data/pageUi'
+import { projectHref } from '../lib/route'
 import { useLang } from '../i18n'
 import { ProjectCover } from './ProjectVisuals'
 
@@ -65,6 +67,13 @@ export default function ProjectCard({ project, onOpen, index }) {
           {t(ui.projects.openCase)}
           <ArrowUpRight className="h-4 w-4" strokeWidth={2} />
         </button>
+        <a
+          href={projectHref(project.slug)}
+          className="mt-2 flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium text-slate-400 transition-colors hover:text-cyan-soft"
+        >
+          {t(pageUi.readMore)}
+          <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
+        </a>
       </div>
     </motion.article>
   )
