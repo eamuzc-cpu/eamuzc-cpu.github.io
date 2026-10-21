@@ -9,6 +9,7 @@ import {
   Layers,
   Lightbulb,
   ListChecks,
+  Palette,
   Play,
   Target,
   TriangleAlert,
@@ -110,6 +111,7 @@ export default function ProjectPage({ slug }) {
       c.concepts?.length && { id: 'conceptos', label: pageUi.sections.concepts },
       c.decisions?.length && { id: 'decisiones', label: pageUi.sections.decisions },
       project.demo && c.tour?.length && { id: 'demo', label: pageUi.sections.tour },
+      ...(c.extra ?? []).map((x) => ({ id: x.id, label: { es: x.title, en: x.title } })),
       { id: 'resultados', label: pageUi.sections.results },
       c.limits?.length && { id: 'limites', label: pageUi.sections.limits },
       c.next?.length && { id: 'siguientes', label: pageUi.sections.next },
@@ -345,6 +347,70 @@ export default function ProjectPage({ slug }) {
                 </button>
               </section>
             )}
+
+            {/* Secciones propias de un proyecto (p. ej. el proceso de diseño): línea de tiempo con tablas e imágenes opcionales. */}
+            {c.extra?.map((x) => (
+              <section key={x.id} id={x.id} className="scroll-mt-24">
+                <SectionTitle n={n(x.id)} icon={Palette}>
+                  {x.title}
+                </SectionTitle>
+                {x.intro && <Paragraphs items={[x.intro]} />}
+                <ol className="relative mt-6 max-w-3xl space-y-9 border-l border-line pl-8">
+                  {x.stages.map((s, i) => (
+                    <li key={i} className="relative">
+                      <span className="absolute -left-[45px] flex h-7 w-7 items-center justify-center rounded-full border border-cyan/40 bg-surface font-mono text-xs font-semibold text-cyan-soft">
+                        {i + 1}
+                      </span>
+                      {s.tag && <div className="font-mono text-[11px] uppercase tracking-wider text-cyan-soft">{s.tag}</div>}
+                      <h3 className="mt-1 text-base font-semibold text-slate-50">{s.t}</h3>
+                      <p className="mt-1.5 text-[15px] leading-7 text-slate-300">{s.d}</p>
+                      {s.list?.length > 0 && (
+                        <ul className="mt-3 space-y-2">
+                          {s.list.map((li, k) => (
+                            <li key={k} className="flex gap-3 text-sm leading-6 text-slate-300">
+                              <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-500" strokeWidth={2} />
+                              <span>{li}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {s.table && (
+                        <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-surface">
+                          <table className="w-full text-left text-sm">
+                            <thead>
+                              <tr className="border-b border-line font-mono text-[11px] uppercase tracking-wider text-slate-500">
+                                {s.table.head.map((h, k) => (
+                                  <th key={k} className="px-3 py-2 font-medium">
+                                    {h}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="text-slate-300">
+                              {s.table.rows.map((r, k) => (
+                                <tr key={k} className="border-b border-line/60 last:border-0">
+                                  {r.map((cell, j) => (
+                                    <td key={j} className={`px-3 py-2 ${j > 0 ? 'font-mono text-xs' : ''}`}>
+                                      {cell}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {s.fig && (
+                        <figure className="mt-4">
+                          <img src={s.fig.src} alt={s.fig.alt} width={s.fig.w} height={s.fig.h} loading="lazy" className="w-full rounded-xl border border-line" />
+                          <figcaption className="mt-2 text-xs leading-5 text-slate-500">{s.fig.caption}</figcaption>
+                        </figure>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ))}
 
             <section id="resultados" className="scroll-mt-24">
               <SectionTitle n={n('resultados')} icon={FlaskConical}>

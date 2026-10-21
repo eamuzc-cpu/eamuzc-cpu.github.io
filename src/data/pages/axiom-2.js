@@ -1,5 +1,8 @@
 export default {
-  status: { es: 'Aplicación de escritorio de uso diario (Windows)', en: 'Desktop application for daily use (Windows)' },
+  status: {
+    es: 'Aplicación de escritorio de uso diario (Windows) · réplica del orbe en el navegador',
+    en: 'Desktop application for daily use (Windows) · in-browser replica of the orb',
+  },
   related: ['asistente-pi-v3', 'comfyui-studio', 'visual-auto-trigger'],
   es: {
     lead: 'Un asistente de escritorio que se activa con dos palmadas, transcribe la voz en la GPU y responde con voz y un orbe animado. Controla Windows, archivos, navegador y ComfyUI, y pide confirmación antes de cualquier acción riesgosa.',
@@ -10,7 +13,7 @@ export default {
     how: [
       { t: 'Activarse con dos palmadas', d: 'El micrófono detecta una doble palmada como señal de activación, un gesto simple que no requiere pronunciar nada.' },
       { t: 'Transcribir en la GPU', d: 'La voz del usuario se convierte en texto con transcripción acelerada por GPU, para que la respuesta empiece pronto.' },
-      { t: 'Mostrar el estado con un orbe', d: 'Un orbe de 600 partículas indica en qué estado está el asistente: escuchando, pensando, hablando o esperando confirmación. El usuario siempre ve qué está pasando.' },
+      { t: 'Mostrar el estado con un orbe', d: 'Un orbe de 600 partículas indica en qué estado está el asistente: escuchando, pensando, hablando o esperando confirmación. El usuario siempre ve qué está pasando. La demo de esta página es una réplica de ese orbe.' },
       { t: 'Elegir el cerebro', d: 'El texto va a uno de tres cerebros intercambiables, incluso por voz: Qwen local con llama.cpp, Gemini o Claude.' },
       { t: 'Usar herramientas', d: 'El cerebro puede pedir herramientas de Windows, archivos, web, Chrome, visión de pantalla, correo, GitHub, notas de Obsidian y generación de imágenes en ComfyUI. Se amplían con plugins, habilidades y servidores MCP.' },
       { t: 'Pasar por el centinela', d: 'Antes de borrar, escribir, hacer clics, enviar correo o navegar, un centinela configurable pide confirmación. Tiene tres modos de permisos: Consulta, Automático y Restringido.' },
@@ -22,6 +25,7 @@ export default {
       { t: 'MCP', d: 'Model Context Protocol: un estándar abierto para que un asistente se conecte a herramientas y fuentes de datos externas.' },
       { t: 'Centinela', d: 'Capa que revisa cada acción propuesta y decide si se ejecuta sola o necesita confirmación humana, según el modo de permisos.' },
       { t: 'Modos de permisos', d: 'Consulta (solo lee), Automático (ejecuta lo permitido sin preguntar) y Restringido (pide confirmación en casi todo).' },
+      { t: 'Resorte con freno', d: 'Cada partícula del orbe es tirada hacia su lugar por un resorte y frenada para no oscilar. Por eso, al cambiar de estado, el orbe fluye en vez de saltar.' },
     ],
     decisions: [
       { t: 'Tres cerebros intercambiables', d: 'Si un servicio falla o se agota la cuota, se cambia de cerebro; si no hay internet, queda el modelo local. El asistente no queda inutilizado por depender de un proveedor.' },
@@ -29,18 +33,138 @@ export default {
       { t: 'Estado visible', d: 'El orbe evita la incertidumbre de «¿me escuchó?» o «¿está esperando que le diga que sí?».' },
       { t: 'Extensible', d: 'Plugins, habilidades y servidores MCP permiten sumar capacidades sin reescribir el núcleo.' },
     ],
+    tour: [
+      'Pulsa «▶ Una conversación»: el orbe pasa solo por reposo, escuchando, transcribiendo, pensando, hablando y confirmando, con el texto de lo que hace en cada estado.',
+      'En «Estado» elige «Escuchando», quita «auto» del nivel del micrófono y muévelo: la fuerza de las ondas sigue ese nivel. Con «Hablando» pasa lo mismo con el volumen de la voz.',
+      'Elige «Pensando»: un tercio de las partículas sale a orbitar en tres anillos inclinados. Con «Confirmando» el enjambre se aplana en un anillo ámbar que pulsa.',
+      'Pulsa «Error»: estalla en rojo y se vuelve a armar. El destello dura 1,4 s, como en AXIOM.',
+      'Prueba «Ocultar orbe» (se apaga hacia afuera y deja de dibujar) y luego «Volver a mostrar». «Dispersar y volver» repite la salida y el reagrupamiento.',
+      'Cambia el cerebro entre «Local», «Gemini» y «Claude»: solo cambia el color del núcleo. Mueve el mouse sobre el orbe: las partículas se apartan.',
+      'Activa «Ver a tamaño real» para verlo de 160 px, como en el escritorio, y «Recortar a la ventana» para ver qué corta la ventana.',
+      'En «Estilo» elige «Clásico» para ver la esfera de vidrio con un anillo por estado. En «Forma» prueba «Nebulosa» y «Galaxia», que se exploraron en el prototipo y no se usaron.',
+    ],
+    extra: [
+      {
+        id: 'diseno-orbe',
+        title: 'Cómo se diseñó el orbe',
+        intro: 'El orbe es lo único de AXIOM que está a la vista todo el día, así que pasó por tres versiones. Esta es la historia de cada una, con lo que se decidió y por qué. Los costos son los medidos en el programa original, no en la demo del navegador.',
+        stages: [
+          {
+            tag: 'Versión 1 · 64 px',
+            t: 'Sacar la ventana de depuración',
+            d: 'AXIOM v1 mostraba su estado en una ventana rectangular siempre visible, que parecía una consola de depuración. El primer diseño la reemplazó por un círculo de 64 px con tres estados (reposo, escuchando y pensando): respiración lenta de 3,2 s, un anillo tipo sonar al escuchar y un arco girando al pensar. Antes de escribir el código se probó una maqueta interactiva en el navegador.',
+            list: [
+              'Animación ambiental, sin pedir atención, en la línea de la «isla dinámica» de los teléfonos.',
+              'Al hacer clic, un panel crece desde la esquina del orbe en 240 ms con curva ease-out y se cierra más rápido, en unos 150 ms.',
+              'Reglas: ninguna animación pasa de 300 ms y las acciones del teclado no se animan.',
+            ],
+          },
+          {
+            tag: 'Versión 2 · esfera de vidrio',
+            t: 'El color dice quién piensa; el anillo, qué pasa',
+            d: 'AXIOM 2 convirtió el orbe en una esfera de vidrio oscuro con núcleo luminoso y separó dos códigos visuales. El color del núcleo indica qué cerebro está activo: verde para el local, azul para Gemini y coral para Claude. El anillo indica qué está haciendo, así que el estado queda siempre visible. La ventana pasó a ser más grande que la esfera, porque la versión 1 recortaba el anillo con una máscara circular.',
+            list: [
+              'Escuchando: ondas cian que crecen con el nivel real del micrófono.',
+              'Transcribiendo: anillo punteado girando. Pensando: arco girando con el color del cerebro.',
+              'Hablando: ondas que laten con la voz. Confirmando: anillo ámbar pulsando y un punto de aviso.',
+              'Error: anillo rojo. Pausa: gris y quieto.',
+            ],
+            fig: {
+              src: '/projects/axiom-orbe-clasico.jpg',
+              w: 1280,
+              h: 640,
+              alt: 'Los ocho estados del orbe clásico: una esfera de vidrio con un anillo distinto en cada estado',
+              caption: 'El orbe clásico en sus ocho estados (captura de la réplica en el navegador). Sigue disponible en AXIOM como respaldo.',
+            },
+          },
+          {
+            tag: 'Propuesta · enjambre de partículas',
+            t: '¿Y si el orbe fueran cientos de orbes pequeños?',
+            d: 'La propuesta fue dejar de dibujar la esfera y formarla con un enjambre de cientos de puntos de luz, de modo que cada estado pudiera moverse, dispersarse o desvanecerse en lugar de solo cambiar un anillo. Antes de tocar AXIOM se armó un prototipo interactivo en el navegador, con tres formas (esfera, nebulosa y galaxia), los ocho estados, los tres cerebros y un medidor de fps. El método quedó en tres pasos:',
+            list: [
+              'Dónde debería estar cada partícula: su lugar en una espiral de Fibonacci, girando y deformado por el estado.',
+              'Un resorte con freno la lleva hacia ahí, así que cambiar de estado fluye en vez de saltar.',
+              'Cada una se dibuja como un punto de luz preparado una sola vez, y su luz se suma: donde se juntan, brillan más.',
+            ],
+          },
+          {
+            tag: 'Medición',
+            t: 'Medir antes de decidir',
+            d: 'Se midió el mismo motor, con PyQt6 y numpy, en el i5-12400 del equipo donde corre AXIOM. La física casi no cuesta; lo caro es dibujar. Dibujar todas las partículas en una sola llamada (drawPixmapFragments) dio casi lo mismo, así que no aportaba. OpenGL permitiría miles de partículas, pero en Windows una ventana sin marco y transparente con OpenGL suele no mezclarse bien con el escritorio y habría que probarlo: se dejó para después. El camino elegido fue QPainter con numpy e imágenes de brillo preparadas.',
+            table: {
+              head: ['Partículas', 'Tiempo por cuadro', 'CPU total (12 hilos)'],
+              rows: [
+                ['300', '0,83 ms', '≈ 0,4 %'],
+                ['600', '1,56 ms', '≈ 0,8 %'],
+                ['1000', '2,53 ms', '≈ 1,3 %'],
+                ['2000', '5,07 ms', '≈ 2,5 %'],
+                ['4000', '11,33 ms', '≈ 5,7 %'],
+              ],
+            },
+          },
+          {
+            tag: 'Decisiones · 15 de octubre de 2026',
+            t: 'Lo que se cerró',
+            d: 'Una ronda de preguntas dejó cerradas las decisiones y el enjambre se implementó en AXIOM: el motor en enjambre.py y el dibujo en orbe.py, con pruebas.',
+            list: [
+              'Forma en reposo: esfera. La nebulosa y la galaxia quedaron fuera.',
+              'Cantidad: 600 partículas, configurable entre 200 y 1500 en Configuración › General › Orbe.',
+              'Tamaño: esfera de 30 px de radio (antes 26) en una ventana de 160 px (antes 112).',
+              'Estados: los ocho de la tabla; «escuchando» sigue el nivel real del micrófono y «hablando», el volumen real de la voz.',
+              'Transiciones: se arma volando al abrir y al volver a mostrarlo, se apaga hacia afuera al ocultarlo y estalla y se rearma en un error.',
+              'Mouse: las partículas se apartan del puntero. El ícono de la bandeja sigue siendo la esfera sólida, porque a 16 px las partículas no se ven.',
+              'Respaldo: el orbe clásico queda disponible en la configuración.',
+            ],
+            fig: {
+              src: '/projects/axiom-orbe-particulas.jpg',
+              w: 1280,
+              h: 640,
+              alt: 'Los ocho estados del orbe de partículas: reposo, escuchando, transcribiendo, pensando, hablando, confirmando, error y pausa',
+              caption: 'El orbe de partículas en sus ocho estados (captura de la réplica en el navegador, con el cerebro Claude).',
+            },
+          },
+          {
+            tag: 'Implementación',
+            t: 'Lo que se aprendió al programarlo',
+            d: 'El motor está separado de Qt (solo usa numpy), así que se prueba sin abrir ninguna ventana. Cuatro pruebas cubren el reparto parejo de la esfera, que el enjambre nace disperso y se arma, que todos los estados dan números válidos y que desvanecer, estallar y el mouse funcionan.',
+            list: [
+              'Paso fijo de 1/60 s (hasta 3 por cuadro) y suavizado según el tiempo transcurrido: a 30 fps se mueve igual que a 60.',
+              'En reposo se dibuja a 30 fps y, con el orbe oculto, no se dibuja nada. Con todo AXIOM en reposo se midió 0,33 % de CPU.',
+              'Los puntos de luz se preparan una vez por color (cuatro tamaños según la profundidad). La ventana creció de 112 a 160 px para que las partículas que orbitan no se corten.',
+              'Los clics cuentan solo dentro de la esfera más 8 px; el resto de la ventana es transparente.',
+              'Un ajuste a ojo: al confirmar, el prototipo aplanaba el enjambre a 0,22 de su alto; en el código final se subió a 0,4 porque con 0,22 se veía como una raya.',
+            ],
+          },
+          {
+            tag: 'Esta demo',
+            t: 'Del Python al navegador',
+            d: 'La demo de esta página no es un video ni el prototipo original: es el motor real de AXIOM traducido a JavaScript, con los mismos parámetros por estado, la misma física y los mismos dibujos del orbe clásico. Se comparó con la salida del código Python en 9 guiones (cada estado y una secuencia con cambios de estado, estallido, mouse, 30 y 20 fps, ocultar y reaparecer) y la diferencia fue menor a 0,000001 px.',
+            list: [
+              'El dibujo no es idéntico: usa el lienzo del navegador en lugar de QPainter, con las mismas fórmulas pero sin píxeles idénticos.',
+              'El micrófono y la voz son simulados, o los fijas tú con los controles.',
+              'La nebulosa, la galaxia y la estela vienen del prototipo; AXIOM usa la esfera y no deja estela.',
+              'Los tiempos de la tabla son del programa original, no del navegador.',
+            ],
+          },
+        ],
+      },
+    ],
     verified: [
       '61 pruebas automáticas.',
       '3 cerebros disponibles y un orbe de 600 partículas.',
+      'La réplica del orbe coincide con el motor Python de AXIOM en 9 guiones comparados (diferencia menor a 0,000001 px) y tiene 20 pruebas en total.',
+      'Costos medidos en el programa original (i5-12400, PyQt6 y numpy): 600 partículas = 1,56 ms por cuadro; AXIOM completo en reposo usa 0,33 % del CPU.',
     ],
     limits: [
-      'Es una aplicación de escritorio para Windows de uso personal; no hay demo en el navegador.',
+      'Es una aplicación de escritorio para Windows de uso personal. En el navegador solo está la réplica del orbe: el micrófono y la voz son simulados y los tiempos de dibujo no son los del original.',
+      'La réplica traduce el cálculo del orbe, no el dibujo: el lienzo del navegador y Qt no dan píxeles idénticos.',
       'El cerebro local depende de la GPU y el modelo disponibles; Gemini y Claude requieren internet y credenciales propias.',
       'Aunque el centinela pide confirmación, conviene revisar lo que pide autorizar, sobre todo en modo Automático.',
     ],
     next: [
       'Registrar un historial auditable de las acciones confirmadas y las rechazadas.',
       'Medir y comparar la latencia de los tres cerebros para una misma orden.',
+      'Probar OpenGL si algún día se quisieran miles de partículas: en Windows, una ventana sin marco y transparente con OpenGL podría no mezclarse bien con el escritorio.',
     ],
   },
   en: {
@@ -52,7 +176,7 @@ export default {
     how: [
       { t: 'Wake on two claps', d: 'The microphone detects a double clap as the activation signal, a simple gesture that requires no spoken word.' },
       { t: 'Transcribe on the GPU', d: 'The user’s voice becomes text with GPU-accelerated transcription, so the answer starts quickly.' },
-      { t: 'Show state with an orb', d: 'A 600-particle orb shows the assistant’s state: listening, thinking, speaking or waiting for confirmation. The user always sees what is going on.' },
+      { t: 'Show state with an orb', d: 'A 600-particle orb shows the assistant’s state: listening, thinking, speaking or waiting for confirmation. The user always sees what is going on. The demo on this page is a replica of that orb.' },
       { t: 'Choose the brain', d: 'The text goes to one of three swappable brains, even by voice: local Qwen with llama.cpp, Gemini or Claude.' },
       { t: 'Use tools', d: 'The brain can request tools for Windows, files, web, Chrome, screen vision, email, GitHub, Obsidian notes and image generation in ComfyUI. They are extended with plugins, skills and MCP servers.' },
       { t: 'Pass through the sentinel', d: 'Before deleting, writing, clicking, sending email or browsing, a configurable sentinel asks for confirmation. It has three permission modes: Query, Automatic and Restricted.' },
@@ -64,6 +188,7 @@ export default {
       { t: 'MCP', d: 'Model Context Protocol: an open standard for an assistant to connect to external tools and data sources.' },
       { t: 'Sentinel', d: 'A layer that reviews every proposed action and decides whether it runs by itself or needs human confirmation, depending on the permission mode.' },
       { t: 'Permission modes', d: 'Query (read-only), Automatic (runs what is allowed without asking) and Restricted (asks for confirmation on almost everything).' },
+      { t: 'Spring with brake', d: 'Each particle of the orb is pulled toward its place by a spring and slowed down so it does not oscillate. That is why, when the state changes, the orb flows instead of jumping.' },
     ],
     decisions: [
       { t: 'Three swappable brains', d: 'If a service fails or the quota runs out you switch brain; if there is no internet the local model remains. The assistant is not stranded by depending on one provider.' },
@@ -71,18 +196,138 @@ export default {
       { t: 'Visible state', d: 'The orb removes the uncertainty of "did it hear me?" or "is it waiting for me to say yes?".' },
       { t: 'Extensible', d: 'Plugins, skills and MCP servers let capabilities be added without rewriting the core.' },
     ],
+    tour: [
+      'Press “▶ Una conversación” (a guided conversation): the orb goes by itself through idle, listening, transcribing, thinking, speaking and confirming, with a line describing what it does in each state.',
+      'Under “Estado” pick “Escuchando” (listening), untick “auto” on the microphone level and move it: the strength of the waves follows that level. With “Hablando” (speaking) the voice volume does the same.',
+      'Pick “Pensando” (thinking): a third of the particles go out to orbit in three tilted rings. With “Confirmando” (confirming) the swarm flattens into a pulsing amber ring.',
+      'Press “Error”: it bursts in red and puts itself back together. The flash lasts 1.4 s, as in AXIOM.',
+      'Try “Ocultar orbe” (hide orb: it fades outward and stops drawing) and then “Volver a mostrar” (show again). “Dispersar y volver” repeats the burst out and the regrouping.',
+      'Switch the brain between “Local”, “Gemini” and “Claude”: only the colour of the core changes. Move the mouse over the orb: the particles move away.',
+      'Turn on “Ver a tamaño real” (real size) to see it at 160 px, as on the desktop, and “Recortar a la ventana” (clip to the window) to see what the window cuts off.',
+      'Under “Estilo” pick “Clásico” (classic) to see the glass sphere with one ring per state. Under “Forma” try “Nebulosa” and “Galaxia”, explored in the prototype and not used.',
+    ],
+    extra: [
+      {
+        id: 'diseno-orbe',
+        title: 'How the orb was designed',
+        intro: 'The orb is the one part of AXIOM that is in view all day, so it went through three versions. This is the story of each, with what was decided and why. The costs are the ones measured in the original program, not in the browser demo.',
+        stages: [
+          {
+            tag: 'Version 1 · 64 px',
+            t: 'Getting rid of the debug window',
+            d: 'AXIOM v1 showed its state in an always-visible rectangular window that looked like a debug console. The first design replaced it with a 64 px circle with three states (idle, listening and thinking): a slow 3.2 s breathing, a sonar-style ring while listening and a spinning arc while thinking. Before writing code, an interactive mock-up was tried in the browser.',
+            list: [
+              'Ambient animation that does not ask for attention, in the spirit of the phone “dynamic island”.',
+              'On click, a panel grows from the orb’s corner in 240 ms with an ease-out curve and closes faster, in about 150 ms.',
+              'Rules: no animation lasts more than 300 ms and keyboard actions are not animated.',
+            ],
+          },
+          {
+            tag: 'Version 2 · glass sphere',
+            t: 'Colour says who is thinking; the ring says what is happening',
+            d: 'AXIOM 2 turned the orb into a dark glass sphere with a glowing core and separated two visual codes. The core colour shows which brain is active: green for local, blue for Gemini and coral for Claude. The ring shows what it is doing, so the state is always visible. The window became larger than the sphere, because version 1 clipped the ring with a circular mask.',
+            list: [
+              'Listening: cyan waves that grow with the real microphone level.',
+              'Transcribing: a dotted ring spinning. Thinking: an arc spinning in the brain’s colour.',
+              'Speaking: waves that pulse with the voice. Confirming: a pulsing amber ring and a warning dot.',
+              'Error: a red ring. Paused: grey and still.',
+            ],
+            fig: {
+              src: '/projects/axiom-orbe-clasico.jpg',
+              w: 1280,
+              h: 640,
+              alt: 'The eight states of the classic orb: a glass sphere with a different ring in each state',
+              caption: 'The classic orb in its eight states (capture of the browser replica). It is still available in AXIOM as a fallback.',
+            },
+          },
+          {
+            tag: 'Proposal · particle swarm',
+            t: 'What if the orb were hundreds of small orbs?',
+            d: 'The proposal was to stop drawing the sphere and form it with a swarm of hundreds of points of light, so each state could move, scatter or fade instead of just changing a ring. Before touching AXIOM, an interactive prototype was built in the browser, with three shapes (sphere, nebula and galaxy), the eight states, the three brains and an fps meter. The method ended up in three steps:',
+            list: [
+              'Where each particle should be: its place on a Fibonacci spiral, rotating and deformed by the state.',
+              'A spring with a brake pulls it there, so changing state flows instead of jumping.',
+              'Each one is drawn as a point of light prepared once, and their light adds up: where they gather, they shine brighter.',
+            ],
+          },
+          {
+            tag: 'Measurement',
+            t: 'Measure before deciding',
+            d: 'The same engine was measured, with PyQt6 and numpy, on the i5-12400 of the machine where AXIOM runs. The physics hardly costs anything; drawing is what is expensive. Drawing all the particles in a single call (drawPixmapFragments) gave almost the same result, so it added nothing. OpenGL would allow thousands of particles, but on Windows a frameless transparent window with OpenGL tends not to blend well with the desktop and would need testing: it was left for later. The chosen path was QPainter with numpy and prepared glow images.',
+            table: {
+              head: ['Particles', 'Time per frame', 'Total CPU (12 threads)'],
+              rows: [
+                ['300', '0.83 ms', '≈ 0.4 %'],
+                ['600', '1.56 ms', '≈ 0.8 %'],
+                ['1000', '2.53 ms', '≈ 1.3 %'],
+                ['2000', '5.07 ms', '≈ 2.5 %'],
+                ['4000', '11.33 ms', '≈ 5.7 %'],
+              ],
+            },
+          },
+          {
+            tag: 'Decisions · 15 October 2026',
+            t: 'What was settled',
+            d: 'A round of questions settled the decisions and the swarm was implemented in AXIOM: the engine in enjambre.py and the drawing in orbe.py, with tests.',
+            list: [
+              'Resting shape: sphere. The nebula and the galaxy were left out.',
+              'Count: 600 particles, configurable between 200 and 1500 under Settings › General › Orb.',
+              'Size: a sphere of 30 px radius (it was 26) in a 160 px window (it was 112).',
+              'States: the eight of the table; “listening” follows the real microphone level and “speaking” the real volume of the voice.',
+              'Transitions: it assembles by flying in on opening and when shown again, fades outward when hidden, and bursts and reassembles on an error.',
+              'Mouse: the particles move away from the pointer. The tray icon stays the solid sphere, because at 16 px the particles cannot be seen.',
+              'Fallback: the classic orb remains available in the settings.',
+            ],
+            fig: {
+              src: '/projects/axiom-orbe-particulas.jpg',
+              w: 1280,
+              h: 640,
+              alt: 'The eight states of the particle orb: idle, listening, transcribing, thinking, speaking, confirming, error and paused',
+              caption: 'The particle orb in its eight states (capture of the browser replica, with the Claude brain).',
+            },
+          },
+          {
+            tag: 'Implementation',
+            t: 'What was learned while coding it',
+            d: 'The engine is separate from Qt (it only uses numpy), so it is tested without opening any window. Four tests cover the even spread of the sphere, that the swarm is born scattered and assembles, that every state gives valid numbers, and that fading, bursting and the mouse work.',
+            list: [
+              'A fixed step of 1/60 s (up to 3 per frame) and smoothing by elapsed time: at 30 fps it moves the same as at 60.',
+              'At rest it draws at 30 fps and, with the orb hidden, it draws nothing. With all of AXIOM idle, 0.33 % CPU was measured.',
+              'The points of light are prepared once per colour (four sizes by depth). The window grew from 112 to 160 px so the orbiting particles are not cut off.',
+              'Clicks only count inside the sphere plus 8 px; the rest of the window is transparent.',
+              'A by-eye adjustment: when confirming, the prototype flattened the swarm to 0.22 of its height; in the final code it was raised to 0.4 because 0.22 looked like a line.',
+            ],
+          },
+          {
+            tag: 'This demo',
+            t: 'From Python to the browser',
+            d: 'The demo on this page is not a video or the original prototype: it is AXIOM’s real engine translated to JavaScript, with the same parameters per state, the same physics and the same classic-orb drawings. It was compared with the output of the Python code in 9 scripts (every state, and a sequence with state changes, a burst, the mouse, 30 and 20 fps, hiding and reappearing) and the difference was under 0.000001 px.',
+            list: [
+              'The drawing is not identical: it uses the browser canvas instead of QPainter, with the same formulas but not pixel-identical.',
+              'The microphone and the voice are simulated, or you set them with the controls.',
+              'The nebula, the galaxy and the trail come from the prototype; AXIOM uses the sphere and leaves no trail.',
+              'The times in the table are from the original program, not from the browser.',
+            ],
+          },
+        ],
+      },
+    ],
     verified: [
       '61 automated tests.',
       '3 brains available and a 600-particle orb.',
+      'The orb replica matches AXIOM’s Python engine in 9 compared scripts (difference under 0.000001 px) and has 20 tests in total.',
+      'Costs measured in the original program (i5-12400, PyQt6 and numpy): 600 particles = 1.56 ms per frame; all of AXIOM idle uses 0.33 % of the CPU.',
     ],
     limits: [
-      'It is a Windows desktop application for personal use; there is no browser demo.',
+      'It is a Windows desktop application for personal use. In the browser there is only the orb replica: the microphone and voice are simulated and the drawing times are not the original’s.',
+      'The replica translates the orb’s calculation, not its drawing: the browser canvas and Qt do not give identical pixels.',
       'The local brain depends on the available GPU and model; Gemini and Claude need internet and your own credentials.',
       'Although the sentinel asks for confirmation, review what you are asked to authorise, especially in Automatic mode.',
     ],
     next: [
       'Keep an auditable history of confirmed and rejected actions.',
       'Measure and compare the latency of the three brains for the same command.',
+      'Try OpenGL if thousands of particles were ever wanted: on Windows, a frameless transparent window with OpenGL might not blend well with the desktop.',
     ],
   },
   diagrams: [

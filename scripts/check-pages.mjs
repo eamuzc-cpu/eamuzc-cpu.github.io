@@ -3,11 +3,12 @@
 //   node scripts/check-pages.mjs pid-pasteurizador alarmas-isa182
 // Comprueba: un archivo por proyecto de projects.js, mismas listas en es y en, formas de datos, `related` válidos y que
 // los diagramas quepan (texto de nodos, ids, celdas, flechas, etiquetas). Sale con código 1 si algo falla.
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { join } from 'node:path'
 
 const dir = fileURLToPath(new URL('../src/data/pages/', import.meta.url))
+const publico = fileURLToPath(new URL('../public', import.meta.url))
 const { projects } = await import(pathToFileURL(fileURLToPath(new URL('../src/data/projects.js', import.meta.url))).href)
 const only = process.argv.slice(2)
 const archivos = readdirSync(dir).filter((f) => f.endsWith('.js') && (only.length === 0 || only.includes(f.slice(0, -3))))
@@ -76,8 +77,29 @@ for (const f of archivos) {
         } else if (typeof it !== 'string' || !it) mal(slug, `${lang}.${k}[${i}] debe ser un string`)
       })
     }
-    for (const k of Object.keys(c)) if (!['lead', ...LISTS].includes(k)) mal(slug, `${lang}: clave desconocida ${k}`)
+    for (const k of Object.keys(c)) if (!['lead', 'extra', ...LISTS].includes(k)) mal(slug, `${lang}: clave desconocida ${k}`)
     for (const k of LISTS) for (const it of c[k] ?? []) caracteres += (typeof it === 'string' ? it : it.t + it.d).length
+    // extra: secciones propias (línea de tiempo con t/d, list, table y fig opcionales); misma forma en es y en
+    const ex = c.extra, ot = page[lang === 'es' ? 'en' : 'es']?.extra
+    if (ex !== undefined || ot !== undefined) {
+      if (!Array.isArray(ex) || !Array.isArray(ot) || ex.length !== ot.length) mal(slug, `${lang}.extra: debe ser un arreglo con la misma cantidad en es y en`)
+      else ex.forEach((x, i) => {
+        const o = ot[i], q = `${lang}.extra[${i}]`
+        if (!x.id || x.id !== o.id || !/^[a-z-]+$/.test(x.id)) mal(slug, `${q}: id ausente, distinto entre idiomas o con caracteres no permitidos`)
+        if (typeof x.title !== 'string' || !x.title) mal(slug, `${q}: falta title`)
+        if (!Array.isArray(x.stages) || !x.stages.length || x.stages.length !== o.stages?.length) mal(slug, `${q}.stages: faltan o difieren entre idiomas`)
+        caracteres += (x.title + (x.intro ?? '')).length
+        x.stages?.forEach((s, k) => {
+          const so = o.stages?.[k] ?? {}, qs = `${q}.stages[${k}]`
+          if (typeof s.t !== 'string' || typeof s.d !== 'string' || !s.t || !s.d) mal(slug, `${qs}: necesita t y d`)
+          if ((s.list?.length ?? 0) !== (so.list?.length ?? 0)) mal(slug, `${qs}.list: distinta cantidad en es y en`)
+          if (!s.table !== !so.table || (s.table && (s.table.rows.length !== so.table.rows.length || s.table.head.length !== so.table.head.length || s.table.rows.some((r) => r.length !== s.table.head.length)))) mal(slug, `${qs}.table: difiere entre idiomas o una fila no calza con el encabezado`)
+          if (!s.fig !== !so.fig || (s.fig && (s.fig.src !== so.fig.src || !s.fig.alt || !s.fig.caption || !s.fig.w || !s.fig.h))) mal(slug, `${qs}.fig: necesita src igual en ambos idiomas, alt, caption, w y h`)
+          if (s.fig && !existsSync(join(publico, s.fig.src))) mal(slug, `${qs}.fig: no existe public${s.fig.src}`)
+          caracteres += (s.t + s.d + (s.list ?? []).join('') + (s.table ? s.table.rows.flat().join('') : '')).length
+        })
+      })
+    }
   }
   const ds = page.diagrams ?? []
   ds.forEach((d, di) => {

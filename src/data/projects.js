@@ -456,6 +456,7 @@ export const projects = [
     category: 'ai',
     year: 2026,
     image: '/projects/axiom-2.jpg',
+    demo: { src: '/demos/axiom-2/index.html' },
     resultBadge: { es: '3 cerebros intercambiables', en: '3 swappable brains' },
     summary: {
       es: 'Se activa con dos palmadas, transcribe en GPU y responde con voz y un orbe animado; controla Windows, archivos, navegador y ComfyUI, y pide confirmación en las acciones riesgosas.',
@@ -471,8 +472,8 @@ export const projects = [
       en: 'An assistant that deletes files, sends email or clicks on its own is a risk; one that only works with the cloud fails when the service goes down or the quota runs out. It had to be safe by design and offer a local mode.',
     },
     solution: {
-      es: 'Aplicación para Windows con activación por doble palmada, transcripción en GPU, panel de chat y un orbe de 600 partículas que muestra el estado (escuchando, pensando, hablando, esperando confirmación). Tres cerebros intercambiables, incluso por voz: Qwen local con llama.cpp, Gemini y Claude. Herramientas para Windows, archivos, web, Chrome, visión de pantalla, correo, GitHub, notas de Obsidian y generación de imágenes en ComfyUI, ampliables con plugins, habilidades y servidores MCP. Un «centinela» configurable pide confirmación antes de borrar, escribir, hacer clics, enviar correo o navegar, con tres modos de permisos: Consulta, Automático y Restringido.',
-      en: 'Windows application with double-clap activation, GPU transcription, a chat panel and a 600-particle orb that shows its state (listening, thinking, speaking, awaiting confirmation). Three swappable brains, even by voice: local Qwen with llama.cpp, Gemini and Claude. Tools for Windows, files, the web, Chrome, screen vision, email, GitHub, Obsidian notes and image generation in ComfyUI, extendable with plugins, skills and MCP servers. A configurable “sentinel” asks for confirmation before deleting, writing, clicking, sending email or browsing, with three permission modes: Ask, Automatic and Restricted.',
+      es: 'Aplicación para Windows con activación por doble palmada, transcripción en GPU, panel de chat y un orbe de 600 partículas que muestra el estado (escuchando, pensando, hablando, esperando confirmación). Tres cerebros intercambiables, incluso por voz: Qwen local con llama.cpp, Gemini y Claude. Herramientas para Windows, archivos, web, Chrome, visión de pantalla, correo, GitHub, notas de Obsidian y generación de imágenes en ComfyUI, ampliables con plugins, habilidades y servidores MCP. Un «centinela» configurable pide confirmación antes de borrar, escribir, hacer clics, enviar correo o navegar, con tres modos de permisos: Consulta, Automático y Restringido. La demo es una réplica en el navegador del orbe real, traducida del código Python y comparada con él.',
+      en: 'Windows application with double-clap activation, GPU transcription, a chat panel and a 600-particle orb that shows its state (listening, thinking, speaking, awaiting confirmation). Three swappable brains, even by voice: local Qwen with llama.cpp, Gemini and Claude. Tools for Windows, files, the web, Chrome, screen vision, email, GitHub, Obsidian notes and image generation in ComfyUI, extendable with plugins, skills and MCP servers. A configurable “sentinel” asks for confirmation before deleting, writing, clicking, sending email or browsing, with three permission modes: Ask, Automatic and Restricted. The demo is an in-browser replica of the real orb, translated from the Python code and checked against it.',
     },
     metrics: [
       { label: { es: 'Cerebros disponibles', en: 'Available brains' }, value: '3' },

@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbe de AXIOM — enjambre de partículas, estados y costo (réplica en el navegador)</title>
+<meta name="description" content="Réplica interactiva del orbe de AXIOM: un enjambre de 600 partículas con 8 estados, 3 cerebros, transiciones, orbe clásico y el costo medido del original en Python.">
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b;
+  --mag: #e879f9; --green: #34d399; --red: #f87171;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.wrap { display: grid; gap: 12px; padding: 12px 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button.danger { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(248, 113, 113, .1); }
+button.on { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+input[type=range] { width: 100%; accent-color: var(--cyan); }
+select, input[type=number], input[type=text] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+label { font: 12px var(--mono); color: var(--mut); }
+table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+th { text-align: left; color: var(--mut); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 6px; border-bottom: 1px solid #0f1a2e; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); padding: 3px 0; color: var(--mut); }
+.kv b { color: var(--txt); font-weight: 600; }
+.ok { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .cy { color: var(--cyan); }
+.note { font-size: 11px; color: var(--mut); padding: 4px 16px 14px; }
+canvas { display: block; width: 100%; background: #030a1a; border-radius: 8px; border: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+@media (max-width: 900px) { .wrap.cols { grid-template-columns: 1fr !important; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+body::after { content: 'réplica en el navegador del orbe real de AXIOM (Python · PyQt6)'; }
+.mini { padding: 4px 9px; font-size: 11px; }
+.grp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.grp > b { flex: 0 0 100%; font: 600 10.5px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button[aria-pressed=true] { border-color: var(--c, var(--cyan)); color: var(--c, var(--cyan)); background: rgba(34, 211, 238, .08); }
+button.acc { border-style: dashed; }
+#lienzo { height: 470px; cursor: crosshair; background: #06080d; }
+#pie { font: 12.5px/1.5 var(--font); color: #cbd5e1; min-height: 38px; padding: 8px 2px 2px; }
+#pie small { color: var(--mut); font: 11px var(--mono); }
+.vista { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.slid { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; margin-bottom: 8px; }
+.slid label { font: 12px var(--mono); color: var(--mut); } .slid output { font: 600 12px var(--mono); color: var(--txt); }
+.slid input[type=range] { grid-column: 1 / -1; }
+.auto { font: 11px var(--mono); color: var(--mut); display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+.barra { height: 7px; background: #0a1324; border-radius: 4px; position: relative; overflow: visible; margin: 2px 0 7px; }
+.barra i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--cyan); border-radius: 4px; opacity: .85; }
+.barra u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--amber); border-radius: 1px; }
+.prm { display: flex; justify-content: space-between; font: 12px var(--mono); color: var(--mut); } .prm b { color: var(--txt); font-weight: 600; }
+.sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin-right: 6px; border: 1px solid #334155; }
+.three { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 12px; }
+ol.pasos { margin: 0; padding-left: 18px; font-size: 12.5px; color: #cbd5e1; } ol.pasos li { margin: 0 0 8px; } ol.pasos code { font: 11.5px var(--mono); color: var(--cyan); }
+td.n, th.n { text-align: right; white-space: nowrap; }
+.ctr { color: var(--mut); font: 11px/1.5 var(--mono); }
+@media (max-width: 1000px) { .three { grid-template-columns: 1fr; } #lienzo { height: 360px; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Orbe de AXIOM · enjambre de partículas</h1><span class="badge warn">réplica del motor real</span><span class="sp"></span>
+  <span id="fps" style="font:12px var(--mono);color:var(--mut)"></span>
+</div>
+<div class="wrap cols" style="grid-template-columns:minmax(0,1.45fr) minmax(310px,1fr)">
+  <div class="panel">
+    <h2>El orbe sobre el escritorio</h2>
+    <canvas id="lienzo" aria-label="Orbe de AXIOM: enjambre de partículas que cambia con el estado del asistente"></canvas>
+    <div id="pie" aria-live="polite"></div>
+    <div class="vista">
+      <button class="mini" id="bTam" aria-pressed="false">Ver a tamaño real</button>
+      <button class="mini" id="bVentana" aria-pressed="true">Mostrar la ventana de 160 px</button>
+      <button class="mini" id="bRecorte" aria-pressed="false">Recortar a la ventana</button>
+      <button class="mini" id="bRaton" aria-pressed="true">El mouse las empuja</button>
+      <button class="mini" id="bEstela" aria-pressed="false">Estela (solo prototipo)</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="grp" id="gEstilo"><b>Estilo (Configuración › General › Orbe)</b></div>
+    <div class="grp" id="gEstado"><b>Estado</b></div>
+    <div class="grp" id="gCerebro"><b>Cerebro (color del núcleo)</b></div>
+    <div class="grp" id="gTrans"><b>Transición</b></div>
+    <div class="grp" id="gForma"><b>Forma · explorada en el prototipo</b></div>
+    <div class="slid"><label for="rN">Partículas (AXIOM: 200 a 1500)</label><output id="oN">600</output><input type="range" id="rN" min="200" max="1500" step="50" value="600"></div>
+    <div class="slid"><label for="rMic">Nivel del micrófono</label><span><label class="auto"><input type="checkbox" id="aMic" checked> auto</label> <output id="oMic">60 %</output></span><input type="range" id="rMic" min="0" max="100" value="60"></div>
+    <div class="slid"><label for="rVoz">Volumen de la voz que suena</label><span><label class="auto"><input type="checkbox" id="aVoz" checked> auto</label> <output id="oVoz">60 %</output></span><input type="range" id="rVoz" min="0" max="100" value="60"></div>
+    <div class="grp" id="gGuion"><b>Conversación guiada</b></div>
+  </div>
+</div>
+<div class="wrap three" style="padding-top:0">
+  <div class="panel"><h2>Lo que calcula el motor ahora</h2><div id="prm"></div><div id="datos"></div></div>
+  <div class="panel"><h2>Un cuadro, en tres pasos</h2>
+    <ol class="pasos">
+      <li><b>Dónde debería estar.</b> Cada partícula tiene su lugar en una espiral de Fibonacci (esfera). Gira, se inclina 0,42 rad y el estado la deforma: ondas al escuchar, anillos al pensar, latido al hablar.</li>
+      <li><b>Resorte con freno.</b> <code>vel = (vel + (destino − pos)·resorte)·freno</code>. Por eso cambiar de estado fluye en vez de saltar. Paso fijo de 1/60 s: a 30 fps son 2 pasos.</li>
+      <li><b>Luz sumada.</b> Cada una es un punto de luz (centro blanco, borde del color del cerebro) en 4 tamaños según su profundidad. Donde se juntan, se suman y brillan más.</li>
+    </ol>
+    <div class="ctr">Color del estado: ámbar = confirmando, rojo = error, cian = escuchando, gris = pausa. Núcleo: verde = local, azul = Gemini, coral = Claude.</div>
+  </div>
+  <div class="panel"><h2>Cuánto cuesta (medido en el original)</h2>
+    <table><tr><th>Partículas</th><th class="n">Por cuadro</th><th class="n">CPU total</th></tr>
+      <tr><td>300</td><td class="n">0,83 ms</td><td class="n">≈ 0,4 %</td></tr><tr><td>600 <span class="cy">(AXIOM)</span></td><td class="n">1,56 ms</td><td class="n">≈ 0,8 %</td></tr>
+      <tr><td>1000</td><td class="n">2,53 ms</td><td class="n">≈ 1,3 %</td></tr><tr><td>2000</td><td class="n">5,07 ms</td><td class="n">≈ 2,5 %</td></tr><tr><td>4000</td><td class="n">11,33 ms</td><td class="n">≈ 5,7 %</td></tr></table>
+    <div class="ctr" style="margin-top:8px">Medido en un i5-12400 (12 hilos) con PyQt6 + numpy: física y dibujo. Para 60 fps cada cuadro debe durar menos de 16,7 ms; en reposo AXIOM dibuja a 30 fps y oculto no dibuja. Con todo AXIOM corriendo en reposo, el CPU total fue 0,33 %.</div>
+    <div class="kv" style="margin-top:8px"><span>Esta página, en tu navegador</span><b id="ms">—</b></div>
+  </div>
+</div>
+<div class="note">Réplica en JavaScript del motor real de AXIOM (<code>enjambre.py</code> con numpy y <code>orbe.py</code> con PyQt6): mismos parámetros por estado, misma física y mismos dibujos del orbe clásico. Se verificó contra la salida del código Python (9 guiones, diferencia menor a 0,000001 px). Los micrófonos y la voz son simulados; la nebulosa, la galaxia y la estela se probaron en el prototipo y no están en AXIOM, que usa la esfera. Los tiempos de la tabla se midieron en el programa original, no en el navegador.</div>
+
+<script>
+// Orbe de AXIOM (réplica en el navegador): traducción del motor REAL del asistente, escrito en Python (axiom/hud/enjambre.py
+// con numpy y axiom/hud/orbe.py con PyQt6). Mismos parámetros por estado, misma física (resorte con freno, paso fijo de 1/60 s),
+// mismas transiciones y mismos dibujos del orbe clásico. Lo que cambia es el lenguaje y el lienzo, no el cálculo: las pruebas
+// comparan este archivo contra la salida del código Python (referencia-python.json). El MISMO archivo corre en node --test y en index.html.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory()
+  else root.OrbeCore = factory()
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  // ---- constantes (enjambre.py y orbe.py) --------------------------------------------------------------------------------
+  // Por estado: giro (rad/s), resorte, freno, cuánto toma el color del estado, brillo, cuánto «se caen».
+  const PARAMETROS = {
+    reposo:         { giro: 0.25, resorte: 0.07, freno: 0.84, tinte: 0.0,  brillo: 0.85, caida: 0.0 },
+    escuchando:     { giro: 0.35, resorte: 0.12, freno: 0.80, tinte: 0.55, brillo: 1.05, caida: 0.0 },
+    transcribiendo: { giro: 0.90, resorte: 0.10, freno: 0.82, tinte: 0.35, brillo: 0.95, caida: 0.0 },
+    pensando:       { giro: 0.55, resorte: 0.09, freno: 0.84, tinte: 0.0,  brillo: 1.0,  caida: 0.0 },
+    hablando:       { giro: 0.40, resorte: 0.14, freno: 0.78, tinte: 0.0,  brillo: 1.1,  caida: 0.0 },
+    confirmando:    { giro: 0.30, resorte: 0.08, freno: 0.84, tinte: 0.85, brillo: 0.7,  caida: 0.0 },
+    error:          { giro: 0.20, resorte: 0.05, freno: 0.86, tinte: 0.9,  brillo: 1.1,  caida: 0.0 },
+    pausa:          { giro: 0.06, resorte: 0.04, freno: 0.88, tinte: 0.9,  brillo: 0.45, caida: 0.14 },
+  }
+  const CLAVES = ['giro', 'resorte', 'freno', 'tinte', 'brillo', 'caida']
+  const FASES = Object.keys(PARAMETROS)
+  const INCLINACION = 0.42 // rad: leve inclinación para que el giro se lea en 3D
+  const RADIO_RATON = 18.0 // px: el puntero aparta lo que esté más cerca que esto
+  const LADO = 160 // ventana del orbe (112 con el orbe clásico antiguo; las partículas que salen a orbitar necesitan más)
+  const RADIO = 26 // esfera clásica
+  const RADIO_PARTICULAS = 30
+  const DIAMETROS = [2.6, 3.6, 4.8, 6.2] // px del punto de luz según la profundidad: lo de atrás, más chico
+  const ERROR_SEGUNDOS = 1.4 // cuánto dura el destello de error
+  const OCULTAR_SEGUNDOS = 0.7 // el orbe se apaga hacia afuera y recién ahí se esconde la ventana
+
+  // Colores del HUD (estilo.py)
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]
+  const COLORES = {
+    cerebro: { local: hex('#34D399'), gemini: hex('#60A5FA'), claude: hex('#F0956A') },
+    escucha: hex('#67E8F9'), alerta: hex('#FBBF24'), error: hex('#F87171'), pausa: hex('#6B7280'),
+  }
+  const TINTE_FASE = { escuchando: COLORES.escucha, transcribiendo: COLORES.escucha, confirmando: COLORES.alerta, error: COLORES.error, pausa: COLORES.pausa }
+  const colorCerebro = (nombre) => COLORES.cerebro[nombre] || COLORES.cerebro.claude
+
+  // ---- utilidades ---------------------------------------------------------------------------------------------------------
+  // round() de Python redondea el .5 al par más cercano; Math.round() no. Importa en round(dt * 60) y en la mezcla de colores.
+  function redondearPar(x) {
+    const r = Math.round(x)
+    return Math.abs(x % 1) === 0.5 && r % 2 !== 0 ? r - 1 : r
+  }
+  const acotar = (x, a, b) => (x < a ? a : x > b ? b : x)
+
+  function mezcla(a, b, t) { // _mezcla de orbe.py: cada canal se redondea a entero
+    t = acotar(t, 0, 1)
+    return [0, 1, 2].map((k) => redondearPar(a[k] + (b[k] - a[k]) * t))
+  }
+  function aclarar(rgb, factor) { // QColor.lighter(factor): sube el valor en HSV; si se pasa de 255 resta saturación
+    const [r, g, b] = rgb, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn
+    let h = 0
+    if (d > 0) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4
+    let s = mx === 0 ? 0 : (d / mx) * 255, v = mx
+    v = (v * factor) / 100
+    if (v > 255) { s = Math.max(0, s - (v - 255)); v = 255 }
+    const c = (v / 255) * (s / 255), x = c * (1 - Math.abs((h % 2) - 1)), m = v / 255 - c
+    const sec = Math.floor(h) % 6, p = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][sec]
+    return p.map((q) => Math.round((q + m) * 255))
+  }
+
+  // ---- formas: dónde vive cada partícula (esfera de radio 1) -------------------------------------------------------------
+  const ORO = Math.PI * (3 - Math.sqrt(5))
+  const FORMAS = ['esfera', 'nebulosa', 'galaxia']
+  function esferaFibonacci(n) { // n puntos repartidos parejo en la superficie -> Float64Array(3n) [x, y, z]
+    const b = new Float64Array(n * 3)
+    for (let i = 0; i < n; i++) {
+      const y = 1 - (2 * (i + 0.5)) / n, r = Math.sqrt(1 - y * y), ang = ORO * i
+      b[3 * i] = Math.cos(ang) * r; b[3 * i + 1] = y; b[3 * i + 2] = Math.sin(ang) * r
+    }
+    return b
+  }
+  // Las otras dos formas se probaron en el prototipo y se descartaron: AXIOM usa la esfera (la eligió el usuario).
+  function forma(nombre, n) {
+    if (nombre !== 'nebulosa' && nombre !== 'galaxia') return esferaFibonacci(n)
+    const b = new Float64Array(n * 3)
+    for (let i = 0; i < n; i++) {
+      let x, y, z
+      if (nombre === 'nebulosa') { // volumen lleno, más denso al centro
+        y = 1 - (2 * (i + 0.5)) / n
+        const r = Math.sqrt(1 - y * y), ang = ORO * i, k = Math.pow((i * 0.618034) % 1, 0.75)
+        x = Math.cos(ang) * r * k; z = Math.sin(ang) * r * k; y *= k
+      } else { // galaxia: disco con dos brazos en espiral
+        const k = Math.sqrt((i + 0.5) / n), brazo = (i % 2) * Math.PI, a = brazo + k * 5.2 + ((i * 0.618034) % 1) * 0.55
+        x = Math.cos(a) * k; z = Math.sin(a) * k; y = (((i * 0.381966) % 1) - 0.5) * 0.12 * (1 - k)
+      }
+      b[3 * i] = x; b[3 * i + 1] = y; b[3 * i + 2] = z
+    }
+    return b
+  }
+
+  // ---- el enjambre (enjambre.py) ------------------------------------------------------------------------------------------
+  function crearEnjambre(n = 600, nombreForma = 'esfera') {
+    const semilla = new Float64Array(n), fuera = new Float64Array(2 * n)
+    const orbitan = new Uint8Array(n), anilloOrbita = new Uint8Array(n), enAnillo = new Uint8Array(n)
+    for (let i = 0; i < n; i++) {
+      semilla[i] = (i * 0.754877) % 1
+      const ang = semilla[i] * 2 * Math.PI + i, lejos = 2.6 + ((i * 0.31) % 1) * 1.6
+      fuera[2 * i] = Math.cos(ang) * lejos; fuera[2 * i + 1] = Math.sin(ang) * lejos // a dónde vuelan al dispersarse
+      orbitan[i] = i % 3 === 0 ? 1 : 0 // al pensar, un tercio sale a orbitar
+      anilloOrbita[i] = Math.floor((i % 9) / 3)
+      enAnillo[i] = i % 6 === 0 ? 1 : 0 // al transcribir, un sexto da vueltas afuera
+    }
+    const e = {
+      n, base: forma(nombreForma, n), semilla, fuera, forma: nombreForma,
+      px: null, py: null, vx: new Float64Array(n), vy: new Float64Array(n),
+      prm: { ...PARAMETROS.reposo }, giro: 0,
+      dispersion: 1, dispersionObj: 0, // nace disperso y se arma volando
+      visibilidad: 0, visibilidadObj: 1, estallido: 0,
+    }
+    const dx = new Float64Array(n), dy = new Float64Array(n) // destino de cada partícula
+    const salida = { x: new Float64Array(n), y: new Float64Array(n), prof: new Float64Array(n), alfa: new Float64Array(n) }
+
+    e.aparecer = () => { e.dispersion = 1; e.dispersionObj = 0; e.visibilidad = 0; e.visibilidadObj = 1 }
+    e.desvanecer = () => { e.visibilidadObj = 0; e.dispersionObj = 0.35 } // se van alejando mientras se apagan
+    e.estallar = () => { e.estallido = 1 }
+    e.cambiarForma = (nombre) => { e.forma = nombre; e.base = forma(nombre, n) }
+    Object.defineProperty(e, 'apagado', { get: () => e.visibilidadObj === 0 && e.visibilidad < 0.03 })
+
+    // Avanza dt segundos. Devuelve {x, y, prof (0-1), alfa (0-1)}: un valor por partícula (los arreglos se reutilizan).
+    e.paso = function (dt, t, fase, centro, radio, nivel = 0, voz = 0, raton = null) {
+      const obj = PARAMETROS[fase] || PARAMETROS.reposo
+      const suave = Math.min(1, 3.6 * dt) // ~0,06 por cuadro a 60 fps, igual a 30 fps
+      for (const k of CLAVES) e.prm[k] += (obj[k] - e.prm[k]) * suave
+      e.giro += e.prm.giro * dt
+      e.dispersion += (e.dispersionObj - e.dispersion) * Math.min(1, 3 * dt)
+      e.visibilidad += (e.visibilidadObj - e.visibilidad) * Math.min(1, 3 * dt)
+      e.estallido *= Math.exp(-3 * dt)
+
+      const cg = Math.cos(e.giro), sg = Math.sin(e.giro), ci = Math.cos(INCLINACION), si = Math.sin(INCLINACION)
+      const torcer = fase === 'transcribiendo', giroFranjas = Math.sin(t * 2.4)
+      const [cx, cy] = centro, caida = e.prm.caida, base = e.base
+      const sReposo = 0.035 * Math.sin(t * 1.75), tPuntero = t * 0.9
+      const verEstallido = e.estallido > 0.02, verDispersion = e.dispersion > 0.001
+
+      for (let i = 0; i < n; i++) {
+        let x = base[3 * i]; const y = base[3 * i + 1]; let z = base[3 * i + 2]
+        if (torcer) { // se tuerce por franjas
+          const a = y * 2.2 * giroFranjas, ca = Math.cos(a), sa = Math.sin(a), x0 = x
+          x = x0 * ca - z * sa; z = x0 * sa + z * ca
+        }
+        const x1 = x * cg + z * sg, z0 = -x * sg + z * cg
+        let y1 = y * ci - z0 * si
+        const z1 = y * si + z0 * ci
+
+        let r = 1
+        switch (fase) {
+          case 'reposo': r += sReposo + 0.025 * Math.sin(semilla[i] * 40 + tPuntero); break
+          case 'escuchando': // ondas desde el centro hacia afuera, fuertes con tu voz
+            r += 0.05 + nivel * 0.2 * Math.max(0, Math.sin(Math.acos(acotar(z1, -1, 1)) * 6 - t * 9)); break
+          case 'hablando': r += 0.04 + voz * 0.13 * Math.sin(y * 7 + t * 12); break // la superficie ondula al ritmo de la voz
+          case 'confirmando': y1 = y1 * 0.4; r += 0.12 + 0.07 * Math.sin(t * 5.7); break // anillo que pulsa (0,22 se veía como una raya)
+          case 'pausa': r *= 0.95; break
+          case 'error': r += 0.02; break
+        }
+        let tx = x1 * r, ty = y1 * r, prof = (z1 + 1) / 2
+
+        if (fase === 'pensando' && orbitan[i]) { // un tercio orbita en tres anillos inclinados, como electrones
+          const k = anilloOrbita[i], a = semilla[i] * 2 * Math.PI + t * (1.4 + k * 0.35), incl = 0.9 + k * 0.8
+          const ox = Math.cos(a) * 1.42, oy = Math.sin(a) * 1.42 * Math.cos(incl), oz = Math.sin(a) * Math.sin(incl), rot = k * 1.05
+          tx = ox * Math.cos(rot) - oy * Math.sin(rot); ty = ox * Math.sin(rot) + oy * Math.cos(rot); prof = (oz + 1) / 2
+        } else if (fase === 'transcribiendo' && enAnillo[i]) { // un anillo de partículas da vueltas rápido
+          const a = semilla[i] * 2 * Math.PI + t * 3.2
+          tx = Math.cos(a) * 1.35; ty = Math.sin(a) * 0.36; prof = (Math.sin(a) + 1) / 2
+        }
+
+        ty = ty + caida * (1 - Math.abs(tx))
+        let ddx = tx, ddy = ty
+        if (verEstallido) { ddx += fuera[2 * i] * e.estallido * 0.55; ddy += fuera[2 * i + 1] * e.estallido * 0.55 }
+        if (verDispersion) { ddx += (fuera[2 * i] - ddx) * e.dispersion; ddy += (fuera[2 * i + 1] - ddy) * e.dispersion }
+        dx[i] = ddx * radio + cx; dy[i] = ddy * radio + cy
+        salida.prof[i] = prof
+      }
+
+      if (e.px === null) { e.px = new Float64Array(n); e.py = new Float64Array(n); for (let i = 0; i < n; i++) { e.px[i] = cx + fuera[2 * i] * radio; e.py[i] = cy + fuera[2 * i + 1] * radio } }
+      // Resorte con freno; el paso fijo de 1/60 s hace que a 30 fps se mueva igual que a 60.
+      const pasos = Math.max(1, Math.min(3, redondearPar(dt * 60))), { resorte, freno } = e.prm, px = e.px, py = e.py, vx = e.vx, vy = e.vy
+      for (let s = 0; s < pasos; s++) {
+        for (let i = 0; i < n; i++) {
+          vx[i] = (vx[i] + (dx[i] - px[i]) * resorte) * freno
+          vy[i] = (vy[i] + (dy[i] - py[i]) * resorte) * freno
+          if (raton) {
+            const ex = px[i] - raton[0], ey = py[i] - raton[1], dist = Math.sqrt(ex * ex + ey * ey) + 1e-6
+            if (dist < RADIO_RATON) { const empuje = (1 - dist / RADIO_RATON) * 1.6; vx[i] += (ex / dist) * empuje; vy[i] += (ey / dist) * empuje }
+          }
+          px[i] += vx[i]; py[i] += vy[i]
+        }
+      }
+
+      const reposo = fase === 'reposo', velo = e.prm.brillo * e.visibilidad * (1 - e.dispersion * 0.85)
+      for (let i = 0; i < n; i++) {
+        const titila = reposo ? 0.75 + 0.25 * Math.sin(semilla[i] * 90 + t * 3) : 1
+        salida.x[i] = px[i]; salida.y[i] = py[i]
+        salida.alfa[i] = acotar((0.18 + 0.82 * salida.prof[i]) * velo * titila, 0, 1)
+      }
+      return salida
+    }
+    return e
+  }
+
+  // ---- orbe clásico: lo que dibuja pintar_orbe() y los anillos de cada estado ---------------------------------------------
+  // Devuelve una lista ordenada de operaciones de dibujo (el lienzo las pinta tal cual). Los alfas van de 0 a 255 como en Qt.
+  function escenaClasica(fase, t, nivel, nucleo, pausado) {
+    const respiro = 0.5 + 0.5 * Math.sin((t * 2 * Math.PI) / 3.6)
+    const anillo = (radio, color, alfa, grosor) => ({ op: 'anillo', radio, color, alfa: acotar(Math.trunc(alfa), 0, 255), grosor })
+    const orbe = (nuc, ani, brillo, escala = 1) => ({ op: 'orbe', nucleo: nuc, anillo: ani, brillo, escala })
+    if (fase === 'escuchando') {
+      const ops = []
+      for (let k = 0; k < 2; k++) { const fr = (t * 0.9 + k * 0.5) % 1; ops.push(anillo(RADIO + 4 + fr * 26, COLORES.escucha, 150 * (1 - fr), 1.4)) } // ondas tipo sonar, desfasadas
+      ops.push(anillo(RADIO + 4 + nivel * 12, COLORES.escucha, 230, 2.2), orbe(nucleo, COLORES.escucha, 0.6 + 0.4 * nivel))
+      return ops
+    }
+    if (fase === 'transcribiendo') return [orbe(nucleo, COLORES.escucha, 0.4), { op: 'punteado', radio: RADIO + 5, color: COLORES.escucha, grosor: 2.0, patron: [1.5, 3.5], grados: t * 180, redondo: true }]
+    if (fase === 'pensando') return [orbe(nucleo, null, 0.35 + 0.25 * respiro), { op: 'arco', radio: RADIO + 5, color: nucleo, grosor: 2.6, grados: -t * 300 }]
+    if (fase === 'hablando') {
+      const voz = 0.5 + 0.25 * Math.sin(t * 11) + 0.25 * Math.sin(t * 17.3) // latido parecido al habla
+      return [anillo(RADIO + 4 + 1 * 5 * voz, nucleo, 170, 1.6), anillo(RADIO + 4 + 2 * 5 * voz, nucleo, 100, 1.6), orbe(nucleo, null, 0.5 + 0.3 * voz, 1.0 + 0.12 * voz)]
+    }
+    if (fase === 'confirmando') {
+      const pulso = 0.5 + 0.5 * Math.sin((t * 2 * Math.PI) / 1.1)
+      return [orbe(nucleo, COLORES.alerta, 0.5 + 0.5 * pulso), anillo(RADIO + 5, COLORES.alerta, 140 + 115 * pulso, 2.4), { op: 'aviso', color: COLORES.alerta }]
+    }
+    if (fase === 'error') return [orbe(nucleo, COLORES.error, 0.9), anillo(RADIO + 5, COLORES.error, 220, 2.4)]
+    if (pausado) return [orbe(nucleo, COLORES.pausa, 0.0), { op: 'punteado', radio: RADIO + 5, color: COLORES.pausa, grosor: 1.4, patron: [4, 2], grados: 0, redondo: false }]
+    return [orbe(nucleo, null, 0.15 + 0.3 * respiro, 0.92 + 0.08 * respiro), anillo(RADIO + 4, nucleo, 40 + 50 * respiro, 1.0)] // reposo: respira lento
+  }
+
+  // ---- el orbe (orbe.py): máquina de estados + un cuadro de dibujo, sin Qt ----------------------------------------------
+  // `ahora` es el reloj en segundos (time.monotonic() en AXIOM). Devuelve lo que hay que pintar; no pinta nada.
+  function crearOrbe(ahora = 0, ajustes = {}) {
+    const o = {
+      fase: 'reposo', cerebro: 'claude', pausado: false, errorHasta: 0, nivel: 0, voz: 0,
+      t0: ahora, ultimo: ahora, tinte: COLORES.escucha.slice(), enjambre: null, estilo: 'particulas', n: 600, ocultarEn: null, oculto: false,
+    }
+    // hud.orbe: particulas | clasico; hud.particulas: cuántas (medido en AXIOM: 600 = 1,6 ms por cuadro)
+    o.configurar = (aj) => {
+      const n = Math.trunc(aj.particulas ?? 600)
+      o.estilo = (aj.orbe ?? 'particulas') === 'clasico' ? 'clasico' : 'particulas'
+      if (o.estilo === 'clasico') o.enjambre = null
+      else if (!o.enjambre || o.enjambre.n !== n) { o.enjambre = crearEnjambre(n, aj.forma ?? 'esfera'); o.n = n } // nace disperso y se arma volando
+    }
+    o.aparecer = (ahoraS) => { o.ocultarEn = null; o.oculto = false; o.ultimo = ahoraS; if (o.enjambre) o.enjambre.aparecer() }
+    o.desvanecerYOcultar = (ahoraS) => { // se apaga hacia afuera y recién ahí se esconde la ventana
+      if (o.enjambre) { o.enjambre.desvanecer(); o.ocultarEn = ahoraS + OCULTAR_SEGUNDOS } else o.oculto = true
+    }
+    o.setFase = (fase) => { o.fase = fase }
+    o.setCerebro = (nombre) => { o.cerebro = nombre }
+    o.setPausado = (p) => { o.pausado = p }
+    o.destelloError = (ahoraS) => { o.errorHasta = ahoraS + ERROR_SEGUNDOS; if (o.enjambre) o.enjambre.estallar() }
+    o.faseEfectiva = (ahoraS) => (ahoraS < o.errorHasta ? 'error' : o.fase)
+    o.intervaloMs = () => (o.fase === 'reposo' ? 33 : 16) // en reposo basta media frecuencia (set_fase de orbe.py)
+
+    // entrada: { mic (nivel crudo del micrófono), vozNivel (volumen crudo de la voz que suena), raton: [x, y] | null }
+    o.cuadro = (ahoraS, entrada = {}) => {
+      if (o.ocultarEn !== null && ahoraS >= o.ocultarEn) { o.oculto = true; o.ocultarEn = null }
+      if (o.oculto) return { modo: 'oculto', fase: o.fase }
+      const t = ahoraS - o.t0, fase = o.faseEfectiva(ahoraS)
+      const nucleo = o.pausado ? COLORES.pausa : colorCerebro(o.cerebro)
+      const dt = Math.min(0.05, Math.max(0, ahoraS - o.ultimo))
+      o.ultimo = ahoraS
+      const cuadros60 = dt * 60 || 1 // AXIOM suaviza por cuadro a ~60 fps; escalado con dt un monitor de 144 Hz responde igual
+      if (fase === 'escuchando') o.nivel += (Math.min(1, (entrada.mic || 0) * 9) - o.nivel) * (1 - Math.pow(1 - 0.35, cuadros60))
+
+      if (!o.enjambre) return { modo: 'clasico', fase, t, nivel: o.nivel, ops: escenaClasica(fase, t, o.nivel, nucleo, o.pausado) }
+
+      o.voz += (Math.min(1, (entrada.vozNivel || 0) * 5) - o.voz) * (1 - Math.pow(1 - 0.3, cuadros60))
+      const faseE = o.pausado && fase === 'reposo' ? 'pausa' : fase, fe = PARAMETROS[faseE] ? faseE : 'reposo'
+      const s = o.enjambre.paso(dt, t, fe, [LADO / 2, LADO / 2], RADIO_PARTICULAS, o.nivel, o.voz, entrada.raton || null)
+      if (o.enjambre.apagado) return { modo: 'particulas', fase: fe, apagado: true, prm: o.enjambre.prm }
+      // Color: el del cerebro, teñido hacia el del estado (cian escuchando, ámbar confirmando, rojo error...).
+      const objetivo = TINTE_FASE[fe]
+      if (objetivo) o.tinte = mezcla(o.tinte, objetivo, Math.min(1, 4 * dt))
+      const cerebro = colorCerebro(o.cerebro), color = mezcla(cerebro, o.tinte, o.enjambre.prm.tinte)
+      return {
+        modo: 'particulas', fase: fe, apagado: false, x: s.x, y: s.y, prof: s.prof, alfa: s.alfa, n: o.enjambre.n,
+        color, cerebro, haloAlfa: Math.min(1, 0.32 * o.enjambre.prm.brillo * o.enjambre.visibilidad), prm: o.enjambre.prm,
+        visibilidad: o.enjambre.visibilidad, dispersion: o.enjambre.dispersion,
+      }
+    }
+    o.configurar(ajustes)
+    return o
+  }
+
+  const tamanoPunto = (prof) => Math.min(DIAMETROS.length - 1, Math.floor(prof * DIAMETROS.length))
+
+  return {
+    PARAMETROS, FASES, FORMAS, CLAVES, INCLINACION, RADIO_RATON, LADO, RADIO, RADIO_PARTICULAS, DIAMETROS, ERROR_SEGUNDOS, OCULTAR_SEGUNDOS,
+    COLORES, TINTE_FASE, colorCerebro, hex, mezcla, aclarar, redondearPar, esferaFibonacci, forma, crearEnjambre, escenaClasica, crearOrbe, tamanoPunto,
+  }
+})
+
+</script>
+<script>
+'use strict'
+const O = OrbeCore, $ = (id) => document.getElementById(id)
+const cv = $('lienzo'), c = cv.getContext('2d')
+const reducido = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+let manual = null, desfase = 0 // reloj manual (pruebas): null = tiempo real, que sigue desde donde quedó el manual
+const reloj = () => (manual !== null ? manual : performance.now() / 1000 + desfase)
+const congelar = () => { if (manual === null) manual = reloj() }
+const soltar = () => { if (manual !== null) { desfase = manual - performance.now() / 1000; manual = null } }
+const ui = { estilo: 'particulas', n: 600, forma: 'esfera', real: false, ventana: true, recorte: false, raton: true, estela: false, autoMic: true, autoVoz: true, mic: 0.6, voz: 0.6 }
+const orbe = O.crearOrbe(reloj(), { particulas: ui.n })
+let W = 0, H = 0, dpr = 1, ratonL = null, ultimoD = null, visibles = 0, tareas = [], guion = null, guionT0 = 0, guionPaso = -1, fondoOculto = false
+const rgba = (rgb, a = 1) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`
+
+const ESTADOS = [['reposo', 'Reposo'], ['escuchando', 'Escuchando'], ['transcribiendo', 'Transcribiendo'], ['pensando', 'Pensando'], ['hablando', 'Hablando'], ['confirmando', 'Confirmando'], ['error', 'Error'], ['pausa', 'Pausa']]
+const CEREBROS = [['local', 'Local'], ['gemini', 'Gemini'], ['claude', 'Claude']]
+const TXT = {
+  particulas: { reposo: 'Reposo: la esfera gira despacio y respira; algunas partículas titilan. Se dibuja a 30 fps.', escuchando: 'Escuchando: ondas que salen del centro; su fuerza sigue el nivel del micrófono y el color se tiñe de cian.',
+    transcribiendo: 'Transcribiendo: la esfera se tuerce por franjas y un anillo de partículas da vueltas rápido.', pensando: 'Pensando: un tercio de las partículas sale a orbitar en tres anillos inclinados, como electrones.',
+    hablando: 'Hablando: la superficie ondula al ritmo del volumen de la voz.', confirmando: 'Confirmando: se aplana en un anillo ámbar que pulsa hasta que respondes.',
+    error: 'Error: estalla en rojo y se vuelve a armar. El destello dura 1,4 s.', pausa: 'Pausa: gris, casi quieta y con las partículas un poco caídas.' },
+  clasico: { reposo: 'Reposo: la esfera de vidrio respira lento (ciclo de 3,6 s).', escuchando: 'Escuchando: dos ondas tipo sonar y un anillo que crece con el nivel del micrófono.', transcribiendo: 'Transcribiendo: anillo punteado girando.',
+    pensando: 'Pensando: un arco girando con el color del cerebro.', hablando: 'Hablando: dos anillos que laten con la voz.', confirmando: 'Confirmando: anillo ámbar pulsando y punto de aviso.',
+    error: 'Error: anillo rojo.', pausa: 'Pausa: gris, con un anillo discontinuo.' },
+}
+const GUIONES = {
+  conversacion: { nombre: 'Una conversación', pasos: [[0, 'reposo'], [2.5, 'escuchando'], [6, 'transcribiendo'], [8, 'pensando'], [11, 'hablando'], [14.5, 'confirmando'], [17, 'reposo']], fin: 19.5 },
+  conerror: { nombre: 'Con un error', pasos: [[0, 'reposo'], [2, 'pensando'], [5, 'error'], [9, 'reposo']], fin: 11 },
+}
+
+// ---- estado del orbe ---------------------------------------------------------------------------------------------------------
+function estadoUI() { return orbe.faseEfectiva(reloj()) === 'error' ? 'error' : orbe.pausado ? 'pausa' : orbe.fase }
+function ponerEstado(n) {
+  if (n === 'error') { orbe.destelloError(reloj()); return }
+  if (n === 'pausa') { orbe.setPausado(true); orbe.setFase('reposo'); return }
+  orbe.setPausado(false); orbe.setFase(n)
+}
+function configurar() { orbe.configurar({ orbe: ui.estilo, particulas: ui.n, forma: ui.forma }) }
+function ocultar() { if (orbe.oculto || orbe.ocultarEn !== null) { orbe.aparecer(reloj()); fondoOculto = false } else orbe.desvanecerYOcultar(reloj()) }
+function dispersar() { if (orbe.enjambre) { orbe.enjambre.dispersionObj = 1; tareas.push({ en: reloj() + 0.9, fn: () => orbe.enjambre && (orbe.enjambre.dispersionObj = 0) }) } }
+function aparecer() { orbe.aparecer(reloj()); fondoOculto = false; $('bOcultar') && ($('bOcultar').textContent = 'Ocultar orbe') }
+function detenerGuion() { guion = null; guionPaso = -1; marcarGuion() }
+function reproducir(nombre) { guion = GUIONES[nombre]; guionT0 = reloj(); guionPaso = -1; marcarGuion() }
+
+function niveles(t) {
+  const mic = ui.autoMic ? Math.max(0, 0.5 + 0.5 * Math.sin(t * 3.1) * Math.sin(t * 1.3 + 1)) : ui.mic // simula la voz de quien habla
+  const voz = ui.autoVoz ? 0.5 + 0.25 * Math.sin(t * 11) + 0.25 * Math.sin(t * 17.3) : ui.voz // latido parecido al habla
+  return { mic: mic / 9, vozNivel: voz / 5 } // AXIOM multiplica por 9 y por 5 los niveles crudos
+}
+function paso(t) { // la lógica de un cuadro (la comparten el reloj real y el avance manual)
+  tareas = tareas.filter((x) => (t >= x.en ? (x.fn(), false) : true))
+  if (guion) {
+    const el = t - guionT0
+    if (el >= guion.fin) detenerGuion()
+    else { let k = 0; guion.pasos.forEach((p, i) => { if (el >= p[0]) k = i }); if (k !== guionPaso) { guionPaso = k; ponerEstado(guion.pasos[k][1]) } }
+  }
+  const e = niveles(t), l = ratonL && (!ui.recorte || (ratonL[0] >= 0 && ratonL[0] <= O.LADO && ratonL[1] >= 0 && ratonL[1] <= O.LADO)) ? ratonL : null
+  return orbe.cuadro(t, { mic: e.mic, vozNivel: e.vozNivel, raton: ui.raton ? l : null })
+}
+
+// ---- dibujo ------------------------------------------------------------------------------------------------------------------
+function medir() { dpr = Math.min(2, window.devicePixelRatio || 1); const r = cv.getBoundingClientRect(); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr) }
+const escala = () => (ui.real ? 1 : Math.max(1, Math.min(W, H) / 190))
+const origen = () => { const k = escala(); return { k, ox: (W - O.LADO * k) / 2, oy: (H - O.LADO * k) / 2 } }
+const cacheSprites = new Map()
+function sprites(color, esc) { // puntos de luz (centro blanco, borde del color) en 4 tamaños; se preparan una vez por color
+  const clave = `${Math.floor(color[0] / 12)},${Math.floor(color[1] / 12)},${Math.floor(color[2] / 12)},${esc.toFixed(2)}`
+  if (!cacheSprites.has(clave)) {
+    if (cacheSprites.size > 64) cacheSprites.clear()
+    cacheSprites.set(clave, O.DIAMETROS.map((d) => {
+      const lado = Math.max(2, Math.ceil(d * esc)), s = document.createElement('canvas'); s.width = s.height = lado
+      const g = s.getContext('2d'), gr = g.createRadialGradient(lado / 2, lado / 2, 0, lado / 2, lado / 2, lado / 2)
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.28, rgba(color, 242 / 255)); gr.addColorStop(1, rgba(color, 0))
+      g.fillStyle = gr; g.beginPath(); g.arc(lado / 2, lado / 2, lado / 2, 0, 2 * Math.PI); g.fill(); return s
+    }))
+  }
+  return cacheSprites.get(clave)
+}
+const circulo = (x, y, r) => { c.beginPath(); c.arc(x, y, r, 0, 2 * Math.PI) }
+function pintarEnjambre(d, esc) {
+  const cx = O.LADO / 2, cy = O.LADO / 2, rh = O.RADIO_PARTICULAS * 0.95
+  const halo = c.createRadialGradient(cx, cy, 0, cx, cy, rh) // núcleo: luz suave del cerebro detrás del enjambre
+  halo.addColorStop(0, rgba(d.cerebro, d.haloAlfa)); halo.addColorStop(1, rgba(d.cerebro, 0))
+  c.fillStyle = halo; circulo(cx, cy, rh); c.fill()
+  c.globalCompositeOperation = 'lighter' // la luz se suma: juntas brillan más
+  const spr = sprites(d.color, esc), D = O.DIAMETROS; visibles = 0
+  for (let i = 0; i < d.n; i++) {
+    const a = d.alfa[i]; if (a < 0.02) continue
+    const ti = O.tamanoPunto(d.prof[i]), m = D[ti] / 2; visibles++
+    c.globalAlpha = a; c.drawImage(spr[ti], d.x[i] - m, d.y[i] - m, D[ti], D[ti])
+  }
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'
+}
+function orbeClasico(nucleo, anillo, brillo, escalaN) { // pintar_orbe de orbe.py
+  const cx = O.LADO / 2, cy = O.LADO / 2, r = O.RADIO, col = anillo || nucleo
+  let g = c.createRadialGradient(cx, cy, 0, cx, cy, r * 1.75)
+  g.addColorStop(0.45, rgba(col, Math.trunc(45 + 70 * brillo) / 255)); g.addColorStop(1, rgba(col, 0))
+  c.fillStyle = g; circulo(cx, cy, r * 1.75); c.fill()
+  g = c.createRadialGradient(cx - r * 0.35, cy - r * 0.4, 0, cx - r * 0.35, cy - r * 0.4, r * 1.5) // vidrio oscuro
+  g.addColorStop(0, 'rgb(38,44,56)'); g.addColorStop(0.7, 'rgb(14,16,21)'); g.addColorStop(1, 'rgb(8,9,12)')
+  c.fillStyle = g; circulo(cx, cy, r); c.fill()
+  c.strokeStyle = 'rgba(255,255,255,0.1176)'; c.lineWidth = 1; circulo(cx, cy, r - 0.5); c.stroke()
+  const rn = r * 0.42 * escalaN
+  g = c.createRadialGradient(cx, cy, 0, cx, cy, rn * 1.6)
+  g.addColorStop(0, rgba(O.aclarar(nucleo, 135))); g.addColorStop(0.35, rgba(nucleo, 150 / 255)); g.addColorStop(1, rgba(nucleo, 0))
+  c.fillStyle = g; circulo(cx, cy, rn * 1.6); c.fill()
+  c.fillStyle = rgba(O.aclarar(nucleo, 150)); circulo(cx, cy, rn * 0.32); c.fill()
+  c.fillStyle = 'rgba(255,255,255,0.102)'; c.beginPath(); c.ellipse(cx - r * 0.2, cy - r * 0.59, r * 0.35, r * 0.19, 0, 0, 2 * Math.PI); c.fill() // reflejo
+}
+function pintarOps(ops) {
+  const cx = O.LADO / 2, cy = O.LADO / 2
+  for (const o of ops) {
+    if (o.op === 'orbe') orbeClasico(o.nucleo, o.anillo, o.brillo, o.escala)
+    else if (o.op === 'anillo') { c.strokeStyle = rgba(o.color, o.alfa / 255); c.lineWidth = o.grosor; circulo(cx, cy, o.radio); c.stroke() }
+    else if (o.op === 'punteado') {
+      c.save(); c.translate(cx, cy); c.rotate((o.grados * Math.PI) / 180); c.strokeStyle = rgba(o.color); c.lineWidth = o.grosor
+      c.setLineDash(o.patron.map((v) => v * o.grosor)); c.lineCap = o.redondo ? 'round' : 'butt'; circulo(0, 0, o.radio); c.stroke(); c.restore()
+    } else if (o.op === 'arco' && c.createConicGradient) { // QConicalGradient gira en sentido antihorario; el lienzo, horario
+      const g = c.createConicGradient((-o.grados * Math.PI) / 180, cx, cy)
+      g.addColorStop(0, rgba(o.color, 0)); g.addColorStop(0.68, rgba(o.color, 0)); g.addColorStop(1, rgba(o.color))
+      c.strokeStyle = g; c.lineWidth = o.grosor; c.lineCap = 'round'; circulo(cx, cy, o.radio); c.stroke(); c.lineCap = 'butt'
+    } else if (o.op === 'aviso') {
+      c.fillStyle = rgba(o.color); c.strokeStyle = 'rgb(14,16,21)'; c.lineWidth = 2; circulo(cx + O.RADIO * 0.72, cy - O.RADIO * 0.72, 5.5); c.fill(); c.stroke()
+    }
+  }
+}
+function fondo(estela) {
+  c.setTransform(dpr, 0, 0, dpr, 0, 0)
+  if (estela) { c.fillStyle = 'rgba(6,8,13,0.34)'; c.fillRect(0, 0, W, H); return }
+  c.fillStyle = '#06080d'; c.fillRect(0, 0, W, H)
+  c.fillStyle = 'rgba(148,163,184,.10)'
+  for (let x = 12; x < W; x += 26) for (let y = 12; y < H; y += 26) c.fillRect(x, y, 1.2, 1.2) // el escritorio
+}
+function dibujar(d) {
+  const { k, ox, oy } = origen()
+  fondo(ui.estela && d && d.modo === 'particulas')
+  if (ui.ventana) {
+    c.setTransform(dpr, 0, 0, dpr, 0, 0); c.strokeStyle = 'rgba(103,232,249,.28)'; c.lineWidth = 1; c.setLineDash([4, 4]); c.strokeRect(ox, oy, O.LADO * k, O.LADO * k); c.setLineDash([])
+    c.fillStyle = 'rgba(148,163,184,.8)'; c.font = '10.5px ui-monospace, Consolas, monospace'; c.fillText('ventana del orbe · 160 × 160 px', ox, oy - 6)
+  }
+  if (!d || d.modo === 'oculto') {
+    c.setTransform(dpr, 0, 0, dpr, 0, 0); c.fillStyle = 'rgba(148,163,184,.85)'; c.font = '12px ui-monospace, Consolas, monospace'; c.textAlign = 'center'
+    c.fillText('orbe oculto: no dibuja nada (el temporizador se detiene)', W / 2, H / 2); c.textAlign = 'start'; visibles = 0; return
+  }
+  c.save()
+  if (ui.recorte) { c.beginPath(); c.rect(ox, oy, O.LADO * k, O.LADO * k); c.clip() }
+  c.setTransform(dpr * k, 0, 0, dpr * k, ox * dpr, oy * dpr)
+  if (d.modo === 'particulas') { if (!d.apagado) pintarEnjambre(d, dpr * k); else visibles = 0 } else { pintarOps(d.ops); visibles = 0 }
+  c.restore(); c.setTransform(dpr, 0, 0, dpr, 0, 0)
+}
+
+// ---- bucle ---------------------------------------------------------------------------------------------------------------------
+let ultimoMs = 0, dibujados = 0, tFps = 0, acumMs = 0, nMs = 0, contUI = 0
+function bucle(ahoraMs) {
+  requestAnimationFrame(bucle)
+  if (manual !== null) return
+  if (!orbe.oculto && ahoraMs - ultimoMs < orbe.intervaloMs() - 3) return // en reposo basta media frecuencia
+  ultimoMs = ahoraMs
+  const t0 = performance.now(), d = paso(reloj())
+  if (d.modo === 'oculto') { if (!fondoOculto) { dibujar(d); fondoOculto = true } } else { fondoOculto = false; dibujar(d) }
+  ultimoD = d
+  if (d.modo !== 'oculto') { acumMs += performance.now() - t0; nMs++; dibujados++ }
+  if (ahoraMs - tFps > 500) {
+    $('fps').textContent = d.modo === 'oculto' ? 'oculto · 0 fps' : `${Math.round((dibujados * 1000) / (ahoraMs - tFps))} fps · ${ui.estilo === 'clasico' ? 'orbe clásico' : orbe.enjambre.n + ' partículas'}`
+    $('ms').textContent = nMs ? `${(acumMs / nMs).toFixed(2).replace('.', ',')} ms por cuadro` : '—'
+    dibujados = 0; tFps = ahoraMs; acumMs = 0; nMs = 0
+  }
+  if (++contUI % 4 === 0) sincronizar()
+}
+
+// ---- controles -----------------------------------------------------------------------------------------------------------------
+function marcar(b, on) { b.setAttribute('aria-pressed', String(on)); b.classList.toggle('on', on) }
+function chips(id, lista, activo, alElegir, color) {
+  const g = $(id)
+  for (const [v, txt] of lista) {
+    const b = document.createElement('button'); b.textContent = txt; b.dataset.v = v; if (color) b.style.setProperty('--c', color(v))
+    b.onclick = () => alElegir(v); g.append(b); marcar(b, v === activo)
+  }
+}
+const grupoMarcar = (id, v) => $(id).querySelectorAll('button[data-v]').forEach((b) => marcar(b, b.dataset.v === v))
+chips('gEstilo', [['particulas', 'Partículas'], ['clasico', 'Clásico']], ui.estilo, (v) => { ui.estilo = v; configurar(); aparecer(); grupoMarcar('gEstilo', v); $('rN').disabled = v === 'clasico'; $('gForma').style.opacity = v === 'clasico' ? 0.4 : 1 })
+chips('gEstado', ESTADOS, 'reposo', (v) => { detenerGuion(); ponerEstado(v) }, (v) => ({ escuchando: '#67e8f9', transcribiendo: '#67e8f9', confirmando: '#fbbf24', error: '#f87171', pausa: '#9ca3af' })[v])
+chips('gCerebro', CEREBROS, 'claude', (v) => { orbe.setCerebro(v); grupoMarcar('gCerebro', v) }, (v) => `rgb(${O.colorCerebro(v)})`)
+const gT = $('gTrans')
+for (const [txt, fn, id] of [['Aparecer', aparecer], ['Ocultar orbe', ocultar, 'bOcultar'], ['Dispersar y volver', dispersar]]) {
+  const b = document.createElement('button'); b.textContent = txt; b.className = 'acc'; if (id) b.id = id; b.onclick = () => { fn(); if (id) b.textContent = orbe.oculto || orbe.ocultarEn !== null ? 'Volver a mostrar' : 'Ocultar orbe' }; gT.append(b)
+}
+chips('gForma', [['esfera', 'Esfera · la elegida'], ['nebulosa', 'Nebulosa'], ['galaxia', 'Galaxia']], 'esfera', (v) => { ui.forma = v; if (orbe.enjambre) orbe.enjambre.cambiarForma(v); grupoMarcar('gForma', v) })
+const gG = $('gGuion')
+for (const [id, g] of Object.entries(GUIONES)) { const b = document.createElement('button'); b.textContent = '▶ ' + g.nombre; b.dataset.g = id; b.onclick = () => reproducir(id); gG.append(b) }
+{ const b = document.createElement('button'); b.textContent = '■ Detener'; b.onclick = detenerGuion; gG.append(b) }
+function marcarGuion() { $('gGuion').querySelectorAll('button[data-g]').forEach((b) => marcar(b, !!guion && GUIONES[b.dataset.g] === guion)) }
+$('rN').oninput = () => { $('oN').textContent = $('rN').value }
+$('rN').onchange = () => { ui.n = +$('rN').value; configurar() }
+const lig = (idR, idO, clave) => { $(idR).oninput = () => { ui[clave] = $(idR).value / 100; $(idO).textContent = $(idR).value + ' %' } }
+lig('rMic', 'oMic', 'mic'); lig('rVoz', 'oVoz', 'voz')
+$('aMic').onchange = () => (ui.autoMic = $('aMic').checked); $('aVoz').onchange = () => (ui.autoVoz = $('aVoz').checked)
+const interruptor = (id, clave, nombres) => { const b = $(id); b.onclick = () => { ui[clave] = !ui[clave]; marcar(b, ui[clave]); if (nombres) b.textContent = nombres[+ui[clave]] }; marcar(b, ui[clave]) }
+interruptor('bTam', 'real', ['Ver a tamaño real', 'Ver en grande']); interruptor('bVentana', 'ventana'); interruptor('bRecorte', 'recorte'); interruptor('bRaton', 'raton'); interruptor('bEstela', 'estela')
+cv.addEventListener('pointermove', (e) => { const r = cv.getBoundingClientRect(), { k, ox, oy } = origen(); ratonL = [(e.clientX - r.left - ox) / k, (e.clientY - r.top - oy) / k] })
+cv.addEventListener('pointerleave', () => (ratonL = null))
+new ResizeObserver(() => { medir(); if (ultimoD) dibujar(ultimoD) }).observe(cv)
+
+function sincronizar() { // lo que se ve en los paneles; ~15 veces por segundo
+  const est = estadoUI(), p = (orbe.enjambre ? orbe.enjambre.prm : O.PARAMETROS[orbe.fase] || O.PARAMETROS.reposo)
+  grupoMarcar('gEstado', est)
+  $('pie').innerHTML = guion ? `<b>${guion.nombre}</b> · ${TXT[ui.estilo][est]}` : TXT[ui.estilo][est] + (orbe.oculto ? ' <small>(oculto)</small>' : '')
+  const meta = O.PARAMETROS[orbe.pausado && orbe.fase === 'reposo' ? 'pausa' : est] || O.PARAMETROS.reposo
+  const filas = [['giro', 'giro (rad/s)', 1], ['resorte', 'resorte', 0.15], ['freno', 'freno', 1], ['tinte', 'tinte del estado', 1], ['brillo', 'brillo', 1.2], ['caida', 'caída', 0.15]]
+  $('prm').innerHTML = ui.estilo === 'clasico' ? '<div class="ctr">El orbe clásico no usa partículas: dibuja la esfera de vidrio y un anillo por estado.</div>'
+    : filas.map(([k, n, mx]) => `<div class="prm"><span>${n}</span><b>${p[k].toFixed(2)}</b></div><div class="barra"><i style="width:${Math.min(100, (p[k] / mx) * 100)}%"></i><u style="left:${Math.min(100, (meta[k] / mx) * 100)}%"></u></div>`).join('')
+  const d = ultimoD, col = d && d.color ? d.color : null
+  $('datos').innerHTML = ui.estilo === 'clasico' || !orbe.enjambre ? '' : `<div class="kv"><span>estado efectivo</span><b>${est}</b></div>`
+    + `<div class="kv"><span>color del enjambre</span><b>${col ? `<i class="sw" style="background:rgb(${col})"></i>#${col.map((v) => v.toString(16).padStart(2, '0')).join('')}` : '—'}</b></div>`
+    + `<div class="kv"><span>partículas visibles</span><b>${visibles} de ${orbe.enjambre.n}</b></div><div class="kv"><span>dispersión · visibilidad</span><b>${Math.round(orbe.enjambre.dispersion * 100)} % · ${Math.round(orbe.enjambre.visibilidad * 100)} %</b></div>`
+    + `<div class="kv"><span>micrófono · voz (suavizados)</span><b>${Math.round(orbe.nivel * 100)} % · ${Math.round(orbe.voz * 100)} %</b></div><div class="ctr" style="margin-top:6px">Barras: valor actual · línea ámbar: destino del estado.</div>`
+}
+
+// ---- API para las pruebas ------------------------------------------------------------------------------------------------------
+window.demoApi = {
+  orbe, ui,
+  estado: (n) => { detenerGuion(); ponerEstado(n) }, cerebro: (n) => { orbe.setCerebro(n); grupoMarcar('gCerebro', n) },
+  estilo: (v) => { ui.estilo = v; configurar(); aparecer(); grupoMarcar('gEstilo', v) }, particulas: (n) => { ui.n = n; $('rN').value = n; $('oN').textContent = n; configurar() },
+  forma: (v) => { ui.forma = v; if (orbe.enjambre) orbe.enjambre.cambiarForma(v); grupoMarcar('gForma', v) },
+  aparecer, ocultar, dispersar, reproducir, detener: detenerGuion,
+  pausarReloj: (p = true) => (p ? congelar() : soltar()),
+  avanzar(seg, dt = 1 / 60) { // simula seg segundos con pasos fijos (congela el reloj) y dibuja el último cuadro
+    congelar()
+    let d; for (let k = 0; k < Math.round(seg / dt); k++) { manual += dt; d = paso(manual) }
+    ultimoD = d || ultimoD; dibujar(ultimoD); sincronizar(); return ultimoD && ultimoD.modo
+  },
+  leer() {
+    const d = ultimoD, r = { estado: estadoUI(), estilo: ui.estilo, oculto: orbe.oculto, modo: d && d.modo, visibles, n: orbe.enjambre ? orbe.enjambre.n : 0, tamanoReal: ui.real, color: d && d.color, apagado: d && d.apagado }
+    if (d && d.modo === 'particulas' && !d.apagado) {
+      let mx = 0, sr = 0, cnt = 0, fuera = 0
+      for (let i = 0; i < d.n; i++) { if (d.alfa[i] < 0.02) continue; const q = Math.hypot(d.x[i] - 80, d.y[i] - 80); mx = Math.max(mx, q); sr += q; cnt++; if (q > O.RADIO_PARTICULAS * 1.3) fuera++ }
+      Object.assign(r, { radioMax: +mx.toFixed(1), radioMedio: +(sr / Math.max(1, cnt)).toFixed(1), fuera13: fuera, prm: { ...d.prm }, dispersion: +orbe.enjambre.dispersion.toFixed(3), visibilidad: +orbe.enjambre.visibilidad.toFixed(3) })
+    }
+    return r
+  },
+  pixeles() { // píxeles claros dentro de la ventana del orbe (se copia a un lienzo aparte para no frenar el principal)
+    const { k, ox, oy } = origen(), w = Math.round(O.LADO * k * dpr), t = document.createElement('canvas'); t.width = t.height = w
+    const x = t.getContext('2d', { willReadFrequently: true }); x.drawImage(cv, Math.round(ox * dpr), Math.round(oy * dpr), w, w, 0, 0, w, w)
+    const dd = x.getImageData(0, 0, w, w).data; let n = 0; for (let i = 0; i < dd.length; i += 4) if (dd[i] + dd[i + 1] + dd[i + 2] > 120) n++; return n
+  },
+}
+
+medir(); configurar(); sincronizar()
+if (reducido) { congelar(); for (let k = 0; k < 180; k++) { manual += 1 / 60; ultimoD = paso(manual) } soltar() } // sin movimiento de entrada
+requestAnimationFrame(bucle)
+</script>
+</body>
+</html>
