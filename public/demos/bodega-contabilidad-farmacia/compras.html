@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Recepción de compra · Farmacia Demo Los Robles</title>
+  <link rel="preload" href="static/fuentes/geist.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/app.css">
+  <link rel="icon" href="static/favicon.ico" sizes="any">
+  <link rel="manifest" href="static/manifest.json">
+  <link rel="apple-touch-icon" href="static/icono-192.png">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  
+<style>
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;
+background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='440' height='230'><text x='8' y='160' transform='rotate(-24 220 115)' font-family='Arial,sans-serif' font-size='30' font-weight='700' letter-spacing='4' fill='rgba(15,23,42,0.07)'>DEMO - DATOS FICTICIOS</text></svg>");}
+.demo-marca{position:fixed;right:12px;bottom:12px;z-index:9999;background:#0f172a;color:#fff;font:600 12px Arial,sans-serif;letter-spacing:.06em;padding:6px 10px;border-radius:6px;opacity:.85;pointer-events:none}
+</style></head>
+<body class="">
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  
+  
+  <header class="barra">
+    <div class="barra-interior">
+      <a class="marca" href="index.html"><img class="marca-cruz" src="static/icono-cruz.png" alt="" width="30" height="30"><span>Farmacia Demo Los Robles</span></a>
+      <nav class="menu" aria-label="Principal">
+        <a href="panel.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V7"/><path d="M17 16v-7"/></svg>Panel</a>
+        <a href="resumen.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6M9 15.5h3"/></svg>Resumen</a>
+        <a href="index.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 8.5v7M11 8.5v7M13.5 8.5v7M16 8.5v7"/></svg>Caja</a>
+        <a href="cierre.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6M9 15.5h3"/></svg>Cierre</a>
+        
+          <a href="compras.html" aria-current="page"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5h11v9.5H3z"/><path d="M14 9.5h3.8l3.2 3.2V16h-7"/><circle cx="7" cy="17.6" r="1.7"/><circle cx="17.4" cy="17.6" r="1.7"/></svg>Compras</a>
+          <a href="stock.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 4.5 7.3v9.4l7.5 3.8 7.5-3.8V7.3z"/><path d="m4.5 7.3 7.5 3.9 7.5-3.9M12 11.2v9.3"/></svg>Stock</a>
+          <a href="ventas.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.8" cy="6.5" r="1"/><circle cx="4.8" cy="12" r="1"/><circle cx="4.8" cy="17.5" r="1"/></svg>Ventas</a>
+          <a href="gastos.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H17v3.5"/><path d="M4 7.5V17a2.5 2.5 0 0 0 2.5 2.5H20V8.5H6.5A2.5 2.5 0 0 1 4 7.5z"/><path d="M16 14h.01"/></svg>Gastos</a>
+          <a href="recetas.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.5h6v3H9z"/><path d="M15 5h2.5A1.5 1.5 0 0 1 19 6.5v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-13A1.5 1.5 0 0 1 6.5 5H9"/><path d="M9 11h6M9 15h4"/></svg>Recetas</a>
+          <a href="turnos.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v5M17.5 9.5v5"/></svg>Turnos</a>
+        
+      </nav>
+      <div class="usuario">
+        <span>demo</span>
+        <a class="btn btn-fantasma btn-icono" href="#" title="Administración (productos, usuarios)" aria-label="Administración"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/><circle cx="15" cy="6.5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17.5" r="2"/></svg></a>
+        <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="jTYpbqwtSAihJVPKVyCEeMR5vc3x76K2KpWbYJcIshTjGFktP8lerEroxU2xKVyV"><button class="btn btn-fantasma btn-icono" type="submit" title="Salir" aria-label="Salir"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4H18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3.5"/><path d="M10 8l-4 4 4 4M6 12h10"/></svg></button></form>
+      </div>
+    </div>
+  </header>
+  
+  
+  <main id="contenido">
+    
+    
+<header class="encabezado">
+  <div><h1>Recepción de compra</h1><p>Copia los datos de la factura del proveedor. Cada producto crea un lote con su vencimiento.</p></div>
+  <a class="btn" href="pedido.html">Ver pedido sugerido</a>
+</header>
+
+
+  <form method="post" enctype="multipart/form-data" action="#" class="tarjeta fila" style="margin-bottom:16px">
+    <input type="hidden" name="csrfmiddlewaretoken" value="jTYpbqwtSAihJVPKVyCEeMR5vc3x76K2KpWbYJcIshTjGFktP8lerEroxU2xKVyV">
+    <label style="flex:1 1 320px">¿Tienes el XML de la factura electrónica? Se llenan los datos solos.<input type="file" name="xml" accept=".xml,text/xml" required style="height:auto;padding:8px"></label>
+    <button class="btn" type="submit">Cargar XML</button>
+  </form>
+
+<form id="compra" method="post" action="compras.html">
+  <input type="hidden" name="csrfmiddlewaretoken" value="jTYpbqwtSAihJVPKVyCEeMR5vc3x76K2KpWbYJcIshTjGFktP8lerEroxU2xKVyV">
+  <section class="tarjeta">
+    <div class="tarjeta-titulo">Factura</div>
+    <div class="campos">
+      <label>Proveedor<input name="proveedor" value="" required placeholder="Ej. Droguería Central"></label>
+      <label>N° factura<input name="numero_factura" value=""></label>
+      <label>Fecha<input type="date" name="fecha" value="2026-10-23" required></label>
+      <label>Neto<input type="number" name="total_neto" value="" min="0" required inputmode="numeric"></label>
+      <label>IVA<input type="number" name="iva" value="" min="0" required inputmode="numeric"></label>
+      <label>Total<input type="number" name="total" value="" min="0" required inputmode="numeric"></label>
+    </div>
+  </section>
+  <section class="tarjeta tarjeta-tabla" style="margin-top:16px">
+    <div class="carrito-cabeza"><span>Productos recibidos</span></div>
+    <div class="desliza">
+      <table class="tabla">
+        <thead><tr><th>Producto</th><th>Lote</th><th>Vencimiento</th><th>Cajas</th><th>Costo neto caja</th><th></th></tr></thead>
+        <tbody id="carrito"></tbody>
+      </table>
+    </div>
+  </section>
+</form>
+<form class="buscador" hx-get="/inventario/buscar/" hx-target="#resultados" autocomplete="off" style="margin-top:16px">
+  <svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+  <input type="hidden" name="para" value="compra">
+  <input id="q" name="q" type="search" placeholder="Escanea o busca el producto que llegó" aria-label="Buscar producto">
+</form>
+<div id="resultados"></div>
+<div class="acciones" style="margin-top:18px;justify-content:space-between">
+  <p class="suave" style="margin:0">¿Producto nuevo? Créalo primero en <a href="#">Admin → Productos</a>.</p>
+  <button class="btn btn-primario btn-grande" type="submit" form="compra">Registrar compra</button>
+</div>
+<script>
+(function () {
+  const carrito = document.getElementById("carrito");
+  document.body.addEventListener("htmx:afterSwap", (e) => {
+    if (e.detail.target !== carrito) return;
+    document.getElementById("resultados").innerHTML = "";
+    document.getElementById("q").value = "";
+    carrito.lastElementChild?.querySelector("[name=lote]")?.focus();
+  });
+  carrito.addEventListener("click", (e) => { if (e.target.closest(".quitar")) e.target.closest("tr").remove(); });
+  document.getElementById("compra").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.tagName === "INPUT") e.preventDefault();
+  });
+  // Evita registrar la misma compra dos veces con doble clic.
+  document.getElementById("compra").addEventListener("submit", () => {
+    for (const boton of document.querySelectorAll("button[form=compra]")) boton.disabled = true;
+  });
+})();
+</script>
+
+  </main>
+<div class="demo-marca">DEMO · datos ficticios</div><script>document.addEventListener('submit',function(e){e.preventDefault()},true);</script></body>
+</html>

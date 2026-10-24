@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Panel · Farmacia Demo Los Robles</title>
+  <link rel="preload" href="static/fuentes/geist.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/app.css">
+  <link rel="icon" href="static/favicon.ico" sizes="any">
+  <link rel="manifest" href="static/manifest.json">
+  <link rel="apple-touch-icon" href="static/icono-192.png">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  
+<style>
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;
+background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='440' height='230'><text x='8' y='160' transform='rotate(-24 220 115)' font-family='Arial,sans-serif' font-size='30' font-weight='700' letter-spacing='4' fill='rgba(15,23,42,0.07)'>DEMO - DATOS FICTICIOS</text></svg>");}
+.demo-marca{position:fixed;right:12px;bottom:12px;z-index:9999;background:#0f172a;color:#fff;font:600 12px Arial,sans-serif;letter-spacing:.06em;padding:6px 10px;border-radius:6px;opacity:.85;pointer-events:none}
+</style></head>
+<body class="">
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  
+  
+  <header class="barra">
+    <div class="barra-interior">
+      <a class="marca" href="index.html"><img class="marca-cruz" src="static/icono-cruz.png" alt="" width="30" height="30"><span>Farmacia Demo Los Robles</span></a>
+      <nav class="menu" aria-label="Principal">
+        <a href="panel.html" aria-current="page"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V7"/><path d="M17 16v-7"/></svg>Panel</a>
+        <a href="resumen.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6M9 15.5h3"/></svg>Resumen</a>
+        <a href="index.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 8.5v7M11 8.5v7M13.5 8.5v7M16 8.5v7"/></svg>Caja</a>
+        <a href="cierre.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6M9 15.5h3"/></svg>Cierre</a>
+        
+          <a href="compras.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5h11v9.5H3z"/><path d="M14 9.5h3.8l3.2 3.2V16h-7"/><circle cx="7" cy="17.6" r="1.7"/><circle cx="17.4" cy="17.6" r="1.7"/></svg>Compras</a>
+          <a href="stock.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 4.5 7.3v9.4l7.5 3.8 7.5-3.8V7.3z"/><path d="m4.5 7.3 7.5 3.9 7.5-3.9M12 11.2v9.3"/></svg>Stock</a>
+          <a href="ventas.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.8" cy="6.5" r="1"/><circle cx="4.8" cy="12" r="1"/><circle cx="4.8" cy="17.5" r="1"/></svg>Ventas</a>
+          <a href="gastos.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H17v3.5"/><path d="M4 7.5V17a2.5 2.5 0 0 0 2.5 2.5H20V8.5H6.5A2.5 2.5 0 0 1 4 7.5z"/><path d="M16 14h.01"/></svg>Gastos</a>
+          <a href="recetas.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.5h6v3H9z"/><path d="M15 5h2.5A1.5 1.5 0 0 1 19 6.5v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-13A1.5 1.5 0 0 1 6.5 5H9"/><path d="M9 11h6M9 15h4"/></svg>Recetas</a>
+          <a href="turnos.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v5M17.5 9.5v5"/></svg>Turnos</a>
+        
+      </nav>
+      <div class="usuario">
+        <span>demo</span>
+        <a class="btn btn-fantasma btn-icono" href="#" title="Administración (productos, usuarios)" aria-label="Administración"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/><circle cx="15" cy="6.5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17.5" r="2"/></svg></a>
+        <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="P75KzoLcc35xeMS6H6oGq4oPJjLDgVrdgD3wmHrrMKGzbwnPBG7gDWY8L1KDTKf6"><button class="btn btn-fantasma btn-icono" type="submit" title="Salir" aria-label="Salir"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4H18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3.5"/><path d="M10 8l-4 4 4 4M6 12h10"/></svg></button></form>
+      </div>
+    </div>
+  </header>
+  
+  
+  <main id="contenido">
+    
+    
+<header class="encabezado">
+  <div>
+    <h1>Panel</h1>
+    <p>viernes 23 de octubre</p>
+  </div>
+  <div class="acciones">
+    
+
+    <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="P75KzoLcc35xeMS6H6oGq4oPJjLDgVrdgD3wmHrrMKGzbwnPBG7gDWY8L1KDTKf6"><button class="btn btn-chico" type="submit"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18.5a4.5 4.5 0 0 1-.7-8.95 6 6 0 0 1 11.6 0A4.5 4.5 0 0 1 17 18.5z"/><path d="m9.5 13.5 2.5-2.5 2.5 2.5M12 11v5"/></svg>Respaldar ahora</button></form>
+  </div>
+</header>
+
+
+  <p class="error" style="margin-bottom:20px"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4.6 3.2 17a2 2 0 0 0 1.7 3h14.2a2 2 0 0 0 1.7-3L13.7 4.6a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 16.8h.01"/></svg><span><strong>Tus datos no tienen respaldo.</strong> Presiona «Respaldar ahora» y, si el aviso sigue mañana, avisa a soporte.<br><small>Detalle técnico: la carpeta RESPALDO_DIR está vacía.</small></span></p>
+
+
+<div class="kpis kpis-3">
+  <div class="kpi kpi-destacado"><span class="kpi-etiqueta">Ventas de hoy</span><span class="kpi-valor">$49.550</span><span class="kpi-nota">10 ventas</span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Margen de hoy</span><span class="kpi-valor">$14.545</span><span class="kpi-nota">neto de IVA</span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Ticket promedio</span><span class="kpi-valor">$4.955</span><span class="kpi-nota">por venta, hoy</span></div>
+</div>
+
+
+<nav class="pendientes" aria-label="Alertas pendientes">
+  
+  
+  <a class="etiqueta etiqueta-peligro" href="#alerta-sin-stock">5 vendidos sin stock</a>
+  
+  
+  <a class="etiqueta etiqueta-aviso" href="#alerta-stock-bajo">5 con stock bajo</a>
+</nav>
+
+
+<div class="seccion">
+  <h2>Octubre 2026</h2>
+  <form method="get"><label class="sr-solo" for="mes">Mes</label><input id="mes" type="month" name="mes" value="2026-10" onchange="this.form.submit()"></form>
+</div>
+<div class="kpis">
+  <div class="kpi"><span class="kpi-etiqueta">Ventas (con IVA)</span><span class="kpi-valor">$284.720</span><span class="kpi-nota">68 ventas</span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Costo de ventas</span><span class="kpi-valor">$144.744</span><span class="kpi-nota">costo real de cada lote</span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Margen bruto</span><span class="kpi-valor">$94.517</span><span class="kpi-nota">39,5 % sobre ventas netas</span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Gastos</span><span class="kpi-valor">$1.394.790</span><span class="kpi-nota">netos de IVA</span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Utilidad</span><span class="kpi-valor negativo">-$1.300.273</span><span class="kpi-nota">margen − gastos</span></div>
+  
+    <div class="kpi"><span class="kpi-etiqueta">Remanente IVA</span><span class="kpi-valor">$35.770</span><span class="kpi-nota">a favor, estimado</span></div>
+  
+</div>
+<p class="suave" style="margin:10px 0 0;font-size:.88rem">Planillas del mes para tu contador (Excel): <a href="#">ventas y boletas</a> · <a href="#">compras</a> · <a href="#">gastos</a></p>
+
+<section class="tarjeta" style="margin-top:14px">
+  <div class="tarjeta-titulo">Ventas por día<span class="suave" style="margin-left:auto;font-weight:500">máximo $58.180</span></div>
+  <div class="grafico" role="img" aria-label="Ventas por día del mes">
+    <div class="grafico-barra" style="height:0%" title="01-10: $0"></div><div class="grafico-barra" style="height:0%" title="02-10: $0"></div><div class="grafico-barra" style="height:0%" title="03-10: $0"></div><div class="grafico-barra" style="height:0%" title="04-10: $0"></div><div class="grafico-barra" style="height:0%" title="05-10: $0"></div><div class="grafico-barra" style="height:0%" title="06-10: $0"></div><div class="grafico-barra" style="height:0%" title="07-10: $0"></div><div class="grafico-barra" style="height:0%" title="08-10: $0"></div><div class="grafico-barra" style="height:0%" title="09-10: $0"></div><div class="grafico-barra" style="height:0%" title="10-10: $0"></div><div class="grafico-barra" style="height:0%" title="11-10: $0"></div><div class="grafico-barra" style="height:0%" title="12-10: $0"></div><div class="grafico-barra" style="height:0%" title="13-10: $0"></div><div class="grafico-barra" style="height:0%" title="14-10: $0"></div><div class="grafico-barra" style="height:0%" title="15-10: $0"></div><div class="grafico-barra" style="height:0%" title="16-10: $0"></div><div class="grafico-barra" style="height:62%" title="17-10: $36.000"></div><div class="grafico-barra" style="height:42%" title="18-10: $24.220"></div><div class="grafico-barra" style="height:90%" title="19-10: $52.540"></div><div class="grafico-barra" style="height:100%" title="20-10: $58.180"></div><div class="grafico-barra" style="height:66%" title="21-10: $38.600"></div><div class="grafico-barra" style="height:44%" title="22-10: $25.630"></div><div class="grafico-barra hoy" style="height:85%" title="23-10: $49.550"></div><div class="grafico-barra futuro" style="height:0%" title="24-10: $0"></div><div class="grafico-barra futuro" style="height:0%" title="25-10: $0"></div><div class="grafico-barra futuro" style="height:0%" title="26-10: $0"></div><div class="grafico-barra futuro" style="height:0%" title="27-10: $0"></div><div class="grafico-barra futuro" style="height:0%" title="28-10: $0"></div><div class="grafico-barra futuro" style="height:0%" title="29-10: $0"></div><div class="grafico-barra futuro" style="height:0%" title="30-10: $0"></div><div class="grafico-barra futuro" style="height:0%" title="31-10: $0"></div>
+  </div>
+  <div class="grafico-ejes" aria-hidden="true">
+    <span>1</span><span></span><span></span><span></span><span>5</span><span></span><span></span><span></span><span></span><span>10</span><span></span><span></span><span></span><span></span><span>15</span><span></span><span></span><span></span><span></span><span>20</span><span></span><span></span><span class="hoy">23</span><span></span><span>25</span><span></span><span></span><span></span><span></span><span>30</span><span></span>
+  </div>
+  <details class="grafico-detalle"><summary>Ver ventas por día</summary>
+    <table class="tabla"><tbody><tr><td>viernes 23</td><td class="num">$49.550</td></tr><tr><td>jueves 22</td><td class="num">$25.630</td></tr><tr><td>miércoles 21</td><td class="num">$38.600</td></tr><tr><td>martes 20</td><td class="num">$58.180</td></tr><tr><td>lunes 19</td><td class="num">$52.540</td></tr><tr><td>domingo 18</td><td class="num">$24.220</td></tr><tr><td>sábado 17</td><td class="num">$36.000</td></tr><tr><td>viernes 16</td><td class="num">$0</td></tr><tr><td>jueves 15</td><td class="num">$0</td></tr><tr><td>miércoles 14</td><td class="num">$0</td></tr><tr><td>martes 13</td><td class="num">$0</td></tr><tr><td>lunes 12</td><td class="num">$0</td></tr><tr><td>domingo 11</td><td class="num">$0</td></tr><tr><td>sábado 10</td><td class="num">$0</td></tr><tr><td>viernes 9</td><td class="num">$0</td></tr><tr><td>jueves 8</td><td class="num">$0</td></tr><tr><td>miércoles 7</td><td class="num">$0</td></tr><tr><td>martes 6</td><td class="num">$0</td></tr><tr><td>lunes 5</td><td class="num">$0</td></tr><tr><td>domingo 4</td><td class="num">$0</td></tr><tr><td>sábado 3</td><td class="num">$0</td></tr><tr><td>viernes 2</td><td class="num">$0</td></tr><tr><td>jueves 1</td><td class="num">$0</td></tr></tbody></table>
+  </details>
+  <p class="suave" style="margin:12px 0 0">Cifras estimadas, netas de IVA. El IVA se calcula sobre el total del mes y no incluye PPM.</p>
+</section>
+
+<div class="seccion"><h2>Alertas</h2></div>
+
+<div class="alertas">
+  
+  
+  <section class="tarjeta alerta alerta-peligro" id="alerta-sin-stock">
+    <div class="alerta-cabeza"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4.6 3.2 17a2 2 0 0 0 1.7 3h14.2a2 2 0 0 0 1.7-3L13.7 4.6a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 16.8h.01"/></svg>Vendido sin stock (5)<span class="etiqueta etiqueta-peligro">revisar</span></div>
+    
+      <ul class="alerta-lista">
+        
+          <li>
+            <div class="alerta-texto"><strong>Vitamina C 1 g x 20 20 comprimidos efervescentes</strong><span>72 u. en 8 ventas · última 23-10 12:04</span></div>
+            <div class="alerta-acciones">
+              <a class="btn btn-chico" href="#">Ajustar stock</a>
+              <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="P75KzoLcc35xeMS6H6oGq4oPJjLDgVrdgD3wmHrrMKGzbwnPBG7gDWY8L1KDTKf6"><input type="hidden" name="hasta" value="110"><button class="btn btn-chico" type="submit"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Regularizado</button></form>
+            </div>
+          </li>
+        
+          <li>
+            <div class="alerta-texto"><strong>Ibuprofeno 400 mg x 10 10 comprimidos</strong><span>40 u. en 8 ventas · última 23-10 12:04</span></div>
+            <div class="alerta-acciones">
+              <a class="btn btn-chico" href="#">Ajustar stock</a>
+              <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="P75KzoLcc35xeMS6H6oGq4oPJjLDgVrdgD3wmHrrMKGzbwnPBG7gDWY8L1KDTKf6"><input type="hidden" name="hasta" value="117"><button class="btn btn-chico" type="submit"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Regularizado</button></form>
+            </div>
+          </li>
+        
+          <li>
+            <div class="alerta-texto"><strong>Paracetamol 500 mg x 20 20 comprimidos</strong><span>37 u. en 5 ventas · última 23-10 12:19</span></div>
+            <div class="alerta-acciones">
+              <a class="btn btn-chico" href="#">Ajustar stock</a>
+              <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="P75KzoLcc35xeMS6H6oGq4oPJjLDgVrdgD3wmHrrMKGzbwnPBG7gDWY8L1KDTKf6"><input type="hidden" name="hasta" value="115"><button class="btn btn-chico" type="submit"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Regularizado</button></form>
+            </div>
+          </li>
+        
+          <li>
+            <div class="alerta-texto"><strong>Amoxicilina 500 mg x 21 21 cápsulas</strong><span>29 u. en 2 ventas · última 23-10 12:44</span></div>
+            <div class="alerta-acciones">
+              <a class="btn btn-chico" href="#">Ajustar stock</a>
+              <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="P75KzoLcc35xeMS6H6oGq4oPJjLDgVrdgD3wmHrrMKGzbwnPBG7gDWY8L1KDTKf6"><input type="hidden" name="hasta" value="102"><button class="btn btn-chico" type="submit"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Regularizado</button></form>
+            </div>
+          </li>
+        
+          <li>
+            <div class="alerta-texto"><strong>Loratadina 10 mg x 10 10 comprimidos</strong><span>7 u. en 1 venta · última 23-10 10:14</span></div>
+            <div class="alerta-acciones">
+              <a class="btn btn-chico" href="#">Ajustar stock</a>
+              <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="P75KzoLcc35xeMS6H6oGq4oPJjLDgVrdgD3wmHrrMKGzbwnPBG7gDWY8L1KDTKf6"><input type="hidden" name="hasta" value="116"><button class="btn btn-chico" type="submit"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Regularizado</button></form>
+            </div>
+          </li>
+        
+      </ul>
+    
+  </section>
+
+  <section class="tarjeta alerta alerta-peligro" id="alerta-vencidos">
+    <div class="alerta-cabeza"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Vencidos (0)<span class="etiqueta etiqueta-ok">al día</span></div>
+    <p class="alerta-vacia"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>No hay lotes vencidos.</p>
+  </section>
+
+  <section class="tarjeta alerta alerta-aviso" id="alerta-por-vencer">
+    <div class="alerta-cabeza"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Vencen en 90 días (0)<span class="etiqueta etiqueta-ok">al día</span></div>
+    <p class="alerta-vacia"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Nada vence en los próximos 90 días.</p>
+  </section>
+
+  <section class="tarjeta alerta alerta-aviso" id="alerta-stock-bajo">
+    <div class="alerta-cabeza"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 4.5 7.3v9.4l7.5 3.8 7.5-3.8V7.3z"/><path d="m4.5 7.3 7.5 3.9 7.5-3.9M12 11.2v9.3"/></svg>Stock bajo (5)<span class="etiqueta etiqueta-aviso">reponer</span></div>
+    
+      <ul class="alerta-lista">
+        
+          <li><div class="alerta-texto"><strong>Paracetamol 500 mg x 20 20 comprimidos</strong><span>Quedan 0 u. · mínimo 30 u.</span></div><a class="btn btn-chico" href="pedido.html">Pedido sugerido</a></li>
+        
+          <li><div class="alerta-texto"><strong>Ibuprofeno 400 mg x 10 10 comprimidos</strong><span>Quedan 0 u. · mínimo 20 u.</span></div><a class="btn btn-chico" href="pedido.html">Pedido sugerido</a></li>
+        
+          <li><div class="alerta-texto"><strong>Loratadina 10 mg x 10 10 comprimidos</strong><span>Quedan 0 u. · mínimo 10 u.</span></div><a class="btn btn-chico" href="pedido.html">Pedido sugerido</a></li>
+        
+          <li><div class="alerta-texto"><strong>Amoxicilina 500 mg x 21 21 cápsulas</strong><span>Quedan 0 u. · mínimo 10 u.</span></div><a class="btn btn-chico" href="pedido.html">Pedido sugerido</a></li>
+        
+          <li><div class="alerta-texto"><strong>Vitamina C 1 g x 20 20 comprimidos efervescentes</strong><span>Quedan 0 u. · mínimo 10 u.</span></div><a class="btn btn-chico" href="pedido.html">Pedido sugerido</a></li>
+        
+      </ul>
+    
+  </section>
+</div>
+
+
+  </main>
+<div class="demo-marca">DEMO · datos ficticios</div><script>document.addEventListener('submit',function(e){e.preventDefault()},true);</script></body>
+</html>

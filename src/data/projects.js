@@ -644,6 +644,7 @@ export const projects = [
     category: 'web',
     year: 2026,
     image: '/projects/bodega-contabilidad-farmacia.jpg',
+    demo: { src: '/demos/bodega-contabilidad-farmacia/index.html' },
     resultBadge: { es: '148 pruebas automáticas en verde', en: '148 automated tests passing' },
     summary: {
       es: 'Caja, inventario con vencimientos, boleta electrónica y panel del dueño para una farmacia, instalable con doble clic en un PC Windows y consultable desde el celular.',

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Resumen semanal · Farmacia Demo Los Robles</title>
+  <link rel="preload" href="static/fuentes/geist.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/app.css">
+  <link rel="icon" href="static/favicon.ico" sizes="any">
+  <link rel="manifest" href="static/manifest.json">
+  <link rel="apple-touch-icon" href="static/icono-192.png">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  
+<style>
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;
+background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='440' height='230'><text x='8' y='160' transform='rotate(-24 220 115)' font-family='Arial,sans-serif' font-size='30' font-weight='700' letter-spacing='4' fill='rgba(15,23,42,0.07)'>DEMO - DATOS FICTICIOS</text></svg>");}
+.demo-marca{position:fixed;right:12px;bottom:12px;z-index:9999;background:#0f172a;color:#fff;font:600 12px Arial,sans-serif;letter-spacing:.06em;padding:6px 10px;border-radius:6px;opacity:.85;pointer-events:none}
+</style></head>
+<body class="">
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  
+  
+  <header class="barra">
+    <div class="barra-interior">
+      <a class="marca" href="index.html"><img class="marca-cruz" src="static/icono-cruz.png" alt="" width="30" height="30"><span>Farmacia Demo Los Robles</span></a>
+      <nav class="menu" aria-label="Principal">
+        <a href="panel.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V7"/><path d="M17 16v-7"/></svg>Panel</a>
+        <a href="resumen.html" aria-current="page"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6M9 15.5h3"/></svg>Resumen</a>
+        <a href="index.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 8.5v7M11 8.5v7M13.5 8.5v7M16 8.5v7"/></svg>Caja</a>
+        <a href="cierre.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6M9 15.5h3"/></svg>Cierre</a>
+        
+          <a href="compras.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5h11v9.5H3z"/><path d="M14 9.5h3.8l3.2 3.2V16h-7"/><circle cx="7" cy="17.6" r="1.7"/><circle cx="17.4" cy="17.6" r="1.7"/></svg>Compras</a>
+          <a href="stock.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 4.5 7.3v9.4l7.5 3.8 7.5-3.8V7.3z"/><path d="m4.5 7.3 7.5 3.9 7.5-3.9M12 11.2v9.3"/></svg>Stock</a>
+          <a href="ventas.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.8" cy="6.5" r="1"/><circle cx="4.8" cy="12" r="1"/><circle cx="4.8" cy="17.5" r="1"/></svg>Ventas</a>
+          <a href="gastos.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H17v3.5"/><path d="M4 7.5V17a2.5 2.5 0 0 0 2.5 2.5H20V8.5H6.5A2.5 2.5 0 0 1 4 7.5z"/><path d="M16 14h.01"/></svg>Gastos</a>
+          <a href="recetas.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.5h6v3H9z"/><path d="M15 5h2.5A1.5 1.5 0 0 1 19 6.5v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-13A1.5 1.5 0 0 1 6.5 5H9"/><path d="M9 11h6M9 15h4"/></svg>Recetas</a>
+          <a href="turnos.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v5M17.5 9.5v5"/></svg>Turnos</a>
+        
+      </nav>
+      <div class="usuario">
+        <span>demo</span>
+        <a class="btn btn-fantasma btn-icono" href="#" title="Administración (productos, usuarios)" aria-label="Administración"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/><circle cx="15" cy="6.5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17.5" r="2"/></svg></a>
+        <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="xvdR3x7SkiKFHhkumDXRHSVG15bSMUEKY1bDQQN7UZlHE1PdgdGrUKvZ3NaSpJsD"><button class="btn btn-fantasma btn-icono" type="submit" title="Salir" aria-label="Salir"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4H18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3.5"/><path d="M10 8l-4 4 4 4M6 12h10"/></svg></button></form>
+      </div>
+    </div>
+  </header>
+  
+  
+  <main id="contenido">
+    
+    
+<header class="encabezado">
+  <div>
+    <h1>Resumen semanal</h1>
+    <p>Del 17 de octubre al 23 de octubre 2026 (hoy aún en curso) · comparado con los 7 días anteriores</p>
+  </div>
+  <div class="acciones">
+    <a class="btn" href="?hasta=2026-10-16">← Semana anterior</a>
+    
+  </div>
+</header>
+
+<div class="kpis">
+  <div class="kpi kpi-destacado"><span class="kpi-etiqueta">Ventas (con IVA)</span><span class="kpi-valor">$284.720</span><span class="kpi-nota">antes $0</span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Margen bruto</span><span class="kpi-valor">$94.517</span><span class="kpi-nota"><span class="etiqueta">sin semana anterior</span></span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Variación de ventas</span><span class="kpi-valor">—</span><span class="kpi-nota"><span class="etiqueta">sin semana anterior</span></span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Ticket promedio</span><span class="kpi-valor">$4.187</span><span class="kpi-nota"><span class="etiqueta">sin semana anterior</span></span></div>
+  <div class="kpi"><span class="kpi-etiqueta">N° de ventas</span><span class="kpi-valor">68</span><span class="kpi-nota">antes 0</span></div>
+  <div class="kpi"><span class="kpi-etiqueta">Utilidad de la semana</span><span class="kpi-valor negativo">-$641.483</span><span class="kpi-nota">margen − gastos registrados</span></div>
+</div>
+
+<section class="tarjeta" style="margin-top:14px">
+  <div class="tarjeta-titulo">Ventas por día</div>
+  <div class="grafico" role="img" aria-label="Ventas por día de la semana">
+    <div class="grafico-barra" style="height:62%" title="sábado 17: $36.000"></div><div class="grafico-barra" style="height:42%" title="domingo 18: $24.220"></div><div class="grafico-barra" style="height:90%" title="lunes 19: $52.540"></div><div class="grafico-barra" style="height:100%" title="martes 20: $58.180"></div><div class="grafico-barra" style="height:66%" title="miércoles 21: $38.600"></div><div class="grafico-barra" style="height:44%" title="jueves 22: $25.630"></div><div class="grafico-barra hoy" style="height:85%" title="viernes 23: $49.550"></div>
+  </div>
+  <div class="grafico-ejes" aria-hidden="true"><span>sáb 17</span><span>dom 18</span><span>lun 19</span><span>mar 20</span><span>mié 21</span><span>jue 22</span><span class="hoy">vie 23</span></div>
+  <details class="grafico-detalle"><summary>Ver montos por día</summary>
+    <table class="tabla"><tbody><tr><td>viernes 23</td><td class="num">$49.550</td></tr><tr><td>jueves 22</td><td class="num">$25.630</td></tr><tr><td>miércoles 21</td><td class="num">$38.600</td></tr><tr><td>martes 20</td><td class="num">$58.180</td></tr><tr><td>lunes 19</td><td class="num">$52.540</td></tr><tr><td>domingo 18</td><td class="num">$24.220</td></tr><tr><td>sábado 17</td><td class="num">$36.000</td></tr></tbody></table>
+  </details>
+</section>
+
+<div class="alertas" style="margin-top:14px">
+  <section class="tarjeta alerta alerta-info">
+    <div class="alerta-cabeza"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.8" cy="6.5" r="1"/><circle cx="4.8" cy="12" r="1"/><circle cx="4.8" cy="17.5" r="1"/></svg>Lo más vendido</div>
+    <ul class="alerta-lista"><li><div class="alerta-texto"><strong>Protector solar FPS 50 200 ml</strong><span>200 ml · 3 u.</span></div><strong>$44.970</strong></li><li><div class="alerta-texto"><strong>Crema hidratante 200 ml</strong><span>200 ml · 5 u.</span></div><strong>$32.450</strong></li><li><div class="alerta-texto"><strong>Vitamina C 1 g x 20</strong><span>20 comprimidos efervescentes · 132 u.</span></div><strong>$31.020</strong></li><li><div class="alerta-texto"><strong>Amoxicilina 500 mg x 21</strong><span>21 cápsulas · 71 u.</span></div><strong>$24.570</strong></li><li><div class="alerta-texto"><strong>Mascarillas x 50</strong><span>caja 50 unidades · 4 u.</span></div><strong>$23.960</strong></li></ul>
+    
+  </section>
+  <section class="tarjeta alerta alerta-info">
+    <div class="alerta-cabeza"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V7"/><path d="M17 16v-7"/></svg>Lo que más deja</div>
+    <ul class="alerta-lista"><li><div class="alerta-texto"><strong>Protector solar FPS 50 200 ml</strong><span>200 ml</span></div><strong class="positivo">$16.790</strong></li><li><div class="alerta-texto"><strong>Crema hidratante 200 ml</strong><span>200 ml</span></div><strong class="positivo">$14.769</strong></li><li><div class="alerta-texto"><strong>Jarabe para la tos 120 ml</strong><span>120 ml</span></div><strong class="positivo">$9.918</strong></li><li><div class="alerta-texto"><strong>Mascarillas x 50</strong><span>caja 50 unidades</span></div><strong class="positivo">$9.734</strong></li><li><div class="alerta-texto"><strong>Vitamina C 1 g x 20</strong><span>20 comprimidos efervescentes</span></div><strong class="positivo">$8.907</strong></li></ul>
+    
+  </section>
+  <section class="tarjeta alerta alerta-info">
+    <div class="alerta-cabeza"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v5M17.5 9.5v5"/></svg>Medios de pago</div>
+    <ul class="alerta-lista"><li><div class="alerta-texto"><strong>Débito</strong><span>20 ventas</span></div><strong>$88.180</strong></li><li><div class="alerta-texto"><strong>Efectivo</strong><span>26 ventas</span></div><strong>$86.120</strong></li><li><div class="alerta-texto"><strong>Transferencia</strong><span>15 ventas</span></div><strong>$85.290</strong></li><li><div class="alerta-texto"><strong>Crédito</strong><span>7 ventas</span></div><strong>$25.130</strong></li></ul>
+    
+  </section>
+  <section class="tarjeta alerta alerta-aviso">
+    <div class="alerta-cabeza"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4.6 3.2 17a2 2 0 0 0 1.7 3h14.2a2 2 0 0 0 1.7-3L13.7 4.6a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 16.8h.01"/></svg>Pendientes de hoy</div>
+    <ul class="alerta-lista">
+      <li><div class="alerta-texto"><strong>0 lotes vencidos · 5 vendidos sin stock</strong><span>5 con stock bajo · 0 por vencer</span></div><a class="btn btn-chico" href="#">Ver en el panel</a></li>
+    </ul>
+  </section>
+</div>
+
+<section class="tarjeta" style="margin-top:14px">
+  <div class="tarjeta-titulo"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18.5a4.5 4.5 0 0 1-.7-8.95 6 6 0 0 1 11.6 0A4.5 4.5 0 0 1 17 18.5z"/><path d="m9.5 13.5 2.5-2.5 2.5 2.5M12 11v5"/></svg>Aviso diario al celular</div>
+  
+    <p class="suave" style="margin:0 0 12px">Todavía no está configurado. Sigue el capítulo «Avisos en el celular» del manual del dueño (toma 5 minutos).</p>
+    <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="xvdR3x7SkiKFHhkumDXRHSVG15bSMUEKY1bDQQN7UZlHE1PdgdGrUKvZ3NaSpJsD"><button class="btn" type="submit">Probar envío</button></form>
+  
+</section>
+
+  </main>
+<div class="demo-marca">DEMO · datos ficticios</div><script>document.addEventListener('submit',function(e){e.preventDefault()},true);</script></body>
+</html>

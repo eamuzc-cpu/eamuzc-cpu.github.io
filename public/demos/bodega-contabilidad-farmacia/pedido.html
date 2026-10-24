@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pedido sugerido · Farmacia Demo Los Robles</title>
+  <link rel="preload" href="static/fuentes/geist.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/app.css">
+  <link rel="icon" href="static/favicon.ico" sizes="any">
+  <link rel="manifest" href="static/manifest.json">
+  <link rel="apple-touch-icon" href="static/icono-192.png">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  
+<style>
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;
+background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='440' height='230'><text x='8' y='160' transform='rotate(-24 220 115)' font-family='Arial,sans-serif' font-size='30' font-weight='700' letter-spacing='4' fill='rgba(15,23,42,0.07)'>DEMO - DATOS FICTICIOS</text></svg>");}
+.demo-marca{position:fixed;right:12px;bottom:12px;z-index:9999;background:#0f172a;color:#fff;font:600 12px Arial,sans-serif;letter-spacing:.06em;padding:6px 10px;border-radius:6px;opacity:.85;pointer-events:none}
+</style></head>
+<body class="">
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  
+  
+  <header class="barra">
+    <div class="barra-interior">
+      <a class="marca" href="index.html"><img class="marca-cruz" src="static/icono-cruz.png" alt="" width="30" height="30"><span>Farmacia Demo Los Robles</span></a>
+      <nav class="menu" aria-label="Principal">
+        <a href="panel.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V7"/><path d="M17 16v-7"/></svg>Panel</a>
+        <a href="resumen.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6M9 15.5h3"/></svg>Resumen</a>
+        <a href="index.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 8.5v7M11 8.5v7M13.5 8.5v7M16 8.5v7"/></svg>Caja</a>
+        <a href="cierre.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6M9 15.5h3"/></svg>Cierre</a>
+        
+          <a href="compras.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5h11v9.5H3z"/><path d="M14 9.5h3.8l3.2 3.2V16h-7"/><circle cx="7" cy="17.6" r="1.7"/><circle cx="17.4" cy="17.6" r="1.7"/></svg>Compras</a>
+          <a href="stock.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 4.5 7.3v9.4l7.5 3.8 7.5-3.8V7.3z"/><path d="m4.5 7.3 7.5 3.9 7.5-3.9M12 11.2v9.3"/></svg>Stock</a>
+          <a href="ventas.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.8" cy="6.5" r="1"/><circle cx="4.8" cy="12" r="1"/><circle cx="4.8" cy="17.5" r="1"/></svg>Ventas</a>
+          <a href="gastos.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H17v3.5"/><path d="M4 7.5V17a2.5 2.5 0 0 0 2.5 2.5H20V8.5H6.5A2.5 2.5 0 0 1 4 7.5z"/><path d="M16 14h.01"/></svg>Gastos</a>
+          <a href="recetas.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.5h6v3H9z"/><path d="M15 5h2.5A1.5 1.5 0 0 1 19 6.5v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-13A1.5 1.5 0 0 1 6.5 5H9"/><path d="M9 11h6M9 15h4"/></svg>Recetas</a>
+          <a href="turnos.html"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v5M17.5 9.5v5"/></svg>Turnos</a>
+        
+      </nav>
+      <div class="usuario">
+        <span>demo</span>
+        <a class="btn btn-fantasma btn-icono" href="#" title="Administración (productos, usuarios)" aria-label="Administración"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/><circle cx="15" cy="6.5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17.5" r="2"/></svg></a>
+        <form method="post" action="#"><input type="hidden" name="csrfmiddlewaretoken" value="HfQbb76PfzwGIiE3rHrE8FPxko8yvV4Z8LOXYqM4Pg7IF29MlhaelxpQm67y8KSS"><button class="btn btn-fantasma btn-icono" type="submit" title="Salir" aria-label="Salir"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4H18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3.5"/><path d="M10 8l-4 4 4 4M6 12h10"/></svg></button></form>
+      </div>
+    </div>
+  </header>
+  
+  
+  <main id="contenido">
+    
+    
+<header class="encabezado">
+  <div><h1>Pedido sugerido</h1><p>Lo que conviene reponer para cubrir 15 días de venta, según los últimos 30 días.</p></div>
+  <div class="acciones no-imprimir">
+    <form method="get" class="acciones">
+      <label class="sr-solo" for="dias">Días de cobertura</label>
+      <select id="dias" name="dias" onchange="this.form.submit()">
+        <option value="7">Cubrir 7 días</option>
+        <option value="15" selected>Cubrir 15 días</option>
+        <option value="30">Cubrir 30 días</option>
+        <option value="45">Cubrir 45 días</option>
+      </select>
+    </form>
+    <a class="btn" href="?dias=15&csv=1">Descargar CSV</a>
+    <button class="btn btn-primario" type="button" onclick="window.print()"><svg class="icono " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6.5H7z"/></svg>Imprimir orden</button>
+  </div>
+</header>
+
+  <div class="kpis kpis-3" style="margin-bottom:18px">
+    <div class="kpi kpi-destacado"><span class="kpi-etiqueta">Costo neto estimado</span><span class="kpi-valor">$55.080</span><span class="kpi-nota">con el último costo de cada producto</span></div>
+    <div class="kpi"><span class="kpi-etiqueta">Productos a reponer</span><span class="kpi-valor">6</span></div>
+    <div class="kpi"><span class="kpi-etiqueta">Fecha</span><span class="kpi-valor">23-10-2026</span></div>
+  </div>
+  
+  
+    <section class="tarjeta tarjeta-tabla desliza" style="margin-bottom:16px">
+      <div class="carrito-cabeza"><span><strong style="color:var(--texto)">Distribuidora Ficticia S.A.</strong></span><span>1 producto</span></div>
+      <table class="tabla">
+        <thead><tr><th>Producto</th><th class="num">Stock</th><th class="num solo-pc">Venta diaria</th><th>Alcanza para</th><th class="num">Pedir</th><th class="num solo-pc">Costo neto</th></tr></thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>Ibuprofeno 400 mg x 10</strong> <span class="suave">10 comprimidos</span></td>
+              <td class="num">0 u.</td>
+              <td class="num solo-pc">2,7 u.</td>
+              <td><span class="etiqueta etiqueta-peligro">0 días</span></td>
+              <td class="num"><strong>6</strong> cajas</td>
+              <td class="num solo-pc">$9.000</td>
+            </tr>
+          
+        </tbody>
+      </table>
+    </section>
+  
+    <section class="tarjeta tarjeta-tabla desliza" style="margin-bottom:16px">
+      <div class="carrito-cabeza"><span><strong style="color:var(--texto)">Droguería Demo Ltda.</strong></span><span>5 productos</span></div>
+      <table class="tabla">
+        <thead><tr><th>Producto</th><th class="num">Stock</th><th class="num solo-pc">Venta diaria</th><th>Alcanza para</th><th class="num">Pedir</th><th class="num solo-pc">Costo neto</th></tr></thead>
+        <tbody>
+          
+            <tr>
+              <td><strong>Paracetamol 500 mg x 20</strong> <span class="suave">20 comprimidos</span></td>
+              <td class="num">0 u.</td>
+              <td class="num solo-pc">7,2 u.</td>
+              <td><span class="etiqueta etiqueta-peligro">0 días</span></td>
+              <td class="num"><strong>7</strong> cajas</td>
+              <td class="num solo-pc">$8.680</td>
+            </tr>
+          
+            <tr>
+              <td><strong>Loratadina 10 mg x 10</strong> <span class="suave">10 comprimidos</span></td>
+              <td class="num">0 u.</td>
+              <td class="num solo-pc">2,2 u.</td>
+              <td><span class="etiqueta etiqueta-peligro">0 días</span></td>
+              <td class="num"><strong>5</strong> cajas</td>
+              <td class="num solo-pc">$9.500</td>
+            </tr>
+          
+            <tr>
+              <td><strong>Amoxicilina 500 mg x 21</strong> <span class="suave">21 cápsulas</span></td>
+              <td class="num">0 u.</td>
+              <td class="num solo-pc">2,4 u.</td>
+              <td><span class="etiqueta etiqueta-peligro">0 días</span></td>
+              <td class="num"><strong>3</strong> cajas</td>
+              <td class="num solo-pc">$15.120</td>
+            </tr>
+          
+            <tr>
+              <td><strong>Vitamina C 1 g x 20</strong> <span class="suave">20 comprimidos efervescentes</span></td>
+              <td class="num">0 u.</td>
+              <td class="num solo-pc">4,4 u.</td>
+              <td><span class="etiqueta etiqueta-peligro">0 días</span></td>
+              <td class="num"><strong>4</strong> cajas</td>
+              <td class="num solo-pc">$10.400</td>
+            </tr>
+          
+            <tr>
+              <td><strong>Omeprazol 20 mg x 14</strong> <span class="suave">14 cápsulas</span></td>
+              <td class="num">22 u.</td>
+              <td class="num solo-pc">1,3 u.</td>
+              <td>17 días</td>
+              <td class="num"><strong>1</strong> caja</td>
+              <td class="num solo-pc">$2.380</td>
+            </tr>
+          
+        </tbody>
+      </table>
+    </section>
+  
+
+<p class="suave">Revisa las cantidades antes de enviar el pedido: el cálculo no conoce promociones ni temporadas.</p>
+
+  </main>
+<div class="demo-marca">DEMO · datos ficticios</div><script>document.addEventListener('submit',function(e){e.preventDefault()},true);</script></body>
+</html>
