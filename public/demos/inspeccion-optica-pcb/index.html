@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspección óptica de placas (AOI) — detección de defectos en PCB en el navegador</title>
+<style>
+:root {
+  --bg: #020617; --panel: #0b1220; --panel2: #0f172a; --line: #1e293b;
+  --txt: #e2e8f0; --mut: #94a3b8; --cyan: #22d3ee; --amber: #f59e0b; --red: #f87171; --green: #34d399;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--txt); font: 14px/1.45 var(--font); }
+body { min-height: 100vh; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #040a1a; }
+.topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.topbar .sp { flex: 1; }
+.badge { font: 11px var(--mono); padding: 2px 8px; border: 1px solid rgba(34, 211, 238, .4); color: var(--cyan); border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+.badge.warn { border-color: rgba(245, 158, 11, .6); color: var(--amber); }
+.badge.bad { border-color: rgba(248, 113, 113, .6); color: var(--red); }
+.carga { height: 3px; background: var(--line); }
+.carga i { display: block; height: 100%; width: 0; background: var(--cyan); transition: width .2s; }
+.wrap { display: grid; grid-template-columns: 270px minmax(0, 1fr) 320px; gap: 12px; padding: 12px 16px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 8px; font: 600 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--mut); }
+button { font: 600 12px var(--font); color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+button.primary { background: var(--cyan); color: #00131a; border-color: var(--cyan); }
+button.primary:hover:not(:disabled) { color: #00131a; filter: brightness(1.1); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+select, input[type=number] { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: 12px var(--mono); }
+input[type=file] { font: 12px var(--font); color: var(--mut); max-width: 100%; }
+label { display: grid; gap: 4px; font: 12px var(--mono); color: var(--mut); margin-bottom: 10px; }
+.muestras { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+.muestras button { padding: 4px; display: grid; gap: 3px; font: 11px var(--mono); color: var(--mut); }
+.muestras button.on { border-color: var(--cyan); color: var(--cyan); }
+.muestras img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 5px; background: #fff; }
+.ayuda { margin: 0 0 10px; font-size: 12px; color: var(--mut); }
+.visor { display: grid; gap: 10px; min-width: 0; }
+.veredicto { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; }
+.veredicto b { font: 600 20px var(--font); }
+.veredicto.aprobada b { color: var(--green); } .veredicto.revisar b { color: var(--amber); } .veredicto.rechazada b, .veredicto.error b { color: var(--red); }
+.veredicto span { font: 12px var(--mono); color: var(--mut); }
+.barra { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; }
+.tabs { display: inline-flex; gap: 6px; }
+.tabs button[aria-selected="true"] { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, .1); }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font: 12px var(--mono); color: var(--mut); }
+.leyenda i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 5px; }
+.lienzo { position: relative; background: #000; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-height: 280px; display: grid; place-items: center; }
+.lienzo canvas { display: block; width: 100%; height: auto; }
+.msg { margin: 0; padding: 30px 20px; color: var(--mut); text-align: center; max-width: 52ch; }
+.msg.error { color: var(--red); }
+.lista { display: flex; flex-direction: column; max-height: calc(100vh - 90px); }
+.conteo { display: flex; flex-wrap: wrap; gap: 4px 10px; font: 12px var(--mono); color: var(--mut); margin-bottom: 8px; }
+.conteo b { color: var(--txt); }
+ol { list-style: none; margin: 0; padding: 0; overflow: auto; }
+li { border-top: 1px solid var(--line); }
+li:first-child { border-top: 0; }
+li > button { width: 100%; display: grid; grid-template-columns: 26px 1fr auto; gap: 2px 8px; text-align: left; background: transparent; border: 0; border-radius: 0; padding: 8px 4px; font-weight: 400; }
+li > button:hover:not(:disabled) { color: var(--txt); background: var(--panel2); }
+.num { grid-row: span 2; height: 20px; line-height: 20px; text-align: center; border-radius: 4px; font: 600 11px var(--mono); color: #0b1220; }
+.num.critico { background: var(--red); } .num.revisar { background: var(--amber); }
+.tipo { font-weight: 600; }
+.sev { font: 600 10px var(--mono); padding: 1px 7px; border-radius: 999px; border: 1px solid; text-transform: uppercase; letter-spacing: .4px; height: fit-content; }
+.sev.critico { color: var(--red); border-color: rgba(248, 113, 113, .6); } .sev.revisar { color: var(--amber); border-color: rgba(245, 158, 11, .6); }
+.det { font: 12px var(--mono); color: var(--mut); grid-column: 2 / -1; }
+.zoom { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 4px 10px 38px; }
+.zoom figure { margin: 0; }
+.zoom canvas { display: block; width: 100%; border-radius: 4px; border: 1px solid var(--line); background: #000; image-rendering: pixelated; }
+.zoom figcaption { font: 10px var(--mono); color: var(--mut); margin-top: 2px; }
+.vacio { margin: 0; padding: 10px 2px; color: var(--mut); font-size: 13px; }
+.note { font-size: 12px; color: var(--mut); padding: 0 16px 14px; }
+@media (max-width: 1150px) { .wrap { grid-template-columns: 250px minmax(0, 1fr); } .lista { grid-column: 1 / -1; max-height: none; } }
+@media (max-width: 760px) { .wrap { grid-template-columns: 1fr; padding: 10px; } .muestras { grid-template-columns: repeat(6, 1fr); } .muestras button span { display: none; } }
+
+/* Marca de agua: aparece en un costado de todas las simulaciones */
+body::after {
+  content: 'sistema simulado inspirado en el original implementado';
+  position: fixed; right: 2px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; white-space: nowrap;
+  font: 600 10.5px ui-monospace, 'JetBrains Mono', Consolas, monospace; letter-spacing: .14em;
+  color: rgba(148, 163, 184, .55); pointer-events: none; user-select: none; z-index: 50;
+}
+</style>
+<!-- og:start -->
+<link rel="canonical" href="https://eamuzc-cpu.github.io/demos/inspeccion-optica-pcb/" />
+<meta property="og:type" content="website" />
+<meta property="og:locale" content="es_CL" />
+<meta property="og:site_name" content="Esteban Muñoz Cáceres" />
+<meta property="og:url" content="https://eamuzc-cpu.github.io/demos/inspeccion-optica-pcb/" />
+<meta property="og:title" content="Inspección óptica de placas (AOI): detección y clasificación de defectos en PCB" />
+<meta property="og:description" content="Compara cada placa contra una referencia buena, alinea las dos imágenes y marca cortocircuitos, pistas abiertas, mordidas, espolones, cobre espurio y pinholes, con veredicto de aprobada, revisar o rechazada. Corre en el navegador con placas reales escaneadas." />
+<meta property="og:image" content="https://eamuzc-cpu.github.io/projects/inspeccion-optica-pcb.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<!-- og:end -->
+</head>
+<body>
+<header class="topbar">
+  <h1>Inspección óptica de placas (AOI)</h1>
+  <span class="badge">corre en tu navegador</span>
+  <span class="sp"></span>
+  <span class="badge warn" id="estado" role="status">Cargando el motor de visión…</span>
+</header>
+<div class="carga" aria-hidden="true"><i id="progreso"></i></div>
+
+<main class="wrap">
+  <section class="panel">
+    <h2>Placas de ejemplo</h2>
+    <div class="muestras" id="muestras"></div>
+    <h2>Tus imágenes</h2>
+    <p class="ayuda">Una foto o escaneo de una placa buena (referencia) y otra de la placa a revisar, del mismo diseño. Nada sale de tu equipo.</p>
+    <label>Referencia (placa buena)<input type="file" id="f-ref" accept="image/*"></label>
+    <label>Placa a inspeccionar<input type="file" id="f-placa" accept="image/*"></label>
+    <label>Cobre en la imagen
+      <select id="f-cobre"><option value="auto">Detectar</option><option value="claro">Claro sobre fondo oscuro</option><option value="oscuro">Oscuro sobre fondo claro</option></select>
+    </label>
+    <label>Resolución (px/mm)<input type="number" id="f-pxmm" min="1" max="500" step="0.1" value="48"></label>
+    <button type="button" class="primary" id="btn-subir" disabled>Inspeccionar</button>
+  </section>
+
+  <section class="visor">
+    <div class="panel veredicto" id="veredicto" hidden><b id="v-titulo"></b><span id="v-meta"></span></div>
+    <div class="barra">
+      <div class="tabs" role="tablist" aria-label="Imagen">
+        <button type="button" role="tab" data-vista="placa" aria-selected="true">Placa</button>
+        <button type="button" role="tab" data-vista="referencia" aria-selected="false">Referencia</button>
+        <button type="button" role="tab" data-vista="diferencias" aria-selected="false">Diferencias</button>
+      </div>
+      <div class="leyenda"><span><i style="background:var(--red)"></i>Crítico</span><span><i style="background:var(--amber)"></i>A revisar</span></div>
+    </div>
+    <div class="lienzo" id="lienzo"><p class="msg" id="mensaje">Preparando el motor de visión. Después elige una placa de ejemplo.</p></div>
+  </section>
+
+  <section class="panel lista">
+    <h2>Defectos</h2>
+    <div class="conteo" id="conteo"></div>
+    <ol id="lista"></ol>
+    <p class="vacio" id="vacio">Cada defecto aparece aquí con su posición. Tócalo para compararlo con la referencia.</p>
+  </section>
+</main>
+<p class="note">Placas de ejemplo: escaneos reales del conjunto DeepPCB (Tang y otros, 2019), uso con fines de investigación.</p>
+
+<script src="motor-aoi.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
+  const MUESTRAS = ['20085291', '00041208', '44000013', '90100084', '12100173', '12300122'];
+  const NOMBRES = { pista_abierta: 'Pista abierta', cortocircuito: 'Cortocircuito', mordida: 'Mordida', espolon: 'Espolón',
+    cobre_espurio: 'Cobre espurio', pinhole: 'Pinhole', pad_ausente: 'Pad ausente' };
+  const VEREDICTOS = { aprobada: 'Aprobada', revisar: 'Revisar', rechazada: 'Rechazada', error: 'No se pudo inspeccionar' };
+  const SEV = { critico: 'Crítico', revisar: 'Revisar' };
+  const COLOR = { critico: '#f87171', revisar: '#f59e0b' };
+  const LADO_MAX = 2000;
+  const mm = (v) => v.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let cv = null, motor = null, actual = null, vista = 'placa';
+
+  // ---------- carga de OpenCV.js con progreso (10 MB) ----------
+  async function cargarOpenCV() {
+    const r = await fetch('opencv.js');
+    if (!r.ok) throw new Error('no se pudo descargar opencv.js');
+    const total = +r.headers.get('content-length') || 10.3e6;
+    const lector = r.body.getReader();
+    const partes = [];
+    let recibido = 0;
+    for (;;) {
+      const { done, value } = await lector.read();
+      if (done) break;
+      partes.push(value);
+      recibido += value.length;
+      $('progreso').style.width = Math.min(100, recibido / total * 100).toFixed(0) + '%';
+      $('estado').textContent = `Cargando el motor de visión… ${Math.round(recibido / 1e6)} de ${Math.round(total / 1e6)} MB`;
+    }
+    const url = URL.createObjectURL(new Blob(partes, { type: 'text/javascript' }));
+    await new Promise((ok, mal) => { const s = document.createElement('script'); s.src = url; s.onload = ok; s.onerror = mal; document.head.append(s); });
+    let m = window.cv;
+    if (m instanceof Promise) m = await m;
+    if (!m.Mat) {
+      await new Promise((ok) => {
+        m.onRuntimeInitialized = ok;
+        const t = setInterval(() => { if (m.Mat) { clearInterval(t); ok(); } }, 100);
+      });
+    }
+    // El módulo de Emscripten tiene un método then: si se devolviera desde esta función async,
+    // la promesa intentaría adoptarlo sin fin y la página quedaría congelada.
+    cv = m;
+  }
+
+  // ---------- imágenes ----------
+  function cargarImagen(src) {
+    return new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error('No se pudo abrir la imagen')); i.src = src; });
+  }
+  function aGris(img) {
+    const s = Math.min(1, LADO_MAX / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * s);
+    c.height = Math.round(img.naturalHeight * s);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    const rgba = cv.matFromImageData(ctx.getImageData(0, 0, c.width, c.height));
+    const gris = new cv.Mat();
+    cv.cvtColor(rgba, gris, cv.COLOR_RGBA2GRAY);
+    rgba.delete();
+    return { mat: gris, escala: s };
+  }
+  function cobreAutomatico(gris) {
+    const b = new cv.Mat();
+    cv.threshold(gris, b, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+    const claro = cv.countNonZero(b) / (b.rows * b.cols) < 0.5;  // supuesto: el cobre ocupa menos de la mitad
+    b.delete();
+    return claro;
+  }
+
+  // ---------- dibujo ----------
+  function lienzoDe(w, h, pintar) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    pintar(img.data);
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+  const grisARgba = (g) => (d) => { for (let i = 0, j = 0; i < g.length; i++, j += 4) { d[j] = d[j + 1] = d[j + 2] = g[i]; d[j + 3] = 255; } };
+
+  function vistaPlaca(r) {
+    const s = Math.max(1, Math.floor(900 / r.ancho));
+    const base = lienzoDe(r.ancho, r.alto, grisARgba(r.alineada));
+    const c = document.createElement('canvas');
+    c.width = r.ancho * s; c.height = r.alto * s;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(base, 0, 0, c.width, c.height);
+    const g = Math.max(2, Math.round(c.width / 450));
+    ctx.font = `600 ${6 * g + 2}px ui-monospace, Consolas, monospace`;
+    for (const d of r.defectos) {
+      const [x1, y1, x2, y2] = d.caja.map((v) => v * s);
+      ctx.strokeStyle = ctx.fillStyle = COLOR[d.severidad];
+      ctx.lineWidth = g;
+      ctx.strokeRect(x1 - 4, y1 - 4, x2 - x1 + s + 8, y2 - y1 + s + 8);
+      const t = String(d.n), tw = ctx.measureText(t).width + 8, th = 6 * g + 6;
+      const ty = y1 - 4 - th > 0 ? y1 - 4 - th : y2 + s + 4;
+      ctx.fillRect(x1 - 4, ty, tw, th);
+      ctx.fillStyle = '#0b1220';
+      ctx.fillText(t, x1, ty + th - g - 2);
+    }
+    return c;
+  }
+  function vistaDiferencias(r) {
+    return lienzoDe(r.ancho, r.alto, (d) => {
+      for (let i = 0, j = 0; i < r.cobre.length; i++, j += 4) {
+        let c = r.cobre[i] ? [72, 80, 96] : [15, 23, 42];
+        if (r.exceso[i]) c = [248, 113, 113];
+        else if (r.deficit[i]) c = [245, 158, 11];
+        d[j] = c[0]; d[j + 1] = c[1]; d[j + 2] = c[2]; d[j + 3] = 255;
+      }
+    });
+  }
+  function recorte(gris, w, h, caja) {
+    const [x1, y1, x2, y2] = caja;
+    const r = Math.max(x2 - x1, y2 - y1) / 2 + 18, cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+    const ax = Math.max(0, Math.floor(cx - r)), ay = Math.max(0, Math.floor(cy - r));
+    const bx = Math.min(w, Math.ceil(cx + r)), by = Math.min(h, Math.ceil(cy + r));
+    const cw = bx - ax, ch = by - ay;
+    const c = lienzoDe(cw, ch, (d) => {
+      for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+        const v = gris[(ay + y) * w + ax + x], j = (y * cw + x) * 4;
+        d[j] = d[j + 1] = d[j + 2] = v; d[j + 3] = 255;
+      }
+    });
+    const ctx = c.getContext('2d');
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x1 - ax - 2.5, y1 - ay - 2.5, x2 - x1 + 6, y2 - y1 + 6);
+    return c;
+  }
+
+  function mostrarVista() {
+    if (!actual || !actual.r) return;
+    const r = actual.r;
+    const c = vista === 'placa' ? vistaPlaca(r) : vista === 'referencia' ? lienzoDe(r.ancho, r.alto, grisARgba(actual.referencia)) : vistaDiferencias(r);
+    c.setAttribute('role', 'img');
+    c.setAttribute('aria-label', { placa: 'Placa inspeccionada con los defectos numerados', referencia: 'Referencia', diferencias: 'Diferencias: rojo es cobre de más y ámbar cobre que falta' }[vista]);
+    $('lienzo').replaceChildren(c);
+  }
+
+  function mostrarError(texto) {
+    actual = null;
+    $('veredicto').hidden = false;
+    $('veredicto').className = 'panel veredicto error';
+    $('v-titulo').textContent = VEREDICTOS.error;
+    $('v-meta').textContent = '';
+    $('lienzo').replaceChildren(el('p', 'msg error', texto));
+    $('lista').replaceChildren();
+    $('conteo').replaceChildren();
+    $('vacio').hidden = false;
+    $('vacio').textContent = 'Sin resultado.';
+  }
+
+  function mostrar(nombre, r, referencia, pxmm) {
+    actual = { r, referencia };
+    $('veredicto').hidden = false;
+    $('veredicto').className = 'panel veredicto ' + r.veredicto;
+    $('v-titulo').textContent = VEREDICTOS[r.veredicto];
+    const n = r.defectos.length;
+    $('v-meta').textContent = `${nombre} · ${n === 1 ? '1 defecto' : n + ' defectos'} · ${(r.ms / 1000).toLocaleString('es-CL', { maximumFractionDigits: 1 })} s en tu navegador`;
+    mostrarVista();
+    const cuenta = {};
+    r.defectos.forEach((d) => { cuenta[d.tipo] = (cuenta[d.tipo] || 0) + 1; });
+    $('conteo').replaceChildren(...Object.entries(cuenta).map(([k, v]) => { const s = el('span'); s.append(document.createTextNode(NOMBRES[k] + ' '), el('b', '', String(v))); return s; }));
+    $('vacio').hidden = n > 0;
+    $('vacio').textContent = 'No se encontraron defectos.';
+    $('lista').replaceChildren(...r.defectos.map((d) => {
+      const li = el('li');
+      const b = el('button');
+      b.type = 'button';
+      b.setAttribute('aria-expanded', 'false');
+      const ancho = (d.caja[2] - d.caja[0] + 1) / pxmm, alto = (d.caja[3] - d.caja[1] + 1) / pxmm;
+      b.append(el('span', 'num ' + d.severidad, String(d.n)), el('span', 'tipo', NOMBRES[d.tipo]), el('span', 'sev ' + d.severidad, SEV[d.severidad]),
+        el('span', 'det', `x ${mm(d.x / pxmm)} · y ${mm(d.y / pxmm)} mm · ${mm(ancho)} × ${mm(alto)} mm`));
+      const zoom = el('div', 'zoom');
+      zoom.hidden = true;
+      b.addEventListener('click', () => {
+        if (!zoom.childElementCount) {
+          for (const [titulo, gris] of [['Referencia', referencia], ['Placa', r.alineada]]) {
+            const f = el('figure');
+            const c = recorte(gris, r.ancho, r.alto, d.caja);
+            c.setAttribute('role', 'img');
+            c.setAttribute('aria-label', `${titulo}, zona del defecto ${d.n}`);
+            f.append(c, el('figcaption', '', titulo));
+            zoom.append(f);
+          }
+        }
+        zoom.hidden = !zoom.hidden;
+        b.setAttribute('aria-expanded', String(!zoom.hidden));
+      });
+      li.append(b, zoom);
+      return li;
+    }));
+  }
+
+  // ---------- inspección ----------
+  async function inspeccionar(nombre, srcRef, srcPlaca, cobre, pxmm) {
+    $('lienzo').replaceChildren(el('p', 'msg', 'Inspeccionando…'));
+    await new Promise((ok) => setTimeout(ok, 30));  // deja pintar el aviso antes del cálculo
+    let ref = null, placa = null;
+    try {
+      const [ir, ip] = await Promise.all([cargarImagen(srcRef), cargarImagen(srcPlaca)]);
+      ref = aGris(ir);
+      placa = aGris(ip);
+      const cobreClaro = cobre === 'auto' ? cobreAutomatico(ref.mat) : cobre === 'claro';
+      const r = motor.inspeccionar(ref.mat, placa.mat, { cobreClaro, imagenes: true });
+      mostrar(nombre, r, new Uint8Array(ref.mat.data), pxmm * ref.escala);
+    } catch (e) {
+      mostrarError('No se pudo alinear la placa con la referencia. Revisa que sean del mismo diseño y que la placa salga completa en la imagen.');
+    } finally {
+      if (ref) ref.mat.delete();
+      if (placa) placa.mat.delete();
+    }
+  }
+
+  function pintarMuestras() {
+    $('muestras').replaceChildren(...MUESTRAS.map((id, i) => {
+      const b = el('button');
+      b.type = 'button';
+      b.disabled = !motor;
+      const img = el('img');
+      img.src = `muestras/${id}_placa.jpg`;
+      img.alt = '';
+      b.append(img, el('span', '', 'Placa ' + (i + 1)));
+      b.setAttribute('aria-label', 'Inspeccionar la placa de ejemplo ' + (i + 1));
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.muestras button').forEach((x) => x.classList.toggle('on', x === b));
+        inspeccionar('Placa de ejemplo ' + (i + 1), `muestras/${id}_referencia.jpg`, `muestras/${id}_placa.jpg`, 'oscuro', 48);
+      });
+      return b;
+    }));
+  }
+
+  document.querySelectorAll('[data-vista]').forEach((b) => b.addEventListener('click', () => {
+    vista = b.dataset.vista;
+    document.querySelectorAll('[data-vista]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+    mostrarVista();
+  }));
+  const listoSubir = () => { $('btn-subir').disabled = !motor || !$('f-ref').files.length || !$('f-placa').files.length; };
+  $('f-ref').addEventListener('change', listoSubir);
+  $('f-placa').addEventListener('change', listoSubir);
+  $('btn-subir').addEventListener('click', () => {
+    document.querySelectorAll('.muestras button').forEach((x) => x.classList.remove('on'));
+    const pxmm = Math.min(500, Math.max(1, +$('f-pxmm').value || 48));
+    const ur = URL.createObjectURL($('f-ref').files[0]), up = URL.createObjectURL($('f-placa').files[0]);
+    inspeccionar($('f-placa').files[0].name, ur, up, $('f-cobre').value, pxmm).finally(() => { URL.revokeObjectURL(ur); URL.revokeObjectURL(up); });
+  });
+
+  pintarMuestras();
+  cargarOpenCV().then(() => {
+    motor = MotorAOI.crear(cv);
+    $('estado').textContent = 'Motor listo';
+    $('estado').className = 'badge';
+    $('progreso').parentElement.hidden = true;
+    $('mensaje').textContent = 'Elige una placa de ejemplo o carga tus imágenes.';
+    pintarMuestras();
+    listoSubir();
+  }).catch(() => {
+    $('estado').textContent = 'No se pudo cargar el motor';
+    $('estado').className = 'badge bad';
+    $('mensaje').textContent = 'No se pudo descargar el motor de visión. Recarga la página para intentarlo de nuevo.';
+    $('mensaje').className = 'msg error';
+  });
+})();
+</script>
+</body>
+</html>

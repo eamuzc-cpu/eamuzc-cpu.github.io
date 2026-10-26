@@ -1093,6 +1093,53 @@ export const projects = [
     tools: { hardware: [], software: [{ es: 'Homografía', en: 'Homography' }, { es: 'Seguimiento de objetos', en: 'Object tracking' }, 'JavaScript', 'node:test'] },
   },
   {
+    slug: 'inspeccion-optica-pcb',
+    title: {
+      es: 'Inspección óptica automatizada de placas (AOI) que detecta y clasifica seis tipos de defecto',
+      en: 'Automated Optical Inspection (AOI) of PCBs that Detects and Classifies Six Defect Types',
+    },
+    client: { es: 'Proyecto personal', en: 'Personal project' },
+    category: 'vision',
+    year: 2026,
+    image: '/projects/inspeccion-optica-pcb.jpg',
+    demo: { src: '/demos/inspeccion-optica-pcb/index.html' },
+    resultBadge: {
+      es: 'F = 93,4 % en 500 placas reales que no se usaron para calibrar',
+      en: 'F = 93.4% on 500 real boards not used for calibration',
+    },
+    summary: {
+      es: 'Compara cada placa contra una referencia buena: la alinea a sub-píxel, separa el cobre de más y el que falta, y clasifica cada defecto según qué conductores toca o separa (cortocircuito, pista abierta, mordida, espolón, cobre espurio o pinhole). Entrega veredicto, posición en milímetros, historial e informe. La demo corre el mismo motor en el navegador con placas reales escaneadas.',
+      en: 'It compares each board against a good reference: it aligns it to sub-pixel accuracy, separates extra copper from missing copper, and classifies each defect by which conductors it touches or splits (short, open, mouse bite, spur, spurious copper or pinhole). It delivers a verdict, position in millimetres, history and a report. The demo runs the same engine in the browser with real scanned boards.',
+    },
+    stack: ['OpenCV', { es: 'Homografía ORB + ECC', en: 'ORB + ECC homography' }, 'Python · FastAPI', 'OpenCV.js'],
+    challenge: {
+      es: 'Comparar una placa con su referencia parece una resta de imágenes, pero un desfase de un píxel llena la placa de defectos falsos, las rayas del escáner parecen cortocircuitos, y distinguir una mordida de una pista cortada no depende del tamaño sino de si el conductor sigue conectado.',
+      en: 'Comparing a board with its reference looks like an image subtraction, but a one-pixel offset fills the board with false defects, scanner streaks look like shorts, and telling a mouse bite from a cut track does not depend on size but on whether the conductor is still connected.',
+    },
+    impact: {
+      es: 'Un cortocircuito o una pista abierta que pasa la inspección llega como falla al cliente; demasiados defectos falsos hacen que el operador deje de confiar en el sistema.',
+      en: 'A short or an open that passes inspection reaches the customer as a failure; too many false defects make the operator stop trusting the system.',
+    },
+    solution: {
+      es: 'El sistema alinea la placa con la referencia por homografía (puntos ORB, razón de Lowe y RANSAC) y la refina a sub-píxel con ECC; cuando la placa tiene pocas esquinas parte de la traslación de menor desajuste. Después binariza ambas con Otsu, separa el exceso de cobre de la falta de cobre, ignora la franja de un píxel pegada a los bordes de la referencia (diferencias de registro), descarta rayas de menos de dos píxeles de ancho y clasifica por topología: un exceso que une dos conductores es un cortocircuito, uno que toca uno solo es un espolón y uno suelto es cobre espurio; una falta que parte un conductor es una pista abierta, una que lo muerde sin cortarlo es una mordida y una rodeada de cobre es un pinhole. Los parámetros se calibraron con 1000 pares del conjunto DeepPCB (escaneos CCD reales de 48 px/mm) y la medición se hizo con otros 500: F = 93,4 % (precisión 92,4 %, recall 94,4 %, correcto = IoU mayor a 0,33 con la misma clase), 94,8 % en los grupos de escaneo que no aparecían en la calibración. Si se confía en la alineación que trae el conjunto, cae a 81,8 %. El programa local (Python y FastAPI) suma referencias, inspección por lote, veredicto de tres niveles, recortes de cada defecto, historial en SQLite, exportación a Excel e informe imprimible, y tarda unos 0,5 s por placa. La demo es el mismo motor escrito para OpenCV.js: en las mismas 500 placas da F = 94,1 % y tarda alrededor de 1 s por placa en el navegador. Buena parte de los defectos del conjunto se agregaron a mano sobre escaneos reales, y no se probó en una línea de producción con cámara.',
+      en: 'The system aligns the board with the reference by homography (ORB points, Lowe’s ratio and RANSAC) and refines it to sub-pixel accuracy with ECC; when the board has few corners it starts from the lowest-mismatch translation. It then binarizes both with Otsu, separates extra copper from missing copper, ignores the one-pixel band next to the reference’s edges (registration differences), discards streaks less than two pixels wide and classifies by topology: an excess that joins two conductors is a short, one that touches a single conductor is a spur and a loose one is spurious copper; a lack that splits a conductor is an open, one that bites it without cutting it is a mouse bite and one surrounded by copper is a pinhole. The parameters were calibrated with 1000 pairs from the DeepPCB set (real CCD scans at 48 px/mm) and the measurement was made on another 500: F = 93.4% (precision 92.4%, recall 94.4%, correct = IoU above 0.33 with the same class), 94.8% on the scan groups that did not appear in calibration. Trusting the alignment that ships with the set drops it to 81.8%. The local program (Python and FastAPI) adds references, batch inspection, a three-level verdict, crops of each defect, SQLite history, Excel export and a printable report, and takes about 0.5 s per board. The demo is the same engine written for OpenCV.js: on the same 500 boards it scores F = 94.1% and takes around 1 s per board in the browser. Many of the set’s defects were added by hand over real scans, and it was not tested on a production line with a camera.',
+    },
+    metrics: [
+      { label: { es: 'F en placas reales (500)', en: 'F on real boards (500)' }, value: { es: '93,4 %', en: '93.4%' } },
+      { label: { es: 'Precisión / recall', en: 'Precision / recall' }, value: { es: '92,4 / 94,4 %', en: '92.4 / 94.4%' } },
+      { label: { es: 'Tiempo por placa', en: 'Time per board' }, value: { es: '≈ 0,5 s', en: '≈ 0.5 s' } },
+    ],
+    diagram: {
+      nodes: [
+        { label: { es: 'Referencia y placa', en: 'Reference and board' }, sub: { es: 'escaneo o foto', en: 'scan or photo' } },
+        { label: { es: 'Alineación', en: 'Alignment' }, sub: 'ORB · RANSAC · ECC' },
+        { label: { es: 'Diferencia', en: 'Difference' }, sub: { es: 'exceso · falta', en: 'excess · lack' } },
+        { label: { es: 'Clasificación', en: 'Classification' }, sub: { es: 'topología · veredicto', en: 'topology · verdict' } },
+      ],
+    },
+    tools: { hardware: [], software: ['Python', 'OpenCV', 'FastAPI', 'SQLite', 'OpenCV.js', 'JavaScript'] },
+  },
+  {
     slug: 'tablero-electrico',
     title: {
       es: 'Dimensionamiento de un tablero eléctrico: protecciones, cables, lista de materiales y unifilar',
